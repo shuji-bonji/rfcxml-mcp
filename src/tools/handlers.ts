@@ -2,8 +2,9 @@
  * MCP ツールハンドラー
  */
 
-import { fetchRFCXML } from '../services/rfc-fetcher.js';
-import { parseRFCXML, extractRequirements } from '../services/rfcxml-parser.js';
+import { fetchRFCXML, fetchRFCText, RFCXMLNotAvailableError } from '../services/rfc-fetcher.js';
+import { parseRFCXML, extractRequirements, type ParsedRFC } from '../services/rfcxml-parser.js';
+import { parseRFCText } from '../services/rfc-text-parser.js';
 import type {
   GetRFCStructureArgs,
   GetRequirementsArgs,
@@ -16,29 +17,69 @@ import type {
   RequirementLevel,
 } from '../types/index.js';
 
+/**
+ * パース結果とソース情報
+ */
+interface ParsedRFCWithSource {
+  data: ParsedRFC;
+  source: 'xml' | 'text';
+}
+
 // パースキャッシュ
-const parseCache = new Map<number, ReturnType<typeof parseRFCXML>>();
+const parseCache = new Map<number, ParsedRFCWithSource>();
 
 /**
- * RFCXML を取得してパース（キャッシュ付き）
+ * パースキャッシュをクリア（テスト用）
  */
-async function getParsedRFC(rfcNumber: number) {
+export function clearParseCache(): void {
+  parseCache.clear();
+}
+
+/**
+ * RFCXML を取得してパース（キャッシュ付き、フォールバック対応）
+ */
+async function getParsedRFC(rfcNumber: number): Promise<ParsedRFCWithSource> {
   const cached = parseCache.get(rfcNumber);
   if (cached) {
     return cached;
   }
 
-  const xml = await fetchRFCXML(rfcNumber);
-  const parsed = parseRFCXML(xml);
-  parseCache.set(rfcNumber, parsed);
-  return parsed;
+  // まず XML を試す
+  try {
+    const xml = await fetchRFCXML(rfcNumber);
+    const parsed = parseRFCXML(xml);
+    const result: ParsedRFCWithSource = { data: parsed, source: 'xml' };
+    parseCache.set(rfcNumber, result);
+    return result;
+  } catch (xmlError) {
+    // XML 取得失敗 → テキストフォールバック
+    if (xmlError instanceof RFCXMLNotAvailableError && xmlError.isOldRFC) {
+      console.error(`[RFC ${rfcNumber}] XML not available, trying text fallback...`);
+      try {
+        const text = await fetchRFCText(rfcNumber);
+        const parsed = parseRFCText(text, rfcNumber);
+        const result: ParsedRFCWithSource = { data: parsed, source: 'text' };
+        parseCache.set(rfcNumber, result);
+        return result;
+      } catch (textError) {
+        // テキストも失敗
+        throw new Error(
+          `RFC ${rfcNumber} の取得に失敗しました。\n` +
+            `XML: ${xmlError.message}\n` +
+            `Text: ${textError instanceof Error ? textError.message : String(textError)}`
+        );
+      }
+    }
+    // 新しい RFC の場合はそのままエラーを伝播
+    throw xmlError;
+  }
 }
 
 /**
  * get_rfc_structure ハンドラー
  */
 export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
-  const parsed = await getParsedRFC(args.rfc);
+  const { data: parsed, source } = await getParsedRFC(args.rfc);
 
   // セクション構造を簡略化
   function simplifySection(section: any, includeContent: boolean): any {
@@ -53,9 +94,7 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
     }
 
     if (section.subsections?.length > 0) {
-      result.subsections = section.subsections.map((s: any) =>
-        simplifySection(s, includeContent)
-      );
+      result.subsections = section.subsections.map((s: any) => simplifySection(s, includeContent));
     }
 
     return result;
@@ -63,11 +102,14 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
 
   return {
     metadata: parsed.metadata,
-    sections: parsed.sections.map(s => simplifySection(s, args.includeContent ?? false)),
+    sections: parsed.sections.map((s) => simplifySection(s, args.includeContent ?? false)),
     referenceCount: {
       normative: parsed.references.normative.length,
       informative: parsed.references.informative.length,
     },
+    _source: source,
+    _sourceNote:
+      source === 'text' ? '⚠️ テキストからの解析結果です。精度が低い可能性があります。' : undefined,
   };
 }
 
@@ -75,8 +117,8 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
  * get_requirements ハンドラー
  */
 export async function handleGetRequirements(args: GetRequirementsArgs) {
-  const parsed = await getParsedRFC(args.rfc);
-  
+  const { data: parsed, source } = await getParsedRFC(args.rfc);
+
   const requirements = extractRequirements(parsed.sections, {
     section: args.section,
     level: args.level as RequirementLevel,
@@ -100,6 +142,11 @@ export async function handleGetRequirements(args: GetRequirementsArgs) {
     },
     stats,
     requirements,
+    _source: source,
+    _sourceNote:
+      source === 'text'
+        ? '⚠️ テキストからの解析結果です。要件の抽出精度が低い可能性があります。'
+        : undefined,
   };
 }
 
@@ -107,16 +154,16 @@ export async function handleGetRequirements(args: GetRequirementsArgs) {
  * get_definitions ハンドラー
  */
 export async function handleGetDefinitions(args: GetDefinitionsArgs) {
-  const parsed = await getParsedRFC(args.rfc);
-  
+  const { data: parsed, source } = await getParsedRFC(args.rfc);
+
   let definitions = parsed.definitions;
 
   // 用語でフィルタ
   if (args.term) {
     const searchTerm = args.term.toLowerCase();
-    definitions = definitions.filter(d =>
-      d.term.toLowerCase().includes(searchTerm) ||
-      d.definition.toLowerCase().includes(searchTerm)
+    definitions = definitions.filter(
+      (d) =>
+        d.term.toLowerCase().includes(searchTerm) || d.definition.toLowerCase().includes(searchTerm)
     );
   }
 
@@ -125,6 +172,11 @@ export async function handleGetDefinitions(args: GetDefinitionsArgs) {
     searchTerm: args.term,
     count: definitions.length,
     definitions,
+    _source: source,
+    _sourceNote:
+      source === 'text'
+        ? '⚠️ テキストからの解析結果です。定義の抽出精度が低い可能性があります。'
+        : undefined,
   };
 }
 
@@ -132,21 +184,27 @@ export async function handleGetDefinitions(args: GetDefinitionsArgs) {
  * get_rfc_dependencies ハンドラー
  */
 export async function handleGetDependencies(args: GetDependenciesArgs) {
-  const parsed = await getParsedRFC(args.rfc);
+  const { data: parsed, source } = await getParsedRFC(args.rfc);
 
   const result: any = {
     rfc: args.rfc,
-    normative: parsed.references.normative.map(ref => ({
+    normative: parsed.references.normative.map((ref) => ({
       rfcNumber: ref.rfcNumber,
       title: ref.title,
       anchor: ref.anchor,
     })),
-    informative: parsed.references.informative.map(ref => ({
+    informative: parsed.references.informative.map((ref) => ({
       rfcNumber: ref.rfcNumber,
       title: ref.title,
       anchor: ref.anchor,
     })),
+    _source: source,
   };
+
+  // テキストソースの場合は参照情報が取得できない
+  if (source === 'text') {
+    result._sourceNote = '⚠️ テキストからの解析のため、参照情報は取得できません。';
+  }
 
   // TODO: referencedBy は IETF Datatracker API から取得
   if (args.includeReferencedBy) {
@@ -158,22 +216,43 @@ export async function handleGetDependencies(args: GetDependenciesArgs) {
 }
 
 /**
+ * セクション番号を正規化（section-3.5 → 3.5）
+ */
+function normalizeSectionNumber(sectionId: string): string {
+  return sectionId.replace(/^section-/, '');
+}
+
+/**
+ * セクションを検索（複数の形式に対応）
+ */
+function findSection(sections: any[], target: string): any | null {
+  const normalizedTarget = normalizeSectionNumber(target);
+
+  for (const sec of sections) {
+    // 各形式でマッチを試みる
+    const secNumber = sec.number ? normalizeSectionNumber(sec.number) : '';
+    const secAnchor = sec.anchor ? normalizeSectionNumber(sec.anchor) : '';
+
+    if (
+      secNumber === normalizedTarget ||
+      secAnchor === normalizedTarget ||
+      sec.number === target ||
+      sec.anchor === target
+    ) {
+      return sec;
+    }
+
+    const found = findSection(sec.subsections || [], target);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
  * get_related_sections ハンドラー
  */
 export async function handleGetRelatedSections(args: { rfc: number; section: string }) {
-  const parsed = await getParsedRFC(args.rfc);
-  
-  // 指定セクションを探す
-  function findSection(sections: any[], target: string): any | null {
-    for (const sec of sections) {
-      if (sec.number === target || sec.anchor === target) {
-        return sec;
-      }
-      const found = findSection(sec.subsections || [], target);
-      if (found) return found;
-    }
-    return null;
-  }
+  const { data: parsed, source } = await getParsedRFC(args.rfc);
 
   const targetSection = findSection(parsed.sections, args.section);
   if (!targetSection) {
@@ -184,7 +263,7 @@ export async function handleGetRelatedSections(args: { rfc: number; section: str
 
   // クロスリファレンスを収集
   const relatedSections = new Set<string>();
-  
+
   for (const block of targetSection.content || []) {
     if (block.type === 'text' && block.crossReferences) {
       for (const ref of block.crossReferences) {
@@ -199,13 +278,18 @@ export async function handleGetRelatedSections(args: { rfc: number; section: str
     rfc: args.rfc,
     section: args.section,
     title: targetSection.title,
-    relatedSections: Array.from(relatedSections).map(secNum => {
+    relatedSections: Array.from(relatedSections).map((secNum) => {
       const sec = findSection(parsed.sections, secNum);
       return {
         number: secNum,
         title: sec?.title || 'Unknown',
       };
     }),
+    _source: source,
+    _sourceNote:
+      source === 'text'
+        ? '⚠️ テキストからの解析結果です。関連セクションの精度が低い可能性があります。'
+        : undefined,
   };
 }
 
@@ -213,41 +297,40 @@ export async function handleGetRelatedSections(args: { rfc: number; section: str
  * generate_checklist ハンドラー
  */
 export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
-  const parsed = await getParsedRFC(args.rfc);
+  const { data: parsed, source } = await getParsedRFC(args.rfc);
   const requirements = extractRequirements(parsed.sections, {
     section: args.sections?.[0],
   });
 
   // 役割でフィルタ（簡易実装：subject に基づく）
-  const filteredReqs = args.role && args.role !== 'both'
-    ? requirements.filter(r => {
-        const subject = r.subject?.toLowerCase() || '';
-        if (args.role === 'client') {
-          return subject.includes('client') || !subject.includes('server');
-        }
-        return subject.includes('server') || !subject.includes('client');
-      })
-    : requirements;
+  const filteredReqs =
+    args.role && args.role !== 'both'
+      ? requirements.filter((r) => {
+          const subject = r.subject?.toLowerCase() || '';
+          if (args.role === 'client') {
+            return subject.includes('client') || !subject.includes('server');
+          }
+          return subject.includes('server') || !subject.includes('client');
+        })
+      : requirements;
 
   // レベル別に分類
-  const must = filteredReqs.filter(r =>
+  const must = filteredReqs.filter((r) =>
     ['MUST', 'MUST NOT', 'REQUIRED', 'SHALL', 'SHALL NOT'].includes(r.level)
   );
-  const should = filteredReqs.filter(r =>
+  const should = filteredReqs.filter((r) =>
     ['SHOULD', 'SHOULD NOT', 'RECOMMENDED', 'NOT RECOMMENDED'].includes(r.level)
   );
-  const may = filteredReqs.filter(r =>
-    ['MAY', 'OPTIONAL'].includes(r.level)
-  );
+  const may = filteredReqs.filter((r) => ['MAY', 'OPTIONAL'].includes(r.level));
 
   // Markdown 生成
   const markdown = generateChecklistMarkdown({
     rfc: args.rfc,
     title: parsed.metadata.title,
     role: args.role,
-    must: must.map(r => ({ id: r.id, requirement: r, checked: false })),
-    should: should.map(r => ({ id: r.id, requirement: r, checked: false })),
-    may: may.map(r => ({ id: r.id, requirement: r, checked: false })),
+    must: must.map((r) => ({ id: r.id, requirement: r, checked: false })),
+    should: should.map((r) => ({ id: r.id, requirement: r, checked: false })),
+    may: may.map((r) => ({ id: r.id, requirement: r, checked: false })),
     generatedAt: new Date().toISOString(),
   });
 
@@ -261,6 +344,11 @@ export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
       total: filteredReqs.length,
     },
     markdown,
+    _source: source,
+    _sourceNote:
+      source === 'text'
+        ? '⚠️ テキストからの解析結果です。チェックリストの精度が低い可能性があります。'
+        : undefined,
   };
 }
 
@@ -315,16 +403,16 @@ function generateChecklistMarkdown(checklist: ImplementationChecklist): string {
  * validate_statement ハンドラー
  */
 export async function handleValidateStatement(args: ValidateStatementArgs) {
-  const parsed = await getParsedRFC(args.rfc);
+  const { data: parsed, source } = await getParsedRFC(args.rfc);
   const requirements = extractRequirements(parsed.sections);
 
   // 簡易的なキーワードマッチング
   const statementLower = args.statement.toLowerCase();
-  const keywords = statementLower.split(/\s+/).filter(w => w.length > 3);
+  const keywords = statementLower.split(/\s+/).filter((w) => w.length > 3);
 
-  const matchingRequirements = requirements.filter(req => {
+  const matchingRequirements = requirements.filter((req) => {
     const reqText = (req.text + ' ' + req.fullContext).toLowerCase();
-    return keywords.some(kw => reqText.includes(kw));
+    return keywords.some((kw) => reqText.includes(kw));
   });
 
   // 矛盾検出（簡易版）
@@ -337,8 +425,14 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
     isValid: conflicts.length === 0,
     matchingRequirements: matchingRequirements.slice(0, 10), // 上位10件
     conflicts,
-    suggestions: matchingRequirements.length === 0
-      ? ['該当する要件が見つかりませんでした。キーワードを変えて再検索してください。']
-      : undefined,
+    suggestions:
+      matchingRequirements.length === 0
+        ? ['該当する要件が見つかりませんでした。キーワードを変えて再検索してください。']
+        : undefined,
+    _source: source,
+    _sourceNote:
+      source === 'text'
+        ? '⚠️ テキストからの解析結果です。検証精度が低い可能性があります。'
+        : undefined,
   };
 }

@@ -1,51 +1,47 @@
 # RFCXML MCP Server
 
-RFC 文書を **構造的に理解** するための MCP サーバー。
+A Model Context Protocol (MCP) server for **structured understanding** of RFC documents.
 
-## 目的
+## Purpose
 
-既存の RFC MCP サーバー（テキストベース）と異なり、RFCXML の意味構造を活用して：
+Unlike existing text-based RFC MCP servers, this server leverages the semantic structure of RFCXML to enable:
 
-- **規範性要件（MUST/SHOULD/MAY）** の抽出・構造化
-- **RFC 間依存関係グラフ** の構築
-- **定義語のスコープ管理**
-- **実装チェックリストの自動生成**
+- **Normative requirements extraction** (MUST/SHOULD/MAY) with structured output
+- **RFC dependency graph** construction
+- **Definition scope management**
+- **Implementation checklist generation**
 
-を可能にする。
-
-## レイヤー構造
+## Architecture
 
 ```
 ┌─────────────────────────┐
-│  Markdown / PDF         │  表示・共有
+│  Markdown / PDF         │  Display & Sharing
 ├─────────────────────────┤
-│  翻訳                   │  説明・検証・普及
+│  Translation            │  Explanation & Verification
 ├─────────────────────────┤
-│  RFCXML MCP             │  AI と人の共通理解基盤
+│  RFCXML MCP             │  Common Understanding for AI & Humans
 ├─────────────────────────┤
-│  RFCXML                 │  唯一の真実（Single Source of Truth）
+│  RFCXML                 │  Single Source of Truth
 └─────────────────────────┘
 ```
 
-## 既存 MCP との違い
+## Comparison with Existing MCPs
 
-| 機能 | 既存 mcp-rfc | RFCXML MCP |
-|------|-------------|------------|
-| RFC テキスト取得 | ✅ | ✅ |
-| セクション抽出 | ✅ (テキストベース) | ✅ (構造ベース) |
-| MUST/SHOULD/MAY 抽出 | ❌ | ✅ |
-| 条件・例外の構造化 | ❌ | ✅ |
-| RFC 間依存グラフ | ❌ | ✅ |
-| 定義スコープ管理 | ❌ | ✅ |
-| 実装チェックリスト | ❌ | ✅ |
+| Feature | Existing mcp-rfc | RFCXML MCP |
+|---------|------------------|------------|
+| RFC text retrieval | ✅ | ✅ |
+| Section extraction | ✅ (text-based) | ✅ (structure-based) |
+| MUST/SHOULD/MAY extraction | ❌ | ✅ |
+| Condition/exception structuring | ❌ | ✅ |
+| RFC dependency graph | ❌ | ✅ |
+| Definition scope management | ❌ | ✅ |
+| Implementation checklist | ❌ | ✅ |
 
-## インストール
+## Quick Start
 
-```bash
-npm install @shuji-bonji/rfcxml-mcp
-```
+### Using with Claude Desktop / Claude Code
 
-## MCP 設定
+Add the following to your MCP configuration file:
 
 ```json
 {
@@ -58,30 +54,83 @@ npm install @shuji-bonji/rfcxml-mcp
 }
 ```
 
-## 利用可能なツール
+Configuration file locations:
+- **Claude Desktop (macOS)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Claude Code**: `.claude/settings.json` or use `claude settings` command
 
-### Phase 1: 基本構造
+### Installation (Optional)
 
-- `get_rfc_structure` - セクション階層とメタデータ取得
-- `get_requirements` - 規範性要件（MUST/SHOULD/MAY）の構造化抽出
-- `get_definitions` - 用語定義とスコープ
+For global installation:
 
-### Phase 2: 関係性
+```bash
+npm install -g @shuji-bonji/rfcxml-mcp
 
-- `get_rfc_dependencies` - 参照 RFC（normative/informative）
-- `get_related_sections` - 関連セクション（同一 RFC 内）
+# MCP configuration
+{
+  "mcpServers": {
+    "rfcxml": {
+      "command": "rfcxml-mcp"
+    }
+  }
+}
+```
 
-### Phase 3: 検証支援
+## Available Tools
 
-- `validate_statement` - 主張が RFC に準拠しているか検証
-- `generate_checklist` - 実装チェックリスト生成
+### Phase 1: Basic Structure
 
-## 使用例
+- `get_rfc_structure` - Get section hierarchy and metadata
+- `get_requirements` - Extract normative requirements (MUST/SHOULD/MAY) with structure
+- `get_definitions` - Get term definitions and their scope
 
-### 規範性要件の抽出
+### Phase 2: Relationships
+
+- `get_rfc_dependencies` - Get referenced RFCs (normative/informative)
+- `get_related_sections` - Get related sections within the same RFC
+
+### Phase 3: Verification Support
+
+- `validate_statement` - Verify if a statement complies with RFC requirements
+- `generate_checklist` - Generate implementation checklist
+
+## Legacy RFC Support
+
+RFCs published after RFC 8650 (December 2019) are available in official RFCXML v3 format. Earlier RFCs may not have XML available.
+
+This server includes **automatic fallback** functionality - when XML is unavailable, it parses the text format instead.
+
+### Source Information
+
+All responses include source information:
+
+```json
+{
+  "rfc": 6455,
+  "sections": [...],
+  "_source": "text",
+  "_sourceNote": "⚠️ Parsed from text format. Accuracy may be lower."
+}
+```
+
+| `_source` | Description |
+|-----------|-------------|
+| `xml` | Parsed from RFCXML (high accuracy) |
+| `text` | Parsed from text (medium accuracy) |
+
+### Compatibility
+
+| RFC | Format | Notes |
+|-----|--------|-------|
+| RFC 8650+ | XML | Official RFCXML v3 support |
+| Before RFC 8650 | Text | Automatic fallback |
+
+## Usage Examples
+
+### Extracting Normative Requirements
 
 ```typescript
-// ツール呼び出し
+// Tool call
 {
   "tool": "get_requirements",
   "arguments": {
@@ -90,7 +139,7 @@ npm install @shuji-bonji/rfcxml-mcp
   }
 }
 
-// 結果
+// Result
 {
   "section": "5.5.1",
   "title": "Close",
@@ -108,10 +157,10 @@ npm install @shuji-bonji/rfcxml-mcp
 }
 ```
 
-### 実装チェックリスト生成
+### Generating Implementation Checklist
 
 ```typescript
-// ツール呼び出し
+// Tool call
 {
   "tool": "generate_checklist",
   "arguments": {
@@ -120,40 +169,46 @@ npm install @shuji-bonji/rfcxml-mcp
   }
 }
 
-// 結果（Markdown）
-## RFC 6455 WebSocket Client 実装チェックリスト
+// Result (Markdown)
+## RFC 6455 WebSocket Client Implementation Checklist
 
-### 必須要件 (MUST)
-- [ ] Opening Handshake で Sec-WebSocket-Key を含める (Section 4.1)
-- [ ] Close フレーム受信後、TCP 接続を閉じる (Section 5.5.1)
-- [ ] マスクキーは予測不可能である必要がある (Section 5.3)
+### Required (MUST)
+- [ ] Include Sec-WebSocket-Key in Opening Handshake (Section 4.1)
+- [ ] Close TCP connection after receiving Close frame (Section 5.5.1)
+- [ ] Mask key must be unpredictable (Section 5.3)
 
-### 推奨要件 (SHOULD)
-- [ ] Close フレームには理由を含める (Section 7.1.6)
+### Recommended (SHOULD)
+- [ ] Include reason in Close frame (Section 7.1.6)
 ```
 
-## 開発
+## Development
 
 ```bash
-# 依存関係インストール
+# Install dependencies
 npm install
 
-# 開発モード
+# Development mode
 npm run dev
 
-# ビルド
+# Build
 npm run build
 
-# テスト
+# Test
 npm test
+
+# Lint
+npm run lint
+
+# Format
+npm run format
 ```
 
-## ライセンス
+## License
 
 MIT
 
-## 関連プロジェクト
+## Related Projects
 
-- [mjpitz/mcp-rfc](https://github.com/mjpitz/mcp-rfc) - テキストベースの RFC MCP
-- [ietf-tools/RFCXML](https://github.com/ietf-tools/RFCXML) - RFCXML スキーマ
-- [xml2rfc](https://xml2rfc.ietf.org/) - IETF 公式ツール
+- [mjpitz/mcp-rfc](https://github.com/mjpitz/mcp-rfc) - Text-based RFC MCP
+- [ietf-tools/RFCXML](https://github.com/ietf-tools/RFCXML) - RFCXML schema
+- [xml2rfc](https://xml2rfc.ietf.org/) - IETF official tool

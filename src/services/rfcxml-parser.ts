@@ -31,10 +31,7 @@ const REQUIREMENT_KEYWORDS: RequirementLevel[] = [
 ];
 
 // キーワードの正規表現（長い順にマッチ）
-const REQUIREMENT_REGEX = new RegExp(
-  `\\b(${REQUIREMENT_KEYWORDS.join('|')})\\b`,
-  'g'
-);
+const REQUIREMENT_REGEX = new RegExp(`\\b(${REQUIREMENT_KEYWORDS.join('|')})\\b`, 'g');
 
 /**
  * XML パーサー設定
@@ -83,7 +80,7 @@ export interface ParsedRFC {
  */
 function extractMetadata(rfc: any): ParsedRFC['metadata'] {
   const front = rfc.front || {};
-  
+
   return {
     title: extractText(front.title) || 'Untitled',
     docName: rfc['@_docName'],
@@ -96,16 +93,18 @@ function extractMetadata(rfc: any): ParsedRFC['metadata'] {
  */
 function extractSections(sections: any | any[]): Section[] {
   if (!sections) return [];
-  
+
   const sectionArray = Array.isArray(sections) ? sections : [sections];
-  
-  return sectionArray.map((sec): Section => ({
-    anchor: sec['@_anchor'],
-    number: sec['@_pn'] || sec['@_numbered'],
-    title: extractText(sec.name) || 'Untitled Section',
-    content: extractContent(sec),
-    subsections: extractSections(sec.section),
-  }));
+
+  return sectionArray.map(
+    (sec): Section => ({
+      anchor: sec['@_anchor'],
+      number: sec['@_pn'] || sec['@_numbered'],
+      title: extractText(sec.name) || 'Untitled Section',
+      content: extractContent(sec),
+      subsections: extractSections(sec.section),
+    })
+  );
 }
 
 /**
@@ -128,7 +127,7 @@ function extractContent(section: any): ContentBlock[] {
     blocks.push({
       type: 'list',
       style: 'symbols',
-      items: toArray(list.li).map(li => ({
+      items: toArray(list.li).map((li) => ({
         content: extractText(li),
         requirements: extractRequirementMarkers(extractText(li)),
       })),
@@ -139,7 +138,7 @@ function extractContent(section: any): ContentBlock[] {
     blocks.push({
       type: 'list',
       style: 'numbers',
-      items: toArray(list.li).map(li => ({
+      items: toArray(list.li).map((li) => ({
         content: extractText(li),
         requirements: extractRequirementMarkers(extractText(li)),
       })),
@@ -183,7 +182,7 @@ function createTextBlock(text: string): TextBlock {
  */
 function extractRequirementMarkers(text: string): TextBlock['requirements'] {
   const markers: TextBlock['requirements'] = [];
-  
+
   let match: RegExpExecArray | null;
   while ((match = REQUIREMENT_REGEX.exec(text)) !== null) {
     markers.push({
@@ -207,7 +206,7 @@ export function extractRequirements(
 
   function processSection(section: Section, path: string) {
     const sectionId = section.number || section.anchor || path;
-    
+
     // フィルタリング
     if (filter?.section && !sectionId.startsWith(filter.section)) {
       // サブセクションも処理するため、完全一致ではなく前方一致
@@ -223,7 +222,7 @@ export function extractRequirements(
 
           // 文を抽出（マーカー位置から文末まで）
           const sentence = extractSentence(block.content, marker.position);
-          
+
           requirements.push({
             id: `R-${sectionId}-${idCounter++}`,
             level: marker.level,
@@ -274,10 +273,7 @@ export function extractRequirements(
 /**
  * 要件文から構成要素を解析
  */
-function parseRequirementComponents(
-  text: string,
-  level: RequirementLevel
-): Partial<Requirement> {
+function parseRequirementComponents(text: string, level: RequirementLevel): Partial<Requirement> {
   const result: Partial<Requirement> = {};
 
   // 主語の抽出（"The client MUST" → "client"）
@@ -316,12 +312,39 @@ function extractReferences(referenceSections: any | any[]): ParsedRFC['reference
     informative: [] as RFCReference[],
   };
 
-  const sections = toArray(referenceSections);
-  
-  for (const refSection of sections) {
-    const isNormative = 
-      refSection['@_anchor']?.toLowerCase().includes('normative') ||
-      extractText(refSection.name)?.toLowerCase().includes('normative');
+  // 入れ子構造に対応: 外側のreferencesコンテナをフラット化
+  function collectReferenceSections(sections: any | any[]): any[] {
+    const collected: any[] = [];
+    const sectionArray = toArray(sections);
+
+    for (const section of sectionArray) {
+      // 直接 reference を持つセクション
+      if (section.reference || section.referencegroup) {
+        collected.push(section);
+      }
+      // 入れ子の references を持つ場合（親コンテナ）
+      if (section.references) {
+        collected.push(...collectReferenceSections(section.references));
+      }
+    }
+
+    return collected;
+  }
+
+  const flatSections = collectReferenceSections(referenceSections);
+
+  for (const refSection of flatSections) {
+    // normative/informative の判定: name, anchor, pn, slugifiedName をチェック
+    const sectionName = extractText(refSection.name)?.toLowerCase() || '';
+    const anchorAttr = (refSection['@_anchor'] || '').toLowerCase();
+    const pnAttr = (refSection['@_pn'] || '').toLowerCase();
+    const slugAttr = refSection.name?.['@_slugifiedName']?.toLowerCase() || '';
+
+    const isNormative =
+      sectionName.includes('normative') ||
+      anchorAttr.includes('normative') ||
+      pnAttr.includes('normative') ||
+      slugAttr.includes('normative');
 
     const refs = toArray(refSection.reference).concat(
       toArray(refSection.referencegroup).flatMap((g: any) => toArray(g.reference))
@@ -346,7 +369,7 @@ function extractReferences(referenceSections: any | any[]): ParsedRFC['reference
 function parseReference(ref: any, type: 'normative' | 'informative'): RFCReference {
   const front = ref.front || {};
   const seriesInfo = toArray(ref.seriesInfo);
-  
+
   let rfcNumber: number | undefined;
   for (const info of seriesInfo) {
     if (info['@_name'] === 'RFC') {
@@ -368,7 +391,7 @@ function parseReference(ref: any, type: 'normative' | 'informative'): RFCReferen
  */
 function extractDefinitions(rfc: any): Definition[] {
   const definitions: Definition[] = [];
-  
+
   // 再帰的に <dl> を探す
   function findDefinitionLists(obj: any, section: string = '') {
     if (!obj || typeof obj !== 'object') return;
@@ -378,11 +401,11 @@ function extractDefinitions(rfc: any): Definition[] {
       for (const dl of dls) {
         const dts = toArray(dl.dt);
         const dds = toArray(dl.dd);
-        
+
         for (let i = 0; i < dts.length; i++) {
           const term = extractText(dts[i]);
           const definition = extractText(dds[i]);
-          
+
           if (term && definition) {
             definitions.push({
               term,
@@ -452,7 +475,7 @@ function extractText(node: any): string {
   if (!node) return '';
   if (typeof node === 'string') return node;
   if (typeof node === 'number') return String(node);
-  
+
   if (node['#text']) {
     return String(node['#text']);
   }
@@ -461,7 +484,7 @@ function extractText(node: any): string {
   let text = '';
   for (const key of Object.keys(node)) {
     if (key.startsWith('@_')) continue; // 属性をスキップ
-    
+
     const value = node[key];
     if (Array.isArray(value)) {
       text += value.map(extractText).join(' ');

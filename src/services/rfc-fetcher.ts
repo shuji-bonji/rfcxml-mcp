@@ -7,6 +7,7 @@ import type { RFCMetadata } from '../types/index.js';
 
 // キャッシュ（メモリ内）
 const xmlCache = new Map<number, string>();
+const textCache = new Map<number, string>();
 const metadataCache = new Map<number, RFCMetadata>();
 
 /**
@@ -22,6 +23,16 @@ const RFC_XML_SOURCES = {
 };
 
 /**
+ * RFC テキストソースの取得元
+ */
+const RFC_TEXT_SOURCES = {
+  // RFC Editor 公式（テキスト）
+  rfcEditor: (num: number) => `https://www.rfc-editor.org/rfc/rfc${num}.txt`,
+  // IETF Tools
+  ietfTools: (num: number) => `https://tools.ietf.org/rfc/rfc${num}.txt`,
+};
+
+/**
  * RFCXML を取得
  */
 export async function fetchRFCXML(rfcNumber: number): Promise<string> {
@@ -33,20 +44,20 @@ export async function fetchRFCXML(rfcNumber: number): Promise<string> {
 
   // 複数ソースを試行
   const errors: Error[] = [];
-  
+
   for (const [sourceName, urlFn] of Object.entries(RFC_XML_SOURCES)) {
     try {
       const url = urlFn(rfcNumber);
       const response = await fetch(url, {
         headers: {
-          'Accept': 'application/xml, text/xml',
-          'User-Agent': 'rfcxml-mcp/0.1.0'
-        }
+          Accept: 'application/xml, text/xml',
+          'User-Agent': 'rfcxml-mcp/0.1.0',
+        },
       });
-      
+
       if (response.ok) {
         const xml = await response.text();
-        
+
         // 基本的な XML 検証
         if (xml.includes('<?xml') || xml.includes('<rfc')) {
           xmlCache.set(rfcNumber, xml);
@@ -60,9 +71,9 @@ export async function fetchRFCXML(rfcNumber: number): Promise<string> {
   }
 
   // すべて失敗した場合
-  throw new Error(
-    `Failed to fetch RFC ${rfcNumber} XML from all sources. ` +
-    `Errors: ${errors.map(e => e.message).join(', ')}`
+  throw new RFCXMLNotAvailableError(
+    rfcNumber,
+    errors.map((e) => e.message)
   );
 }
 
@@ -77,27 +88,27 @@ export async function fetchRFCMetadata(rfcNumber: number): Promise<RFCMetadata> 
   }
 
   const url = `https://datatracker.ietf.org/api/v1/doc/document/rfc${rfcNumber}/`;
-  
+
   try {
     const response = await fetch(url, {
       headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'rfcxml-mcp/0.1.0'
-      }
+        Accept: 'application/json',
+        'User-Agent': 'rfcxml-mcp/0.1.0',
+      },
     });
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       title?: string;
       time?: string;
       std_level?: string;
       stream?: string;
       abstract?: string;
     };
-    
+
     const metadata: RFCMetadata = {
       number: rfcNumber,
       title: data.title || `RFC ${rfcNumber}`,
@@ -110,7 +121,7 @@ export async function fetchRFCMetadata(rfcNumber: number): Promise<RFCMetadata> 
 
     metadataCache.set(rfcNumber, metadata);
     return metadata;
-  } catch (error) {
+  } catch (_error) {
     // フォールバック: 最小限のメタデータ
     return {
       number: rfcNumber,
@@ -124,6 +135,51 @@ export async function fetchRFCMetadata(rfcNumber: number): Promise<RFCMetadata> 
 }
 
 /**
+ * RFC テキストを取得
+ */
+export async function fetchRFCText(rfcNumber: number): Promise<string> {
+  // キャッシュチェック
+  const cached = textCache.get(rfcNumber);
+  if (cached) {
+    return cached;
+  }
+
+  // 複数ソースを試行
+  const errors: Error[] = [];
+
+  for (const [sourceName, urlFn] of Object.entries(RFC_TEXT_SOURCES)) {
+    try {
+      const url = urlFn(rfcNumber);
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'text/plain',
+          'User-Agent': 'rfcxml-mcp/0.1.0',
+        },
+      });
+
+      if (response.ok) {
+        const text = await response.text();
+
+        // 基本的な検証（RFCテキストの特徴を確認）
+        if (text.includes('Request for Comments') || text.includes('RFC ')) {
+          textCache.set(rfcNumber, text);
+          console.error(`[RFC ${rfcNumber}] Text fetched from ${sourceName}`);
+          return text;
+        }
+      }
+    } catch (error) {
+      errors.push(error as Error);
+    }
+  }
+
+  // すべて失敗
+  throw new Error(
+    `Failed to fetch RFC ${rfcNumber} text from all sources. ` +
+      `Errors: ${errors.map((e) => e.message).join(', ')}`
+  );
+}
+
+/**
  * RFC が XML 形式で利用可能か確認
  * 注: RFC 8650 (2019年12月) 以降は公式に RFCXML v3
  */
@@ -134,10 +190,40 @@ export function isRFCXMLAvailable(rfcNumber: number): boolean {
 }
 
 /**
+ * RFC XML 取得エラー
+ */
+export class RFCXMLNotAvailableError extends Error {
+  public readonly rfcNumber: number;
+  public readonly isOldRFC: boolean;
+  public readonly suggestion: string;
+
+  constructor(rfcNumber: number, originalErrors: string[] = []) {
+    const isOldRFC = rfcNumber < 8650;
+    const suggestion = isOldRFC
+      ? `RFC ${rfcNumber} は RFCXML v3 より前の形式で公開されているため、XML が利用できない可能性があります。` +
+        `テキスト形式での取得を検討してください（ietf MCP の get_ietf_doc を使用）。`
+      : `RFC ${rfcNumber} の XML 取得に失敗しました。ネットワーク接続を確認してください。`;
+
+    super(
+      `RFC ${rfcNumber} XML を取得できませんでした。\n` +
+        `理由: ${isOldRFC ? '古い RFC (< 8650) のため XML が利用できない可能性があります' : 'ネットワークエラー'}\n` +
+        `提案: ${suggestion}` +
+        (originalErrors.length > 0 ? `\n詳細: ${originalErrors.join(', ')}` : '')
+    );
+
+    this.name = 'RFCXMLNotAvailableError';
+    this.rfcNumber = rfcNumber;
+    this.isOldRFC = isOldRFC;
+    this.suggestion = suggestion;
+  }
+}
+
+/**
  * キャッシュクリア
  */
 export function clearCache(): void {
   xmlCache.clear();
+  textCache.clear();
   metadataCache.clear();
 }
 

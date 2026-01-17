@@ -41,12 +41,7 @@ export interface Section {
   subsections: Section[];
 }
 
-export type ContentBlock =
-  | TextBlock
-  | ListBlock
-  | SourceCodeBlock
-  | ArtworkBlock
-  | TableBlock;
+export type ContentBlock = TextBlock | ListBlock | SourceCodeBlock | ArtworkBlock | TableBlock;
 
 export interface TextBlock {
   type: 'text';

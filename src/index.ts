@@ -130,20 +130,24 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         {
           uri,
           mimeType: 'application/json',
-          text: JSON.stringify({
-            version: 'v3',
-            spec: 'RFC 7991 (superseded by rfc7991bis)',
-            documentation: 'https://authors.ietf.org/rfcxml-vocabulary',
-            keyElements: {
-              bcp14: 'RFC 2119 キーワード（MUST, SHOULD, MAY 等）をマークアップ',
-              xref: '内部・外部参照',
-              reference: '参考文献',
-              section: 'セクション構造',
-              t: 'テキストパラグラフ',
-              dl: '定義リスト',
-              sourcecode: 'ソースコード',
+          text: JSON.stringify(
+            {
+              version: 'v3',
+              spec: 'RFC 7991 (superseded by rfc7991bis)',
+              documentation: 'https://authors.ietf.org/rfcxml-vocabulary',
+              keyElements: {
+                bcp14: 'RFC 2119 キーワード（MUST, SHOULD, MAY 等）をマークアップ',
+                xref: '内部・外部参照',
+                reference: '参考文献',
+                section: 'セクション構造',
+                t: 'テキストパラグラフ',
+                dl: '定義リスト',
+                sourcecode: 'ソースコード',
+              },
             },
-          }, null, 2),
+            null,
+            2
+          ),
         },
       ],
     };
