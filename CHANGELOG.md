@@ -2,13 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.1] - 2025-01-18
+## [0.1.2] - 2026-01-18
 
 ### Added
 
--　`CHANGELOG.md`
+- `README.ja.md` - Japanese documentation
+- Output samples in documentation (both EN/JA)
+- ESLint configuration (`eslint.config.js`)
+- Prettier configuration (`.prettierrc`)
+- Vitest test suite (51 tests)
 
-## [0.1.0] - 2025-01-18
+### Changed
+
+- `README.md` translated to English
+
+## [0.1.1] - 2026-01-18
+
+### Added
+
+- `CHANGELOG.md` for version tracking
+
+### Fixed
+
+- `get_related_sections` - Section number normalization (`section-3.5` vs `3.5`)
+- `get_rfc_dependencies` - Nested XML references structure handling
+
+### Changed
+
+- All responses now include `_source` field (`xml` | `text`)
+- Text fallback responses include `_sourceNote` warning
+
+## [0.1.0] - 2026-01-18
 
 ### Added
 

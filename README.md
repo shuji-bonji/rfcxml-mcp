@@ -125,60 +125,123 @@ All responses include source information:
 | RFC 8650+ | XML | Official RFCXML v3 support |
 | Before RFC 8650 | Text | Automatic fallback |
 
-## Usage Examples
+## Output Samples
 
-### Extracting Normative Requirements
+### `get_rfc_structure` - Get RFC Structure
 
-```typescript
-// Tool call
+```json
 {
-  "tool": "get_requirements",
-  "arguments": {
-    "rfc": 6455,
-    "section": "5.5.1"
-  }
-}
-
-// Result
-{
-  "section": "5.5.1",
-  "title": "Close",
-  "requirements": [
+  "metadata": {
+    "title": "Transmission Control Protocol (TCP)",
+    "docName": "draft-ietf-tcpm-rfc793bis-28",
+    "number": 9293
+  },
+  "sections": [
     {
-      "id": "R-5.5.1-1",
-      "level": "MUST",
-      "text": "endpoint MUST send a Close frame",
-      "subject": "endpoint",
-      "action": "send Close frame",
-      "condition": "when closing connection",
-      "fullContext": "After sending a control frame indicating..."
+      "number": "section-1",
+      "title": "Purpose and Scope"
+    },
+    {
+      "number": "section-3",
+      "title": "Functional Specification",
+      "subsections": [
+        { "number": "section-3.1", "title": "Header Format" },
+        {
+          "number": "section-3.5",
+          "title": "Establishing a Connection",
+          "subsections": [
+            { "number": "section-3.5.1", "title": "Half-Open Connections and Other Anomalies" },
+            { "number": "section-3.5.2", "title": "Reset Generation" }
+          ]
+        }
+      ]
     }
-  ]
+  ],
+  "referenceCount": { "normative": 15, "informative": 85 },
+  "_source": "xml"
 }
 ```
 
-### Generating Implementation Checklist
+### `get_requirements` - Extract Normative Requirements
 
-```typescript
-// Tool call
+```json
 {
-  "tool": "generate_checklist",
-  "arguments": {
-    "rfc": 6455,
-    "role": "client"
-  }
+  "rfc": 9293,
+  "filter": { "level": "MUST" },
+  "stats": { "total": 53, "byLevel": { "MUST": 53 } },
+  "requirements": [
+    {
+      "id": "R-section-3.5-5",
+      "level": "MUST",
+      "text": "A TCP implementation support simultaneous open attempts (MUST-10).",
+      "section": "section-3.5",
+      "sectionTitle": "Establishing a Connection"
+    },
+    {
+      "id": "R-section-3.7.1-9",
+      "level": "MUST",
+      "text": "TCP endpoints implement both sending and receiving the MSS Option (MUST-14).",
+      "section": "section-3.7.1",
+      "sectionTitle": "Maximum Segment Size Option"
+    }
+  ],
+  "_source": "xml"
 }
+```
 
-// Result (Markdown)
-## RFC 6455 WebSocket Client Implementation Checklist
+### `get_rfc_dependencies` - Get RFC Dependencies
 
-### Required (MUST)
-- [ ] Include Sec-WebSocket-Key in Opening Handshake (Section 4.1)
-- [ ] Close TCP connection after receiving Close frame (Section 5.5.1)
-- [ ] Mask key must be unpredictable (Section 5.3)
+```json
+{
+  "rfc": 9293,
+  "normative": [
+    { "rfcNumber": 791, "title": "Internet Protocol", "anchor": "RFC0791" },
+    { "rfcNumber": 2119, "title": "Key words for use in RFCs to Indicate Requirement Levels" },
+    { "rfcNumber": 5681, "title": "TCP Congestion Control" }
+  ],
+  "informative": [
+    { "rfcNumber": 793, "title": "Transmission Control Protocol" },
+    { "rfcNumber": 1122, "title": "Requirements for Internet Hosts - Communication Layers" }
+  ],
+  "_source": "xml"
+}
+```
 
-### Recommended (SHOULD)
-- [ ] Include reason in Close frame (Section 7.1.6)
+### `generate_checklist` - Generate Implementation Checklist
+
+```markdown
+# RFC 9293 Implementation Checklist
+
+**Transmission Control Protocol (TCP)**
+
+Role: Client
+
+## Required (MUST / REQUIRED / SHALL)
+
+- [ ] A TCP implementation support simultaneous open attempts (MUST-10). (section-3.5)
+- [ ] TCP endpoints implement both sending and receiving the MSS Option (MUST-14). (section-3.7.1)
+- [ ] The RTO be computed according to the algorithm in, including Karn's algorithm (MUST-18). (section-3.8.1)
+
+## Optional (MAY / OPTIONAL)
+
+- [ ] Implementers include "keep-alives" in their TCP implementations (MAY-5). (section-3.8.4)
+```
+
+### Text Fallback Output (Legacy RFCs)
+
+```json
+{
+  "metadata": {
+    "title": "The WebSocket Protocol",
+    "number": 6455
+  },
+  "sections": [
+    { "number": "1", "title": "Introduction" },
+    { "number": "5", "title": "Data Framing" }
+  ],
+  "_source": "text",
+  "_sourceNote": "⚠️ Parsed from text format. Accuracy may be lower."
+}
 ```
 
 ## Development

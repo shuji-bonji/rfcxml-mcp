@@ -127,60 +127,123 @@ RFC 8650 (2019年12月) 以降は公式 RFCXML v3 形式で提供されていま
 | RFC 8650 以降 | XML | RFCXML v3 公式対応 |
 | RFC 8650 未満 | テキスト | 自動フォールバック |
 
-## 使用例
+## 出力サンプル
 
-### 規範性要件の抽出
+### `get_rfc_structure` - RFC構造取得
 
-```typescript
-// ツール呼び出し
+```json
 {
-  "tool": "get_requirements",
-  "arguments": {
-    "rfc": 6455,
-    "section": "5.5.1"
-  }
-}
-
-// 結果
-{
-  "section": "5.5.1",
-  "title": "Close",
-  "requirements": [
+  "metadata": {
+    "title": "Transmission Control Protocol (TCP)",
+    "docName": "draft-ietf-tcpm-rfc793bis-28",
+    "number": 9293
+  },
+  "sections": [
     {
-      "id": "R-5.5.1-1",
-      "level": "MUST",
-      "text": "endpoint MUST send a Close frame",
-      "subject": "endpoint",
-      "action": "send Close frame",
-      "condition": "when closing connection",
-      "fullContext": "After sending a control frame indicating..."
+      "number": "section-1",
+      "title": "Purpose and Scope"
+    },
+    {
+      "number": "section-3",
+      "title": "Functional Specification",
+      "subsections": [
+        { "number": "section-3.1", "title": "Header Format" },
+        {
+          "number": "section-3.5",
+          "title": "Establishing a Connection",
+          "subsections": [
+            { "number": "section-3.5.1", "title": "Half-Open Connections and Other Anomalies" },
+            { "number": "section-3.5.2", "title": "Reset Generation" }
+          ]
+        }
+      ]
     }
-  ]
+  ],
+  "referenceCount": { "normative": 15, "informative": 85 },
+  "_source": "xml"
 }
 ```
 
-### 実装チェックリスト生成
+### `get_requirements` - 規範性要件抽出
 
-```typescript
-// ツール呼び出し
+```json
 {
-  "tool": "generate_checklist",
-  "arguments": {
-    "rfc": 6455,
-    "role": "client"
-  }
+  "rfc": 9293,
+  "filter": { "level": "MUST" },
+  "stats": { "total": 53, "byLevel": { "MUST": 53 } },
+  "requirements": [
+    {
+      "id": "R-section-3.5-5",
+      "level": "MUST",
+      "text": "A TCP implementation support simultaneous open attempts (MUST-10).",
+      "section": "section-3.5",
+      "sectionTitle": "Establishing a Connection"
+    },
+    {
+      "id": "R-section-3.7.1-9",
+      "level": "MUST",
+      "text": "TCP endpoints implement both sending and receiving the MSS Option (MUST-14).",
+      "section": "section-3.7.1",
+      "sectionTitle": "Maximum Segment Size Option"
+    }
+  ],
+  "_source": "xml"
 }
+```
 
-// 結果（Markdown）
-## RFC 6455 WebSocket Client 実装チェックリスト
+### `get_rfc_dependencies` - 依存関係取得
 
-### 必須要件 (MUST)
-- [ ] Opening Handshake で Sec-WebSocket-Key を含める (Section 4.1)
-- [ ] Close フレーム受信後、TCP 接続を閉じる (Section 5.5.1)
-- [ ] マスクキーは予測不可能である必要がある (Section 5.3)
+```json
+{
+  "rfc": 9293,
+  "normative": [
+    { "rfcNumber": 791, "title": "Internet Protocol", "anchor": "RFC0791" },
+    { "rfcNumber": 2119, "title": "Key words for use in RFCs to Indicate Requirement Levels" },
+    { "rfcNumber": 5681, "title": "TCP Congestion Control" }
+  ],
+  "informative": [
+    { "rfcNumber": 793, "title": "Transmission Control Protocol" },
+    { "rfcNumber": 1122, "title": "Requirements for Internet Hosts - Communication Layers" }
+  ],
+  "_source": "xml"
+}
+```
 
-### 推奨要件 (SHOULD)
-- [ ] Close フレームには理由を含める (Section 7.1.6)
+### `generate_checklist` - 実装チェックリスト生成
+
+```markdown
+# RFC 9293 実装チェックリスト
+
+**Transmission Control Protocol (TCP)**
+
+役割: クライアント
+
+## 必須要件 (MUST / REQUIRED / SHALL)
+
+- [ ] A TCP implementation support simultaneous open attempts (MUST-10). (section-3.5)
+- [ ] TCP endpoints implement both sending and receiving the MSS Option (MUST-14). (section-3.7.1)
+- [ ] The RTO be computed according to the algorithm in, including Karn's algorithm (MUST-18). (section-3.8.1)
+
+## 任意要件 (MAY / OPTIONAL)
+
+- [ ] Implementers include "keep-alives" in their TCP implementations (MAY-5). (section-3.8.4)
+```
+
+### テキストフォールバック時の出力（古いRFC）
+
+```json
+{
+  "metadata": {
+    "title": "The WebSocket Protocol",
+    "number": 6455
+  },
+  "sections": [
+    { "number": "1", "title": "Introduction" },
+    { "number": "5", "title": "Data Framing" }
+  ],
+  "_source": "text",
+  "_sourceNote": "⚠️ テキストからの解析結果です。精度が低い可能性があります。"
+}
 ```
 
 ## 開発
