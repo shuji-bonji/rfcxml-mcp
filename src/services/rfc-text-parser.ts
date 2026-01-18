@@ -12,23 +12,8 @@ import type {
   TextBlock,
 } from '../types/index.js';
 import type { ParsedRFC } from './rfcxml-parser.js';
-
-// BCP 14 / RFC 2119 キーワード
-const REQUIREMENT_KEYWORDS: RequirementLevel[] = [
-  'MUST NOT',
-  'MUST',
-  'REQUIRED',
-  'SHALL NOT',
-  'SHALL',
-  'SHOULD NOT',
-  'SHOULD',
-  'RECOMMENDED',
-  'NOT RECOMMENDED',
-  'MAY',
-  'OPTIONAL',
-];
-
-const REQUIREMENT_REGEX = new RegExp(`\\b(${REQUIREMENT_KEYWORDS.join('|')})\\b`, 'g');
+import { REQUIREMENT_REGEX } from '../constants.js';
+import { extractSentence, extractCrossReferences } from '../utils/text.js';
 
 /**
  * RFC テキストをパースして構造化データに変換（中精度）
@@ -169,40 +154,11 @@ function createTextBlocks(text: string): ContentBlock[] {
       type: 'text',
       content: trimmed,
       requirements,
-      crossReferences: extractTextCrossReferences(trimmed),
+      crossReferences: extractCrossReferences(trimmed),
     });
   }
 
   return blocks;
-}
-
-/**
- * クロスリファレンスの抽出（テキストから）
- */
-function extractTextCrossReferences(text: string): TextBlock['crossReferences'] {
-  const refs: TextBlock['crossReferences'] = [];
-
-  // RFC参照
-  const rfcPattern = /RFC\s*(\d+)/gi;
-  let match;
-  while ((match = rfcPattern.exec(text)) !== null) {
-    refs.push({
-      target: `RFC${match[1]}`,
-      type: 'rfc',
-    });
-  }
-
-  // セクション参照
-  const sectionPattern = /[Ss]ection\s+([\d.]+)/g;
-  while ((match = sectionPattern.exec(text)) !== null) {
-    refs.push({
-      target: match[1],
-      type: 'section',
-      section: match[1],
-    });
-  }
-
-  return refs;
 }
 
 /**
@@ -294,21 +250,4 @@ export function extractTextRequirements(
   }
 
   return requirements;
-}
-
-/**
- * 指定位置を含む文を抽出
- */
-function extractSentence(text: string, position: number): string {
-  let start = position;
-  while (start > 0 && !/[.!?]\s/.test(text.substring(start - 1, start + 1))) {
-    start--;
-  }
-
-  let end = position;
-  while (end < text.length && !/[.!?]/.test(text[end])) {
-    end++;
-  }
-
-  return text.substring(start, end + 1).trim();
 }

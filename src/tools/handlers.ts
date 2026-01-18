@@ -5,6 +5,8 @@
 import { fetchRFCXML, fetchRFCText, RFCXMLNotAvailableError } from '../services/rfc-fetcher.js';
 import { parseRFCXML, extractRequirements, type ParsedRFC } from '../services/rfcxml-parser.js';
 import { parseRFCText } from '../services/rfc-text-parser.js';
+import { LRUCache } from '../utils/cache.js';
+import { CACHE_CONFIG } from '../config.js';
 import type {
   GetRFCStructureArgs,
   GetRequirementsArgs,
@@ -25,8 +27,11 @@ interface ParsedRFCWithSource {
   source: 'xml' | 'text';
 }
 
-// パースキャッシュ
-const parseCache = new Map<number, ParsedRFCWithSource>();
+/**
+ * パース済みRFCキャッシュ（メインキャッシュ）
+ * パースはCPU集約的なので、パース結果をキャッシュする
+ */
+const parseCache = new LRUCache<number, ParsedRFCWithSource>(CACHE_CONFIG.parsed);
 
 /**
  * パースキャッシュをクリア（テスト用）

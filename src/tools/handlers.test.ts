@@ -363,11 +363,16 @@ describe('RFC caching', () => {
   });
 
   it('should cache parsed RFC', async () => {
-    // 2回呼び出し
-    await handleGetRFCStructure({ rfc: 9999 });
+    // 1回目の呼び出し
     await handleGetRFCStructure({ rfc: 9999 });
 
-    // fetch は1回だけ呼ばれるはず（キャッシュされているため）
-    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    // 並列フェッチで3つのソースにリクエストされる
+    const fetchCountAfterFirst = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    // 2回目の呼び出し（キャッシュから取得されるはず）
+    await handleGetRFCStructure({ rfc: 9999 });
+
+    // 2回目の呼び出し後、fetch回数が増えていないことを確認
+    expect(globalThis.fetch).toHaveBeenCalledTimes(fetchCountAfterFirst);
   });
 });

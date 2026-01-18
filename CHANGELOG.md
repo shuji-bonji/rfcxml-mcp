@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-01-19
+
+### Changed
+
+#### Architecture Refactoring
+
+- **Duplicate code reduction**: Extracted shared code into reusable modules
+  - `src/constants.ts` - BCP 14 / RFC 2119 keywords (MUST/SHOULD/MAY)
+  - `src/utils/text.ts` - Text utilities (`extractSentence`, `extractCrossReferences`, `toArray`)
+
+- **LRU cache implementation**: Replaced simple Map-based cache with size-limited LRU cache
+  - `src/utils/cache.ts` - Generic LRU cache with configurable max size
+  - XML cache: 20 entries, Text cache: 20 entries, Metadata: 100 entries, Parsed: 50 entries
+
+- **Configuration externalization**: Centralized all settings in a single module
+  - `src/config.ts` - HTTP settings, cache settings, RFC sources, API endpoints
+
+- **Parallel fetch with AbortController**: Improved RFC fetch performance
+  - `src/utils/fetch.ts` - Parallel fetch from multiple sources (RFC Editor, IETF Tools, Datatracker)
+  - Uses `Promise.any` to return first successful response
+  - Automatically cancels pending requests after first success
+  - Includes timeout handling per request
+
+### Performance
+
+- RFC fetch latency reduced by fetching from 3 sources in parallel
+- Memory usage bounded by LRU cache eviction
+
 ## [0.1.2] - 2026-01-18
 
 ### Added

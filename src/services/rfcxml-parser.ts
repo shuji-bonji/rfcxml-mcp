@@ -10,28 +10,11 @@ import type {
   RequirementLevel,
   Definition,
   RFCReference,
-  CrossReference,
   TextBlock,
   ContentBlock,
 } from '../types/index.js';
-
-// BCP 14 / RFC 2119 キーワード
-const REQUIREMENT_KEYWORDS: RequirementLevel[] = [
-  'MUST NOT',
-  'MUST',
-  'REQUIRED',
-  'SHALL NOT',
-  'SHALL',
-  'SHOULD NOT',
-  'SHOULD',
-  'RECOMMENDED',
-  'NOT RECOMMENDED',
-  'MAY',
-  'OPTIONAL',
-];
-
-// キーワードの正規表現（長い順にマッチ）
-const REQUIREMENT_REGEX = new RegExp(`\\b(${REQUIREMENT_KEYWORDS.join('|')})\\b`, 'g');
+import { REQUIREMENT_REGEX } from '../constants.js';
+import { extractSentence, extractCrossReferences, toArray } from '../utils/text.js';
 
 /**
  * XML パーサー設定
@@ -435,35 +418,6 @@ function extractDefinitions(rfc: any): Definition[] {
   return definitions;
 }
 
-/**
- * クロスリファレンスの抽出
- */
-function extractCrossReferences(text: string): CrossReference[] {
-  const refs: CrossReference[] = [];
-
-  // RFC参照パターン
-  const rfcPattern = /RFC\s*(\d+)/gi;
-  let match;
-  while ((match = rfcPattern.exec(text)) !== null) {
-    refs.push({
-      target: `RFC${match[1]}`,
-      type: 'rfc',
-    });
-  }
-
-  // セクション参照パターン
-  const sectionPattern = /[Ss]ection\s+([\d.]+)/g;
-  while ((match = sectionPattern.exec(text)) !== null) {
-    refs.push({
-      target: match[1],
-      type: 'section',
-      section: match[1],
-    });
-  }
-
-  return refs;
-}
-
 // ========================================
 // ユーティリティ関数
 // ========================================
@@ -494,31 +448,4 @@ function extractText(node: any): string {
   }
 
   return text.trim();
-}
-
-/**
- * 配列に正規化
- */
-function toArray<T>(value: T | T[] | undefined): T[] {
-  if (!value) return [];
-  return Array.isArray(value) ? value : [value];
-}
-
-/**
- * 指定位置を含む文を抽出
- */
-function extractSentence(text: string, position: number): string {
-  // 文の開始を探す
-  let start = position;
-  while (start > 0 && !/[.!?]\s/.test(text.substring(start - 1, start + 1))) {
-    start--;
-  }
-
-  // 文の終了を探す
-  let end = position;
-  while (end < text.length && !/[.!?]/.test(text[end])) {
-    end++;
-  }
-
-  return text.substring(start, end + 1).trim();
 }

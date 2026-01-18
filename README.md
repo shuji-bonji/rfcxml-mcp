@@ -244,6 +244,66 @@ Role: Client
 }
 ```
 
+## Internal Architecture
+
+### Module Structure
+
+```
+src/
+├── index.ts                    # MCP server entry point
+├── config.ts                   # Centralized configuration
+├── constants.ts                # BCP 14 keyword definitions
+├── services/
+│   ├── rfc-fetcher.ts          # RFC fetching (parallel)
+│   ├── rfcxml-parser.ts        # RFCXML parser
+│   └── rfc-text-parser.ts      # Text fallback parser
+├── tools/
+│   ├── definitions.ts          # MCP tool definitions
+│   └── handlers.ts             # Tool handlers
+├── types/
+│   └── index.ts                # Type definitions
+└── utils/
+    ├── cache.ts                # LRU cache
+    ├── fetch.ts                # Parallel fetch utility
+    └── text.ts                 # Text processing utility
+```
+
+### RFC Fetch Optimization
+
+Sends parallel requests to multiple sources (RFC Editor, IETF Tools, Datatracker) and uses the first successful response:
+
+```
+┌─────────────────┐
+│  fetchRFCXML()  │
+└────────┬────────┘
+         │ Parallel requests
+    ┌────┴────┬────────────┐
+    ▼         ▼            ▼
+┌────────┐ ┌────────┐ ┌────────┐
+│RFC     │ │IETF    │ │Data-   │
+│Editor  │ │Tools   │ │tracker │
+└────┬───┘ └────┬───┘ └────┬───┘
+     │          │          │
+     └────┬─────┴──────────┘
+          │ Promise.any (first success)
+          ▼
+    ┌───────────┐
+    │ Successful│ → Cancel other requests via AbortController
+    │ Response  │
+    └───────────┘
+```
+
+### Cache Strategy
+
+LRU (Least Recently Used) cache with memory limits:
+
+| Cache | Max Entries | Content |
+|-------|-------------|---------|
+| XML Cache | 20 | Raw RFCXML |
+| Text Cache | 20 | Raw text |
+| Metadata Cache | 100 | RFC metadata |
+| Parse Cache | 50 | Parsed structure |
+
 ## Development
 
 ```bash

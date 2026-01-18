@@ -246,6 +246,66 @@ RFC 8650 (2019年12月) 以降は公式 RFCXML v3 形式で提供されていま
 }
 ```
 
+## 内部アーキテクチャ
+
+### モジュール構成
+
+```
+src/
+├── index.ts                    # MCP サーバーエントリポイント
+├── config.ts                   # 設定の一元管理
+├── constants.ts                # BCP 14 キーワード定義
+├── services/
+│   ├── rfc-fetcher.ts          # RFC 取得（並列フェッチ）
+│   ├── rfcxml-parser.ts        # RFCXML パーサー
+│   └── rfc-text-parser.ts      # テキストフォールバック
+├── tools/
+│   ├── definitions.ts          # MCP ツール定義
+│   └── handlers.ts             # ツールハンドラー
+├── types/
+│   └── index.ts                # 型定義
+└── utils/
+    ├── cache.ts                # LRU キャッシュ
+    ├── fetch.ts                # 並列フェッチユーティリティ
+    └── text.ts                 # テキスト処理ユーティリティ
+```
+
+### RFC 取得の最適化
+
+複数ソース（RFC Editor、IETF Tools、Datatracker）に並列リクエストを送信し、最初に成功したレスポンスを採用：
+
+```
+┌─────────────────┐
+│  fetchRFCXML()  │
+└────────┬────────┘
+         │ 並列リクエスト
+    ┌────┴────┬────────────┐
+    ▼         ▼            ▼
+┌────────┐ ┌────────┐ ┌────────┐
+│RFC     │ │IETF    │ │Data-   │
+│Editor  │ │Tools   │ │tracker │
+└────┬───┘ └────┬───┘ └────┬───┘
+     │          │          │
+     └────┬─────┴──────────┘
+          │ Promise.any（最初の成功）
+          ▼
+    ┌───────────┐
+    │ 成功した  │ → 他のリクエストを AbortController でキャンセル
+    │ レスポンス│
+    └───────────┘
+```
+
+### キャッシュ戦略
+
+LRU（Least Recently Used）キャッシュでメモリ使用量を制限：
+
+| キャッシュ | 最大エントリ数 | 内容 |
+|-----------|---------------|------|
+| XML キャッシュ | 20 | 生の RFCXML |
+| Text キャッシュ | 20 | 生のテキスト |
+| Metadata キャッシュ | 100 | RFC メタデータ |
+| Parse キャッシュ | 50 | パース済み構造 |
+
 ## 開発
 
 ```bash
@@ -260,6 +320,12 @@ npm run build
 
 # テスト
 npm test
+
+# リント
+npm run lint
+
+# フォーマット
+npm run format
 ```
 
 ## ライセンス
