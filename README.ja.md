@@ -246,6 +246,21 @@ RFC 8650 (2019年12月) 以降は公式 RFCXML v3 形式で提供されていま
 }
 ```
 
+## サンプル
+
+[examples/](./examples/) ディレクトリに `generate_checklist` ツールで生成したチェックリストのサンプルがあります：
+
+| RFC | プロトコル | ソース |
+|-----|----------|--------|
+| [RFC 6455](./examples/rfc6455-websocket-checklist.md) | WebSocket | テキスト（フォールバック） |
+| [RFC 9293](./examples/rfc9293-tcp-checklist.md) | TCP | RFCXML |
+| [RFC 7540](./examples/rfc7540-http2-checklist.md) | HTTP/2 | テキスト（フォールバック） |
+
+**Claude への依頼例：**
+```
+RFC 9293 (TCP) の実装チェックリストを生成してください。
+```
+
 ## 内部アーキテクチャ
 
 ### モジュール構成

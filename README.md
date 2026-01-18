@@ -244,6 +244,21 @@ Role: Client
 }
 ```
 
+## Examples
+
+See the [examples/](./examples/) directory for complete checklist samples:
+
+| RFC | Protocol | Source |
+|-----|----------|--------|
+| [RFC 6455](./examples/rfc6455-websocket-checklist.md) | WebSocket | Text (fallback) |
+| [RFC 9293](./examples/rfc9293-tcp-checklist.md) | TCP | RFCXML |
+| [RFC 7540](./examples/rfc7540-http2-checklist.md) | HTTP/2 | Text (fallback) |
+
+**Example prompt for Claude:**
+```
+Generate an implementation checklist for RFC 9293 (TCP).
+```
+
 ## Internal Architecture
 
 ### Module Structure
