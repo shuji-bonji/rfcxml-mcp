@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-01-24
+
+### Added
+
+- **GitHub Actions CI/CD**
+  - `ci.yml` - Automated lint, test, and build on push/PR to main
+  - `publish.yml` - Automated npm publish on version tags (v*)
+  - Version verification ensures package.json matches git tag
+
+- **README badges** (shields.io)
+  - npm version, CI status, License, Node.js version, Claude Code compatible
+
+### Changed
+
+- **Code refactoring**: Switch statement replaced with Map-based lookup
+  - `src/tools/handlers.ts` - Added `toolHandlers` export for cleaner dispatch
+  - `src/index.ts` - Simplified tool handler dispatch (60 lines → 18 lines)
+
+### Performance
+
+- **`extractText` optimization** in `src/services/rfcxml-parser.ts`
+  - Reduced string concatenation by using array accumulator
+  - Improved performance for large RFC documents
+
 ## [0.2.0] - 2026-01-19
 
 ### Changed

@@ -424,28 +424,30 @@ function extractDefinitions(rfc: any): Definition[] {
 
 /**
  * テキストコンテンツを抽出（ネストされた要素を含む）
+ * 最適化: 配列を1回だけ生成し、文字列結合を最小化
  */
 function extractText(node: any): string {
   if (!node) return '';
   if (typeof node === 'string') return node;
   if (typeof node === 'number') return String(node);
+  if (node['#text']) return String(node['#text']);
 
-  if (node['#text']) {
-    return String(node['#text']);
-  }
+  const parts: string[] = [];
 
-  // 子要素を再帰的に処理
-  let text = '';
   for (const key of Object.keys(node)) {
     if (key.startsWith('@_')) continue; // 属性をスキップ
 
     const value = node[key];
     if (Array.isArray(value)) {
-      text += value.map(extractText).join(' ');
+      for (const item of value) {
+        const text = extractText(item);
+        if (text) parts.push(text);
+      }
     } else {
-      text += extractText(value);
+      const text = extractText(value);
+      if (text) parts.push(text);
     }
   }
 
-  return text.trim();
+  return parts.join(' ');
 }

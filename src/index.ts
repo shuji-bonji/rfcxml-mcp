@@ -15,15 +15,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { tools } from './tools/definitions.js';
-import {
-  handleGetRFCStructure,
-  handleGetRequirements,
-  handleGetDefinitions,
-  handleGetDependencies,
-  handleGetRelatedSections,
-  handleGenerateChecklist,
-  handleValidateStatement,
-} from './tools/handlers.js';
+import { toolHandlers } from './tools/handlers.js';
 
 // サーバーインスタンス
 const server = new Server(
@@ -49,58 +41,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
-    let result: unknown;
-
-    switch (name) {
-      case 'get_rfc_structure':
-        result = await handleGetRFCStructure(args as any);
-        break;
-
-      case 'get_requirements':
-        result = await handleGetRequirements(args as any);
-        break;
-
-      case 'get_definitions':
-        result = await handleGetDefinitions(args as any);
-        break;
-
-      case 'get_rfc_dependencies':
-        result = await handleGetDependencies(args as any);
-        break;
-
-      case 'get_related_sections':
-        result = await handleGetRelatedSections(args as any);
-        break;
-
-      case 'generate_checklist':
-        result = await handleGenerateChecklist(args as any);
-        break;
-
-      case 'validate_statement':
-        result = await handleValidateStatement(args as any);
-        break;
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
+    const handler = toolHandlers[name];
+    if (!handler) {
+      throw new Error(`Unknown tool: ${name}`);
     }
 
+    const result = await handler(args);
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({ error: message }, null, 2),
-        },
-      ],
+      content: [{ type: 'text', text: JSON.stringify({ error: message }, null, 2) }],
       isError: true,
     };
   }

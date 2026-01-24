@@ -441,3 +441,16 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
         : undefined,
   };
 }
+
+/**
+ * ツールハンドラーのマップ
+ */
+export const toolHandlers: Record<string, (args: any) => Promise<unknown>> = {
+  get_rfc_structure: handleGetRFCStructure,
+  get_requirements: handleGetRequirements,
+  get_definitions: handleGetDefinitions,
+  get_rfc_dependencies: handleGetDependencies,
+  get_related_sections: handleGetRelatedSections,
+  generate_checklist: handleGenerateChecklist,
+  validate_statement: handleValidateStatement,
+};

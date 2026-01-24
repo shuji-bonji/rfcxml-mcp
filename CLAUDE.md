@@ -38,18 +38,31 @@ RFC文書を**構造的に理解**するためのMCPサーバー。既存の`mcp
 
 ```
 rfcxml-mcp/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml               # CI (lint, test, build)
+│       └── publish.yml          # npm publish on tags
 ├── src/
 │   ├── index.ts                 # MCPサーバーエントリポイント
+│   ├── config.ts                # 設定の一元管理
+│   ├── constants.ts             # BCP 14 キーワード定義
 │   ├── services/
 │   │   ├── rfc-fetcher.ts       # RFC XML 取得・キャッシュ
-│   │   └── rfcxml-parser.ts     # RFCXML パーサー
+│   │   ├── rfcxml-parser.ts     # RFCXML パーサー
+│   │   └── rfc-text-parser.ts   # テキストフォールバックパーサー
 │   ├── tools/
 │   │   ├── definitions.ts       # MCPツール定義
-│   │   └── handlers.ts          # ツールハンドラー実装
-│   └── types/
-│       └── index.ts             # 型定義
+│   │   └── handlers.ts          # ツールハンドラー実装 + toolHandlers Map
+│   ├── types/
+│   │   └── index.ts             # 型定義
+│   └── utils/
+│       ├── cache.ts             # LRU キャッシュ
+│       ├── fetch.ts             # 並列フェッチユーティリティ
+│       └── text.ts              # テキスト処理ユーティリティ
 ├── package.json
 ├── tsconfig.json
+├── CHANGELOG.md
+├── CLAUDE.md                    # 本ファイル（Claude Code 用）
 └── README.md
 ```
 
@@ -153,9 +166,39 @@ npm run build
 # テスト
 npm test
 
+# リント
+npm run lint
+
+# フォーマット
+npm run format
+
 # MCP サーバー起動
 npm start
 ```
+
+---
+
+## CI/CD
+
+### GitHub Actions
+
+| ワークフロー | トリガー | 内容 |
+|-------------|---------|------|
+| `ci.yml` | push/PR to main | lint, test, build |
+| `publish.yml` | push tags `v*` | test, build, npm publish |
+
+### リリース手順
+
+```bash
+# 1. バージョン更新
+npm version patch  # or minor, major
+
+# 2. タグをプッシュ
+git push origin main --tags
+# → GitHub Actions が自動で npm publish
+```
+
+**注意**: `publish.yml` は `package.json` の version と git tag の一致を検証する
 
 ---
 
@@ -175,6 +218,26 @@ npm start
 ---
 
 ## 実装時の注意事項
+
+### ツールハンドラーのディスパッチ
+
+`src/tools/handlers.ts` で `toolHandlers` Map を export し、`src/index.ts` で使用:
+
+```typescript
+// handlers.ts
+export const toolHandlers: Record<string, (args: any) => Promise<unknown>> = {
+  get_rfc_structure: handleGetRFCStructure,
+  get_requirements: handleGetRequirements,
+  // ...
+};
+
+// index.ts
+const handler = toolHandlers[name];
+if (!handler) throw new Error(`Unknown tool: ${name}`);
+const result = await handler(args);
+```
+
+新しいツールを追加する際は `toolHandlers` にエントリを追加するだけでよい。
 
 ### XML パース
 - `fast-xml-parser` を使用
