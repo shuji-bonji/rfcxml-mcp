@@ -12,7 +12,7 @@ import type {
   TextBlock,
 } from '../types/index.js';
 import type { ParsedRFC } from './rfcxml-parser.js';
-import { REQUIREMENT_REGEX } from '../constants.js';
+import { createRequirementRegex } from '../constants.js';
 import { extractSentence, extractCrossReferences } from '../utils/text.js';
 
 /**
@@ -140,10 +140,11 @@ function createTextBlocks(text: string): ContentBlock[] {
     const trimmed = para.trim();
     if (!trimmed) continue;
 
-    // 要件マーカーを抽出
+    // Extract requirement markers
     const requirements: TextBlock['requirements'] = [];
+    const regex = createRequirementRegex();
     let match: RegExpExecArray | null;
-    while ((match = REQUIREMENT_REGEX.exec(trimmed)) !== null) {
+    while ((match = regex.exec(trimmed)) !== null) {
       requirements.push({
         level: match[1] as RequirementLevel,
         position: match.index,

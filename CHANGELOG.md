@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-02-01
+
+### Changed
+
+- **Internationalization (i18n)**: All user-facing messages are now in English
+  - Tool descriptions in `definitions.ts` (23 locations)
+  - `_sourceNote` warnings and error messages in `handlers.ts`
+  - Generated checklist output (Markdown headers and labels)
+  - RFCXMLNotAvailableError messages in `rfc-fetcher.ts`
+  - Resource descriptions in `index.ts`
+
+### Fixed
+
+- **Version synchronization bug**: Server now dynamically reads version from `package.json`
+  - Previously hardcoded `0.1.0` in `index.ts` and `0.1.2` in `config.ts`
+  - Now uses `createRequire` to load version at runtime
+
+- **REQUIREMENT_REGEX lastIndex issue**: Added `createRequirementRegex()` factory function
+  - Global regex with `/g` flag can cause issues when reused in exec() loops
+  - Factory function creates fresh regex instance for each use
+
+- **fetchRFCMetadata timeout**: Added 30-second timeout using AbortController
+  - Previously had no timeout, could hang indefinitely
+
+### Added
+
+- **RFC number validation**: All tool handlers now validate RFC number input
+  - New `src/utils/validation.ts` module
+  - Validates positive integer between 1 and 99999
+
+- **Type safety improvements** in `handlers.ts`
+  - Added `SimplifiedSection` interface
+  - Added `DependencyResult` interface
+  - Re-exported `Section` type from `rfcxml-parser.ts`
+
+- **Helper function for source notes**: `getTextSourceNote()` consolidates 7 duplicate patterns
+
 ## [0.3.0] - 2026-01-24
 
 ### Added

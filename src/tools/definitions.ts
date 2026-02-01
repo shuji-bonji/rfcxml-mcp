@@ -1,26 +1,26 @@
 /**
- * MCP ツール定義
+ * MCP Tool Definitions
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 export const tools: Tool[] = [
   // ========================================
-  // Phase 1: 基本構造
+  // Phase 1: Basic Structure
   // ========================================
   {
     name: 'get_rfc_structure',
-    description: 'RFC のセクション階層とメタデータを取得します。',
+    description: 'Get RFC section hierarchy and metadata.',
     inputSchema: {
       type: 'object',
       properties: {
         rfc: {
           type: 'number',
-          description: 'RFC 番号（例: 6455）',
+          description: 'RFC number (e.g., 6455)',
         },
         includeContent: {
           type: 'boolean',
-          description: 'セクションの内容も含めるか（デフォルト: false）',
+          description: 'Include section content (default: false)',
           default: false,
         },
       },
@@ -29,17 +29,17 @@ export const tools: Tool[] = [
   },
   {
     name: 'get_requirements',
-    description: 'RFC から規範性要件（MUST/SHOULD/MAY等）を構造化して抽出します。',
+    description: 'Extract normative requirements (MUST/SHOULD/MAY) from RFC in structured format.',
     inputSchema: {
       type: 'object',
       properties: {
         rfc: {
           type: 'number',
-          description: 'RFC 番号',
+          description: 'RFC number',
         },
         section: {
           type: 'string',
-          description: 'セクション番号でフィルタ（例: "5.5.1"）',
+          description: 'Filter by section number (e.g., "5.5.1")',
         },
         level: {
           type: 'string',
@@ -56,7 +56,7 @@ export const tools: Tool[] = [
             'MAY',
             'OPTIONAL',
           ],
-          description: '要件レベルでフィルタ',
+          description: 'Filter by requirement level',
         },
       },
       required: ['rfc'],
@@ -64,17 +64,17 @@ export const tools: Tool[] = [
   },
   {
     name: 'get_definitions',
-    description: 'RFC 内の用語定義を取得します。',
+    description: 'Get term definitions from RFC.',
     inputSchema: {
       type: 'object',
       properties: {
         rfc: {
           type: 'number',
-          description: 'RFC 番号',
+          description: 'RFC number',
         },
         term: {
           type: 'string',
-          description: '特定の用語で検索',
+          description: 'Search for specific term',
         },
       },
       required: ['rfc'],
@@ -82,21 +82,21 @@ export const tools: Tool[] = [
   },
 
   // ========================================
-  // Phase 2: 関係性
+  // Phase 2: Relationships
   // ========================================
   {
     name: 'get_rfc_dependencies',
-    description: 'RFC の参照関係（normative/informative）を取得します。',
+    description: 'Get RFC reference relationships (normative/informative).',
     inputSchema: {
       type: 'object',
       properties: {
         rfc: {
           type: 'number',
-          description: 'RFC 番号',
+          description: 'RFC number',
         },
         includeReferencedBy: {
           type: 'boolean',
-          description: 'この RFC を参照している RFC も含めるか',
+          description: 'Include RFCs that reference this RFC',
           default: false,
         },
       },
@@ -105,17 +105,17 @@ export const tools: Tool[] = [
   },
   {
     name: 'get_related_sections',
-    description: '指定セクションに関連する他のセクションを取得します。',
+    description: 'Get sections related to the specified section.',
     inputSchema: {
       type: 'object',
       properties: {
         rfc: {
           type: 'number',
-          description: 'RFC 番号',
+          description: 'RFC number',
         },
         section: {
           type: 'string',
-          description: '基準となるセクション番号',
+          description: 'Base section number',
         },
       },
       required: ['rfc', 'section'],
@@ -123,28 +123,28 @@ export const tools: Tool[] = [
   },
 
   // ========================================
-  // Phase 3: 検証支援
+  // Phase 3: Validation Support
   // ========================================
   {
     name: 'generate_checklist',
-    description: 'RFC の実装チェックリストを Markdown 形式で生成します。',
+    description: 'Generate RFC implementation checklist in Markdown format.',
     inputSchema: {
       type: 'object',
       properties: {
         rfc: {
           type: 'number',
-          description: 'RFC 番号',
+          description: 'RFC number',
         },
         role: {
           type: 'string',
           enum: ['client', 'server', 'both'],
-          description: '実装の役割（クライアント/サーバー/両方）',
+          description: 'Implementation role (client/server/both)',
           default: 'both',
         },
         sections: {
           type: 'array',
           items: { type: 'string' },
-          description: '含めるセクション（省略時は全体）',
+          description: 'Sections to include (all if omitted)',
         },
       },
       required: ['rfc'],
@@ -152,17 +152,17 @@ export const tools: Tool[] = [
   },
   {
     name: 'validate_statement',
-    description: '指定した主張が RFC の要件に準拠しているか検証します。',
+    description: 'Validate if a statement complies with RFC requirements.',
     inputSchema: {
       type: 'object',
       properties: {
         rfc: {
           type: 'number',
-          description: 'RFC 番号',
+          description: 'RFC number',
         },
         statement: {
           type: 'string',
-          description: '検証したい実装や動作の説明',
+          description: 'Description of implementation or behavior to validate',
         },
       },
       required: ['rfc', 'statement'],

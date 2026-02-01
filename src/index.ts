@@ -2,7 +2,7 @@
 
 /**
  * RFCXML MCP Server
- * RFC 文書を構造的に理解するための MCP サーバー
+ * MCP server for structural understanding of RFC documents
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -16,12 +16,13 @@ import {
 
 import { tools } from './tools/definitions.js';
 import { toolHandlers } from './tools/handlers.js';
+import { PACKAGE_INFO } from './config.js';
 
-// サーバーインスタンス
+// Server instance
 const server = new Server(
   {
-    name: 'rfcxml-mcp',
-    version: '0.1.0',
+    name: PACKAGE_INFO.name,
+    version: PACKAGE_INFO.version,
   },
   {
     capabilities: {
@@ -31,12 +32,12 @@ const server = new Server(
   }
 );
 
-// ツール一覧
+// List tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return { tools };
 });
 
-// ツール実行
+// Execute tool
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
@@ -59,21 +60,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// リソース一覧（RFC スキーマ）
+// List resources (RFC schema)
 server.setRequestHandler(ListResourcesRequestSchema, async () => {
   return {
     resources: [
       {
         uri: 'rfcxml://schema',
         name: 'RFCXML Schema Information',
-        description: 'RFCXML v3 の構造とスキーマ情報',
+        description: 'RFCXML v3 structure and schema information',
         mimeType: 'application/json',
       },
     ],
   };
 });
 
-// リソース読み取り
+// Read resource
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
 
@@ -89,13 +90,13 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
               spec: 'RFC 7991 (superseded by rfc7991bis)',
               documentation: 'https://authors.ietf.org/rfcxml-vocabulary',
               keyElements: {
-                bcp14: 'RFC 2119 キーワード（MUST, SHOULD, MAY 等）をマークアップ',
-                xref: '内部・外部参照',
-                reference: '参考文献',
-                section: 'セクション構造',
-                t: 'テキストパラグラフ',
-                dl: '定義リスト',
-                sourcecode: 'ソースコード',
+                bcp14: 'Markup for RFC 2119 keywords (MUST, SHOULD, MAY, etc.)',
+                xref: 'Internal and external references',
+                reference: 'Bibliography references',
+                section: 'Section structure',
+                t: 'Text paragraph',
+                dl: 'Definition list',
+                sourcecode: 'Source code',
               },
             },
             null,
@@ -109,7 +110,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   throw new Error(`Unknown resource: ${uri}`);
 });
 
-// サーバー起動
+// Start server
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

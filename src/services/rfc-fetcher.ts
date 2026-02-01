@@ -1,6 +1,6 @@
 /**
- * RFC 取得サービス
- * RFCXML ソースの取得とキャッシュ管理
+ * RFC Fetcher Service
+ * RFCXML source fetching and cache management
  */
 
 import type { RFCMetadata } from '../types/index.js';
@@ -15,30 +15,30 @@ import {
   RFC_CONFIG,
 } from '../config.js';
 
-// LRU キャッシュ（設定は config.ts から）
+// LRU caches (configuration from config.ts)
 const xmlCache = new LRUCache<number, string>(CACHE_CONFIG.xml);
 const textCache = new LRUCache<number, string>(CACHE_CONFIG.text);
 const metadataCache = new LRUCache<number, RFCMetadata>(CACHE_CONFIG.metadata);
 
 /**
- * RFCXML を取得（並列フェッチ）
- * 複数ソースに同時リクエストし、最初に成功したものを返す
+ * Fetch RFCXML (parallel fetch)
+ * Sends concurrent requests to multiple sources and returns the first successful response
  */
 export async function fetchRFCXML(rfcNumber: number): Promise<string> {
-  // キャッシュチェック
+  // Check cache
   const cached = xmlCache.get(rfcNumber);
   if (cached) {
     return cached;
   }
 
-  // ソースリストを作成
+  // Build source list
   const sources = Object.entries(RFC_XML_SOURCES).map(([name, urlFn]) => ({
     name,
     url: urlFn(rfcNumber),
   }));
 
   try {
-    // 並列フェッチ（最初に成功したものを返す）
+    // Parallel fetch (returns first successful response)
     const { text: xml, source } = await fetchFromMultipleSources(sources, {
       headers: { Accept: 'application/xml, text/xml' },
       validate: (text) => text.includes('<?xml') || text.includes('<rfc'),
@@ -48,7 +48,7 @@ export async function fetchRFCXML(rfcNumber: number): Promise<string> {
     console.error(`[RFC ${rfcNumber}] Fetched from ${source}`);
     return xml;
   } catch (error) {
-    // すべて失敗した場合
+    // All sources failed
     throw new RFCXMLNotAvailableError(rfcNumber, [
       error instanceof Error ? error.message : String(error),
     ]);
@@ -56,16 +56,18 @@ export async function fetchRFCXML(rfcNumber: number): Promise<string> {
 }
 
 /**
- * RFC メタデータを取得（IETF Datatracker API）
+ * Fetch RFC metadata (IETF Datatracker API)
  */
 export async function fetchRFCMetadata(rfcNumber: number): Promise<RFCMetadata> {
-  // キャッシュチェック
+  // Check cache
   const cached = metadataCache.get(rfcNumber);
   if (cached) {
     return cached;
   }
 
   const url = DATATRACKER_API.document(rfcNumber);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), HTTP_CONFIG.timeout);
 
   try {
     const response = await fetch(url, {
@@ -73,6 +75,7 @@ export async function fetchRFCMetadata(rfcNumber: number): Promise<RFCMetadata> 
         Accept: 'application/json',
         'User-Agent': HTTP_CONFIG.userAgent,
       },
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -90,7 +93,7 @@ export async function fetchRFCMetadata(rfcNumber: number): Promise<RFCMetadata> 
     const metadata: RFCMetadata = {
       number: rfcNumber,
       title: data.title || `RFC ${rfcNumber}`,
-      authors: [], // TODO: 別 API から取得
+      authors: [], // TODO: Fetch from separate API
       date: data.time || '',
       category: mapCategory(data.std_level ?? null),
       stream: mapStream(data.stream ?? null),
@@ -100,7 +103,7 @@ export async function fetchRFCMetadata(rfcNumber: number): Promise<RFCMetadata> 
     metadataCache.set(rfcNumber, metadata);
     return metadata;
   } catch (_error) {
-    // フォールバック: 最小限のメタデータ
+    // Fallback: minimal metadata
     return {
       number: rfcNumber,
       title: `RFC ${rfcNumber}`,
@@ -109,28 +112,30 @@ export async function fetchRFCMetadata(rfcNumber: number): Promise<RFCMetadata> 
       category: 'info',
       stream: 'IETF',
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
 /**
- * RFC テキストを取得（並列フェッチ）
- * 複数ソースに同時リクエストし、最初に成功したものを返す
+ * Fetch RFC text (parallel fetch)
+ * Sends concurrent requests to multiple sources and returns the first successful response
  */
 export async function fetchRFCText(rfcNumber: number): Promise<string> {
-  // キャッシュチェック
+  // Check cache
   const cached = textCache.get(rfcNumber);
   if (cached) {
     return cached;
   }
 
-  // ソースリストを作成
+  // Build source list
   const sources = Object.entries(RFC_TEXT_SOURCES).map(([name, urlFn]) => ({
     name,
     url: urlFn(rfcNumber),
   }));
 
   try {
-    // 並列フェッチ（最初に成功したものを返す）
+    // Parallel fetch (returns first successful response)
     const { text, source } = await fetchFromMultipleSources(sources, {
       headers: { Accept: 'text/plain' },
       validate: (t) => t.includes('Request for Comments') || t.includes('RFC '),
@@ -140,7 +145,7 @@ export async function fetchRFCText(rfcNumber: number): Promise<string> {
     console.error(`[RFC ${rfcNumber}] Text fetched from ${source}`);
     return text;
   } catch (error) {
-    // すべて失敗
+    // All sources failed
     throw new Error(
       `Failed to fetch RFC ${rfcNumber} text from all sources. ` +
         `Error: ${error instanceof Error ? error.message : String(error)}`
@@ -149,15 +154,15 @@ export async function fetchRFCText(rfcNumber: number): Promise<string> {
 }
 
 /**
- * RFC が XML 形式で利用可能か確認
- * 注: RFC 8650 (2019年12月) 以降は公式に RFCXML v3
+ * Check if RFC is available in XML format
+ * Note: RFC 8650 (December 2019) and later use official RFCXML v3
  */
 export function isRFCXMLAvailable(rfcNumber: number): boolean {
   return rfcNumber >= RFC_CONFIG.xmlAvailableFrom;
 }
 
 /**
- * RFC XML 取得エラー
+ * RFC XML fetch error
  */
 export class RFCXMLNotAvailableError extends Error {
   public readonly rfcNumber: number;
@@ -168,15 +173,15 @@ export class RFCXMLNotAvailableError extends Error {
     const threshold = RFC_CONFIG.xmlAvailableFrom;
     const isOldRFC = rfcNumber < threshold;
     const suggestion = isOldRFC
-      ? `RFC ${rfcNumber} は RFCXML v3 より前の形式で公開されているため、XML が利用できない可能性があります。` +
-        `テキスト形式での取得を検討してください（ietf MCP の get_ietf_doc を使用）。`
-      : `RFC ${rfcNumber} の XML 取得に失敗しました。ネットワーク接続を確認してください。`;
+      ? `RFC ${rfcNumber} was published before RFCXML v3 format, XML may not be available. ` +
+        `Consider using text format (use ietf MCP get_ietf_doc).`
+      : `Failed to fetch RFC ${rfcNumber} XML. Check network connection.`;
 
     super(
-      `RFC ${rfcNumber} XML を取得できませんでした。\n` +
-        `理由: ${isOldRFC ? `古い RFC (< ${threshold}) のため XML が利用できない可能性があります` : 'ネットワークエラー'}\n` +
-        `提案: ${suggestion}` +
-        (originalErrors.length > 0 ? `\n詳細: ${originalErrors.join(', ')}` : '')
+      `Could not fetch RFC ${rfcNumber} XML.\n` +
+        `Reason: ${isOldRFC ? `Old RFC (< ${threshold}), XML may not be available` : 'Network error'}\n` +
+        `Suggestion: ${suggestion}` +
+        (originalErrors.length > 0 ? `\nDetails: ${originalErrors.join(', ')}` : '')
     );
 
     this.name = 'RFCXMLNotAvailableError';
@@ -187,7 +192,7 @@ export class RFCXMLNotAvailableError extends Error {
 }
 
 /**
- * キャッシュクリア
+ * Clear all caches
  */
 export function clearCache(): void {
   xmlCache.clear();
@@ -195,7 +200,7 @@ export function clearCache(): void {
   metadataCache.clear();
 }
 
-// ヘルパー関数
+// Helper functions
 
 function mapCategory(stdLevel: string | null): RFCMetadata['category'] {
   switch (stdLevel?.toLowerCase()) {

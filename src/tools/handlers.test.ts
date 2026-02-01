@@ -211,7 +211,7 @@ describe('handleGetDependencies', () => {
     const result = await handleGetDependencies({ rfc: 9999, includeReferencedBy: true });
 
     expect(result.referencedBy).toBeDefined();
-    expect(result._note).toContain('未実装');
+    expect(result._note).toContain('not implemented');
   });
 });
 

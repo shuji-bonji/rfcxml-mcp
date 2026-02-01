@@ -111,9 +111,11 @@ RFC 8650 (2019年12月) 以降は公式 RFCXML v3 形式で提供されていま
   "rfc": 6455,
   "sections": [...],
   "_source": "text",
-  "_sourceNote": "⚠️ テキストからの解析結果です。精度が低い可能性があります。"
+  "_sourceNote": "Warning: Parsed from text format. Accuracy may be limited."
 }
 ```
+
+> **Note**: v0.4.0 以降、すべてのメッセージは英語で出力されます（国際化対応）。
 
 | `_source` | 説明 |
 |-----------|------|
@@ -211,20 +213,22 @@ RFC 8650 (2019年12月) 以降は公式 RFCXML v3 形式で提供されていま
 
 ### `generate_checklist` - 実装チェックリスト生成
 
+> **Note**: v0.4.0 以降、チェックリストは英語で出力されます。
+
 ```markdown
-# RFC 9293 実装チェックリスト
+# RFC 9293 Implementation Checklist
 
 **Transmission Control Protocol (TCP)**
 
-役割: クライアント
+Role: client
 
-## 必須要件 (MUST / REQUIRED / SHALL)
+## Mandatory Requirements (MUST / REQUIRED / SHALL)
 
 - [ ] A TCP implementation support simultaneous open attempts (MUST-10). (section-3.5)
 - [ ] TCP endpoints implement both sending and receiving the MSS Option (MUST-14). (section-3.7.1)
 - [ ] The RTO be computed according to the algorithm in, including Karn's algorithm (MUST-18). (section-3.8.1)
 
-## 任意要件 (MAY / OPTIONAL)
+## Optional Requirements (MAY / OPTIONAL)
 
 - [ ] Implementers include "keep-alives" in their TCP implementations (MAY-5). (section-3.8.4)
 ```
@@ -242,7 +246,7 @@ RFC 8650 (2019年12月) 以降は公式 RFCXML v3 形式で提供されていま
     { "number": "5", "title": "Data Framing" }
   ],
   "_source": "text",
-  "_sourceNote": "⚠️ テキストからの解析結果です。精度が低い可能性があります。"
+  "_sourceNote": "Warning: Parsed from text format. Accuracy may be limited."
 }
 ```
 

@@ -13,7 +13,10 @@ import type {
   TextBlock,
   ContentBlock,
 } from '../types/index.js';
-import { REQUIREMENT_REGEX } from '../constants.js';
+
+// Re-export Section type for use in handlers
+export type { Section };
+import { createRequirementRegex } from '../constants.js';
 import { extractSentence, extractCrossReferences, toArray } from '../utils/text.js';
 
 /**
@@ -165,9 +168,10 @@ function createTextBlock(text: string): TextBlock {
  */
 function extractRequirementMarkers(text: string): TextBlock['requirements'] {
   const markers: TextBlock['requirements'] = [];
+  const regex = createRequirementRegex();
 
   let match: RegExpExecArray | null;
-  while ((match = REQUIREMENT_REGEX.exec(text)) !== null) {
+  while ((match = regex.exec(text)) !== null) {
     markers.push({
       level: match[1] as RequirementLevel,
       position: match.index,

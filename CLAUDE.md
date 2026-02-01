@@ -58,7 +58,8 @@ rfcxml-mcp/
 │   └── utils/
 │       ├── cache.ts             # LRU キャッシュ
 │       ├── fetch.ts             # 並列フェッチユーティリティ
-│       └── text.ts              # テキスト処理ユーティリティ
+│       ├── text.ts              # テキスト処理ユーティリティ
+│       └── validation.ts        # 入力バリデーション
 ├── package.json
 ├── tsconfig.json
 ├── CHANGELOG.md
@@ -139,6 +140,28 @@ function collectReferenceSections(sections: any | any[]): any[] {
   // 再帰的に references を収集
 }
 ```
+
+### ✅ 解決済み: 国際化 (i18n)
+
+**問題**: 日本語がハードコーディングされており、海外ユーザーに不便
+
+**対応** (v0.4.0):
+1. ツール description を英語化（`definitions.ts`）
+2. `_sourceNote` メッセージを英語化（`handlers.ts`）
+3. チェックリスト生成を英語化（`handlers.ts`）
+4. エラーメッセージを英語化（`rfc-fetcher.ts`）
+
+### ✅ 解決済み: バージョン不一致
+
+**問題**: `index.ts` と `config.ts` でバージョンがハードコードされ、`package.json` と不一致
+
+**対応**: `package.json` から動的に読み込むように変更
+
+### ✅ 解決済み: fetchRFCMetadata タイムアウト
+
+**問題**: タイムアウト未設定でハングする可能性
+
+**対応**: `AbortController` で 30 秒タイムアウトを追加
 
 ### 残課題: `validate_statement` のマッチング精度
 
@@ -256,6 +279,50 @@ const REQUIREMENT_KEYWORDS: RequirementLevel[] = [
   'SHALL',
   // ...
 ];
+```
+
+### 正規表現の安全な使用
+グローバルフラグ `/g` 付きの正規表現は `lastIndex` を保持するため、`exec()` ループで再利用すると問題が発生する可能性がある。ファクトリ関数を使用：
+
+```typescript
+// ✅ 推奨: ファクトリ関数で毎回新規インスタンス
+import { createRequirementRegex } from '../constants.js';
+
+function extractMarkers(text: string) {
+  const regex = createRequirementRegex();  // 新規インスタンス
+  while ((match = regex.exec(text)) !== null) { ... }
+}
+
+// ❌ 非推奨: グローバル変数の再利用
+import { REQUIREMENT_REGEX } from '../constants.js';
+// → exec() ループで lastIndex が残る可能性
+```
+
+### RFC 番号バリデーション
+全ハンドラーで入力バリデーションを実施：
+
+```typescript
+import { validateRFCNumber } from '../utils/validation.js';
+
+export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
+  validateRFCNumber(args.rfc);  // 不正な値で例外
+  // ...
+}
+```
+
+### バージョン管理
+バージョンは `package.json` から動的に読み込む（ハードコード禁止）：
+
+```typescript
+// src/config.ts
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const packageJson = require('../package.json');
+
+export const PACKAGE_INFO = {
+  name: packageJson.name,
+  version: packageJson.version,  // 動的取得
+} as const;
 ```
 
 ### RFC 番号と XML 可用性

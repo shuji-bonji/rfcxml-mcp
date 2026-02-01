@@ -1,48 +1,52 @@
 /**
- * アプリケーション設定
- * すべての設定値を一箇所で管理
+ * Application Configuration
+ * Centralized configuration management
  */
 
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const packageJson = require('../package.json') as { name: string; version: string };
+
 /**
- * パッケージ情報
+ * Package information (dynamically loaded from package.json)
  */
 export const PACKAGE_INFO = {
-  name: 'rfcxml-mcp',
-  version: '0.1.2',
+  name: packageJson.name,
+  version: packageJson.version,
 } as const;
 
 /**
- * HTTP リクエスト設定
+ * HTTP request configuration
  */
 export const HTTP_CONFIG = {
-  /** User-Agent ヘッダー */
+  /** User-Agent header */
   userAgent: `${PACKAGE_INFO.name}/${PACKAGE_INFO.version}`,
-  /** タイムアウト（ミリ秒） */
+  /** Timeout in milliseconds */
   timeout: 30000,
-  /** リトライ回数 */
+  /** Maximum retry attempts */
   maxRetries: 3,
 } as const;
 
 /**
- * キャッシュ設定
+ * Cache configuration
  */
 export const CACHE_CONFIG = {
-  /** XML 生データキャッシュ（小さめ：パース済みがメイン） */
+  /** XML raw data cache (smaller since parsed cache is primary) */
   xml: {
     maxSize: 20,
     name: 'XMLCache',
   },
-  /** テキスト生データキャッシュ */
+  /** Text raw data cache */
   text: {
     maxSize: 20,
     name: 'TextCache',
   },
-  /** メタデータキャッシュ（軽量なので多め） */
+  /** Metadata cache (lightweight, so larger) */
   metadata: {
     maxSize: 100,
     name: 'MetadataCache',
   },
-  /** パース済み RFC キャッシュ（メインキャッシュ） */
+  /** Parsed RFC cache (main cache) */
   parsed: {
     maxSize: 50,
     name: 'ParseCache',
@@ -50,22 +54,22 @@ export const CACHE_CONFIG = {
 } as const;
 
 /**
- * RFC 関連の設定
+ * RFC-related configuration
  */
 export const RFC_CONFIG = {
   /**
-   * RFCXML v3 が確実に利用可能な最小 RFC 番号
-   * RFC 8650 (2019年12月) 以降は公式に RFCXML v3 形式
+   * Minimum RFC number where RFCXML v3 is reliably available
+   * RFC 8650 (December 2019) and later use official RFCXML v3 format
    */
   xmlAvailableFrom: 8650,
 } as const;
 
 /**
- * RFC XML ソースの取得元
- * 優先順位順に定義
+ * RFC XML source URLs
+ * Defined in priority order
  */
 export const RFC_XML_SOURCES = {
-  /** RFC Editor 公式 */
+  /** RFC Editor official */
   rfcEditor: (num: number) => `https://www.rfc-editor.org/rfc/rfc${num}.xml`,
   /** IETF Tools */
   ietfTools: (num: number) => `https://xml2rfc.ietf.org/public/rfc/rfc${num}.xml`,
@@ -74,11 +78,11 @@ export const RFC_XML_SOURCES = {
 } as const;
 
 /**
- * RFC テキストソースの取得元
- * 優先順位順に定義
+ * RFC text source URLs
+ * Defined in priority order
  */
 export const RFC_TEXT_SOURCES = {
-  /** RFC Editor 公式（テキスト） */
+  /** RFC Editor official (text) */
   rfcEditor: (num: number) => `https://www.rfc-editor.org/rfc/rfc${num}.txt`,
   /** IETF Tools */
   ietfTools: (num: number) => `https://tools.ietf.org/rfc/rfc${num}.txt`,
@@ -88,12 +92,12 @@ export const RFC_TEXT_SOURCES = {
  * IETF Datatracker API
  */
 export const DATATRACKER_API = {
-  /** RFC ドキュメント情報 */
+  /** RFC document information */
   document: (num: number) => `https://datatracker.ietf.org/api/v1/doc/document/rfc${num}/`,
 } as const;
 
 /**
- * RFC が XML 形式で利用可能か確認
+ * Check if RFC is likely available in XML format
  */
 export function isRFCXMLLikelyAvailable(rfcNumber: number): boolean {
   return rfcNumber >= RFC_CONFIG.xmlAvailableFrom;
