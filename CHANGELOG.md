@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2026-02-03
+
+### Changed
+
+- **Service layer refactoring**: Improved separation of concerns
+  - Extracted RFC parsing logic to `src/services/rfc-service.ts`
+  - `getParsedRFC()`, `clearParseCache()`, and `getTextSourceNote()` moved from handlers
+  - Handlers now only handle request/response transformation
+
+- **Logger abstraction**: Centralized logging for future extensibility
+  - New `src/utils/logger.ts` module
+  - Replaced direct `console.error` calls with `logger.info/warn/error`
+  - Supports DEBUG environment variable for verbose output
+
+- **Constants consolidation**: Magic numbers extracted to named constants
+  - Added `RFC_NUMBER_LIMITS.MIN/MAX` to `src/constants.ts`
+  - Updated `validation.ts` to use centralized limits
+
+### Added
+
+- **Test coverage reporting**: Added `@vitest/coverage-v8` dependency
+  - Run `npm test -- --coverage` to generate coverage report
+  - Current coverage: 64.74% overall, 97%+ on core handlers
+
+### Internal
+
+- `ParsedRFCWithSource` and `SourceNoteContext` types exported from `rfc-service.ts`
+- `getParseCacheSize()` function for monitoring cache state
+
 ## [0.4.2] - 2026-02-03
 
 ### Fixed

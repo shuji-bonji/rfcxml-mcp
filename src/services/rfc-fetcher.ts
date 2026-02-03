@@ -6,6 +6,7 @@
 import type { RFCMetadata } from '../types/index.js';
 import { LRUCache } from '../utils/cache.js';
 import { fetchFromMultipleSources } from '../utils/fetch.js';
+import { logger } from '../utils/logger.js';
 import {
   CACHE_CONFIG,
   RFC_XML_SOURCES,
@@ -45,7 +46,7 @@ export async function fetchRFCXML(rfcNumber: number): Promise<string> {
     });
 
     xmlCache.set(rfcNumber, xml);
-    console.error(`[RFC ${rfcNumber}] Fetched from ${source}`);
+    logger.info(`RFC ${rfcNumber}`, `Fetched from ${source}`);
     return xml;
   } catch (error) {
     // All sources failed
@@ -142,7 +143,7 @@ export async function fetchRFCText(rfcNumber: number): Promise<string> {
     });
 
     textCache.set(rfcNumber, text);
-    console.error(`[RFC ${rfcNumber}] Text fetched from ${source}`);
+    logger.info(`RFC ${rfcNumber}`, `Text fetched from ${source}`);
     return text;
   } catch (error) {
     // All sources failed

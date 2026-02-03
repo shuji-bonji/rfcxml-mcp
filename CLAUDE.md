@@ -45,9 +45,10 @@ rfcxml-mcp/
 ├── src/
 │   ├── index.ts                 # MCPサーバーエントリポイント
 │   ├── config.ts                # 設定の一元管理
-│   ├── constants.ts             # BCP 14 キーワード定義 + 正規表現パターン
+│   ├── constants.ts             # BCP 14 キーワード定義 + RFC番号制限
 │   ├── services/
 │   │   ├── rfc-fetcher.ts       # RFC XML 取得・キャッシュ
+│   │   ├── rfc-service.ts       # RFC パース・キャッシュ管理 (v0.4.3)
 │   │   ├── rfcxml-parser.ts     # RFCXML パーサー
 │   │   ├── rfc-text-parser.ts   # テキストフォールバックパーサー
 │   │   └── checklist-generator.ts # チェックリスト生成サービス
@@ -59,6 +60,7 @@ rfcxml-mcp/
 │   └── utils/
 │       ├── cache.ts             # LRU キャッシュ
 │       ├── fetch.ts             # 並列フェッチユーティリティ
+│       ├── logger.ts            # ログ抽象化 (v0.4.3)
 │       ├── requirement-extractor.ts # 共通要件抽出ユーティリティ
 │       ├── section.ts           # セクション検索・クロスリファレンス
 │       ├── text.ts              # テキスト処理ユーティリティ
@@ -200,6 +202,27 @@ export function extractTextRequirements(sections, filter) {
 }
 ```
 
+### ✅ 解決済み: サービス層の責務分離 (v0.4.3)
+
+**問題**: `handlers.ts` に `getParsedRFC()` やキャッシュ処理が混在
+
+**対応**: 専用サービスに抽出
+1. `src/services/rfc-service.ts` - RFC パース・キャッシュ管理
+2. `src/utils/logger.ts` - ログ抽象化（`console.error` → `logger.info`）
+3. `src/constants.ts` - `RFC_NUMBER_LIMITS` 定数追加
+
+```typescript
+// src/services/rfc-service.ts
+export interface ParsedRFCWithSource {
+  data: ParsedRFC;
+  source: 'xml' | 'text';
+}
+
+export async function getParsedRFC(rfcNumber: number): Promise<ParsedRFCWithSource>
+export function clearParseCache(): void
+export function getTextSourceNote(context: SourceNoteContext): string
+```
+
 ### 残課題: `validate_statement` のマッチング精度
 
 **問題**: 簡易的なキーワードマッチングのため精度が低い
@@ -336,15 +359,45 @@ import { REQUIREMENT_REGEX } from '../constants.js';
 ```
 
 ### RFC 番号バリデーション
-全ハンドラーで入力バリデーションを実施：
+全ハンドラーで入力バリデーションを実施。制限値は `constants.ts` で一元管理：
 
 ```typescript
-import { validateRFCNumber } from '../utils/validation.js';
+// src/constants.ts
+export const RFC_NUMBER_LIMITS = {
+  MIN: 1,
+  MAX: 99999,
+} as const;
 
-export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
-  validateRFCNumber(args.rfc);  // 不正な値で例外
-  // ...
+// src/utils/validation.ts
+import { RFC_NUMBER_LIMITS } from '../constants.js';
+
+export function validateRFCNumber(rfc: unknown): asserts rfc is number {
+  if (rfc < RFC_NUMBER_LIMITS.MIN || rfc > RFC_NUMBER_LIMITS.MAX) {
+    throw new Error(`Invalid RFC number`);
+  }
 }
+```
+
+### ログ出力
+`console.error` は直接使用せず、`logger` ユーティリティを経由：
+
+```typescript
+// src/utils/logger.ts
+import { logger } from '../utils/logger.js';
+
+// ✅ 推奨
+logger.info(`RFC ${rfcNumber}`, `Fetched from ${source}`);
+logger.warn(`RFC ${rfcNumber}`, 'XML not available, trying text fallback...');
+logger.error(`RFC ${rfcNumber}`, 'Failed to fetch', error);
+
+// ❌ 非推奨
+console.error(`[RFC ${rfcNumber}] Fetched from ${source}`);
+```
+
+DEBUG 環境変数を設定すると詳細ログを出力：
+
+```bash
+DEBUG=1 npm start
 ```
 
 ### バージョン管理

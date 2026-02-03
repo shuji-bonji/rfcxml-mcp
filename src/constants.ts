@@ -6,6 +6,21 @@
 import type { RequirementLevel } from './types/index.js';
 
 // ========================================
+// RFC Number Limits
+// ========================================
+
+/**
+ * RFC number validation limits
+ * Current highest RFC is around 9700 (as of 2025)
+ */
+export const RFC_NUMBER_LIMITS = {
+  /** Minimum valid RFC number */
+  MIN: 1,
+  /** Maximum valid RFC number (reasonable upper bound) */
+  MAX: 99999,
+} as const;
+
+// ========================================
 // BCP 14 / RFC 2119 Keywords
 // ========================================
 

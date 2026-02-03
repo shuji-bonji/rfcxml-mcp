@@ -2,23 +2,15 @@
  * MCP Tool Handlers
  */
 
-import { fetchRFCXML, fetchRFCText, RFCXMLNotAvailableError } from '../services/rfc-fetcher.js';
-import {
-  parseRFCXML,
-  extractRequirements,
-  type ParsedRFC,
-  type Section,
-} from '../services/rfcxml-parser.js';
-import { parseRFCText } from '../services/rfc-text-parser.js';
+import { extractRequirements, type Section } from '../services/rfcxml-parser.js';
 import {
   generateChecklist,
   generateChecklistMarkdown,
   getChecklistStats,
 } from '../services/checklist-generator.js';
-import { LRUCache } from '../utils/cache.js';
+import { getParsedRFC, clearParseCache, getTextSourceNote } from '../services/rfc-service.js';
 import { validateRFCNumber } from '../utils/validation.js';
 import { findSection, collectCrossReferences } from '../utils/section.js';
-import { CACHE_CONFIG } from '../config.js';
 import type {
   GetRFCStructureArgs,
   GetRequirementsArgs,
@@ -31,94 +23,8 @@ import type {
   ContentBlock,
 } from '../types/index.js';
 
-/**
- * Source note context types
- */
-type SourceNoteContext =
-  | 'structure'
-  | 'requirements'
-  | 'definitions'
-  | 'sections'
-  | 'checklist'
-  | 'validation'
-  | 'dependencies';
-
-/**
- * Get source note for text-based parsing
- */
-function getTextSourceNote(context: SourceNoteContext): string {
-  const notes: Record<SourceNoteContext, string> = {
-    structure: 'Parsed from text format. Accuracy may be limited.',
-    requirements: 'Parsed from text format. Requirement extraction accuracy may be limited.',
-    definitions: 'Parsed from text format. Definition extraction accuracy may be limited.',
-    sections: 'Parsed from text format. Related section accuracy may be limited.',
-    checklist: 'Parsed from text format. Checklist accuracy may be limited.',
-    validation: 'Parsed from text format. Validation accuracy may be limited.',
-    dependencies: 'Parsed from text format. Reference information is not available.',
-  };
-  return `Warning: ${notes[context]}`;
-}
-
-/**
- * Parsed RFC with source information
- */
-interface ParsedRFCWithSource {
-  data: ParsedRFC;
-  source: 'xml' | 'text';
-}
-
-/**
- * Parsed RFC cache (main cache)
- * Parsing is CPU-intensive, so we cache the results
- */
-const parseCache = new LRUCache<number, ParsedRFCWithSource>(CACHE_CONFIG.parsed);
-
-/**
- * Clear parse cache (for testing)
- */
-export function clearParseCache(): void {
-  parseCache.clear();
-}
-
-/**
- * Fetch and parse RFCXML (with cache and fallback support)
- */
-async function getParsedRFC(rfcNumber: number): Promise<ParsedRFCWithSource> {
-  const cached = parseCache.get(rfcNumber);
-  if (cached) {
-    return cached;
-  }
-
-  // Try XML first
-  try {
-    const xml = await fetchRFCXML(rfcNumber);
-    const parsed = parseRFCXML(xml);
-    const result: ParsedRFCWithSource = { data: parsed, source: 'xml' };
-    parseCache.set(rfcNumber, result);
-    return result;
-  } catch (xmlError) {
-    // XML fetch failed -> text fallback
-    if (xmlError instanceof RFCXMLNotAvailableError && xmlError.isOldRFC) {
-      console.error(`[RFC ${rfcNumber}] XML not available, trying text fallback...`);
-      try {
-        const text = await fetchRFCText(rfcNumber);
-        const parsed = parseRFCText(text, rfcNumber);
-        const result: ParsedRFCWithSource = { data: parsed, source: 'text' };
-        parseCache.set(rfcNumber, result);
-        return result;
-      } catch (textError) {
-        // Text also failed
-        throw new Error(
-          `Failed to fetch RFC ${rfcNumber}.\n` +
-            `XML: ${xmlError.message}\n` +
-            `Text: ${textError instanceof Error ? textError.message : String(textError)}`
-        );
-      }
-    }
-    // For newer RFCs, propagate the error as-is
-    throw xmlError;
-  }
-}
+// Re-export clearParseCache for testing
+export { clearParseCache };
 
 /**
  * Simplified section structure
