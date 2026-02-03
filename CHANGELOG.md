@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2026-02-03
+
+### Fixed
+
+- **Version re-release**: v0.4.1 was published before main branch CI completed. This release is functionally identical to v0.4.1.
+
 ## [0.4.1] - 2026-02-03
 
 ### Changed
