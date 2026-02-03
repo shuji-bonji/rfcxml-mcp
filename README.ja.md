@@ -29,15 +29,15 @@ RFC 文書を **構造的に理解** するための MCP サーバー。
 
 ## 既存 MCP との違い
 
-| 機能 | 既存 mcp-rfc | RFCXML MCP |
-|------|-------------|------------|
-| RFC テキスト取得 | ✅ | ✅ |
-| セクション抽出 | ✅ (テキストベース) | ✅ (構造ベース) |
-| MUST/SHOULD/MAY 抽出 | ❌ | ✅ |
-| 条件・例外の構造化 | ❌ | ✅ |
-| RFC 間依存グラフ | ❌ | ✅ |
-| 定義スコープ管理 | ❌ | ✅ |
-| 実装チェックリスト | ❌ | ✅ |
+| 機能                 | 既存 mcp-rfc        | RFCXML MCP      |
+| -------------------- | ------------------- | --------------- |
+| RFC テキスト取得     | ✅                  | ✅              |
+| セクション抽出       | ✅ (テキストベース) | ✅ (構造ベース) |
+| MUST/SHOULD/MAY 抽出 | ❌                  | ✅              |
+| 条件・例外の構造化   | ❌                  | ✅              |
+| RFC 間依存グラフ     | ❌                  | ✅              |
+| 定義スコープ管理     | ❌                  | ✅              |
+| 実装チェックリスト   | ❌                  | ✅              |
 
 ## クイックスタート
 
@@ -57,6 +57,7 @@ MCP 設定ファイルに以下を追加：
 ```
 
 設定ファイルの場所：
+
 - **Claude Desktop (macOS)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Claude Code**: `.claude/settings.json` または `claude settings` コマンド
@@ -117,16 +118,16 @@ RFC 8650 (2019年12月) 以降は公式 RFCXML v3 形式で提供されていま
 
 > **Note**: v0.4.0 以降、すべてのメッセージは英語で出力されます（国際化対応）。
 
-| `_source` | 説明 |
-|-----------|------|
-| `xml` | RFCXML から解析（高精度） |
-| `text` | テキストから解析（中精度） |
+| `_source` | 説明                       |
+| --------- | -------------------------- |
+| `xml`     | RFCXML から解析（高精度）  |
+| `text`    | テキストから解析（中精度） |
 
 ### 対応状況
 
-| RFC | 形式 | 備考 |
-|-----|------|------|
-| RFC 8650 以降 | XML | RFCXML v3 公式対応 |
+| RFC           | 形式     | 備考               |
+| ------------- | -------- | ------------------ |
+| RFC 8650 以降 | XML      | RFCXML v3 公式対応 |
 | RFC 8650 未満 | テキスト | 自動フォールバック |
 
 ## 出力サンプル
@@ -254,13 +255,14 @@ Role: client
 
 [examples/](./examples/) ディレクトリに `generate_checklist` ツールで生成したチェックリストのサンプルがあります：
 
-| RFC | プロトコル | ソース |
-|-----|----------|--------|
-| [RFC 6455](./examples/rfc6455-websocket-checklist.md) | WebSocket | テキスト（フォールバック） |
-| [RFC 9293](./examples/rfc9293-tcp-checklist.md) | TCP | RFCXML |
-| [RFC 7540](./examples/rfc7540-http2-checklist.md) | HTTP/2 | テキスト（フォールバック） |
+| RFC                                                   | プロトコル | ソース                     |
+| ----------------------------------------------------- | ---------- | -------------------------- |
+| [RFC 6455](./examples/rfc6455-websocket-checklist.md) | WebSocket  | テキスト（フォールバック） |
+| [RFC 9293](./examples/rfc9293-tcp-checklist.md)       | TCP        | RFCXML                     |
+| [RFC 7540](./examples/rfc7540-http2-checklist.md)     | HTTP/2     | テキスト（フォールバック） |
 
 **Claude への依頼例：**
+
 ```
 RFC 9293 (TCP) の実装チェックリストを生成してください。
 ```
@@ -318,12 +320,12 @@ src/
 
 LRU（Least Recently Used）キャッシュでメモリ使用量を制限：
 
-| キャッシュ | 最大エントリ数 | 内容 |
-|-----------|---------------|------|
-| XML キャッシュ | 20 | 生の RFCXML |
-| Text キャッシュ | 20 | 生のテキスト |
-| Metadata キャッシュ | 100 | RFC メタデータ |
-| Parse キャッシュ | 50 | パース済み構造 |
+| キャッシュ          | 最大エントリ数 | 内容           |
+| ------------------- | -------------- | -------------- |
+| XML キャッシュ      | 20             | 生の RFCXML    |
+| Text キャッシュ     | 20             | 生のテキスト   |
+| Metadata キャッシュ | 100            | RFC メタデータ |
+| Parse キャッシュ    | 50             | パース済み構造 |
 
 ## 開発
 

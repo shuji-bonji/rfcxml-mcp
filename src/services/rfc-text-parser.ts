@@ -6,14 +6,18 @@
 import type {
   Section,
   Requirement,
-  RequirementLevel,
   Definition,
   ContentBlock,
   TextBlock,
+  ParsedRFC,
+  RequirementLevel,
 } from '../types/index.js';
-import type { ParsedRFC } from './rfcxml-parser.js';
-import { createRequirementRegex } from '../constants.js';
-import { extractSentence, extractCrossReferences } from '../utils/text.js';
+import { createRequirementRegex, SECTION_HEADER_PATTERN } from '../constants.js';
+import { extractCrossReferences } from '../utils/text.js';
+import {
+  extractRequirementsFromSections,
+  type RequirementFilter,
+} from '../utils/requirement-extractor.js';
 
 /**
  * RFC テキストをパースして構造化データに変換（中精度）
@@ -66,11 +70,10 @@ function extractTextSections(lines: string[]): Section[] {
   let currentContent: string[] = [];
 
   // セクション番号パターン（例: "1.", "1.1", "1.1.1"）
-  const sectionPattern = /^(\d+(?:\.\d+)*\.?)\s+(.+)$/;
 
   for (const line of lines) {
     const trimmed = line.trim();
-    const match = trimmed.match(sectionPattern);
+    const match = trimmed.match(SECTION_HEADER_PATTERN);
 
     if (match) {
       // 前のセクションを保存
@@ -140,7 +143,7 @@ function createTextBlocks(text: string): ContentBlock[] {
     const trimmed = para.trim();
     if (!trimmed) continue;
 
-    // Extract requirement markers
+    // 要件マーカーを抽出
     const requirements: TextBlock['requirements'] = [];
     const regex = createRequirementRegex();
     let match: RegExpExecArray | null;
@@ -171,13 +174,12 @@ function extractTextDefinitions(lines: string[]): Definition[] {
   const defPattern = /^\s*([A-Za-z][A-Za-z0-9\s-]*[A-Za-z0-9])\s*[-:]\s+(.+)$/;
 
   let currentSection = '';
-  const sectionPattern = /^(\d+(?:\.\d+)*\.?)\s+(.+)$/;
 
   for (const line of lines) {
     const trimmed = line.trim();
 
     // セクションを追跡
-    const sectionMatch = trimmed.match(sectionPattern);
+    const sectionMatch = trimmed.match(SECTION_HEADER_PATTERN);
     if (sectionMatch) {
       currentSection = sectionMatch[1].replace(/\.$/, '');
       continue;
@@ -205,50 +207,11 @@ function extractTextDefinitions(lines: string[]): Definition[] {
 
 /**
  * テキストから要件を抽出
+ * 共通ユーティリティのラッパー（テキストパース時はparseComponentsをオフ）
  */
 export function extractTextRequirements(
   sections: Section[],
-  filter?: { section?: string; level?: RequirementLevel }
+  filter?: RequirementFilter
 ): Requirement[] {
-  const requirements: Requirement[] = [];
-  let idCounter = 1;
-
-  function processSection(section: Section, path: string) {
-    const sectionId = section.number || path;
-
-    if (filter?.section && !sectionId.startsWith(filter.section)) {
-      // フィルタリング
-    }
-
-    for (const block of section.content) {
-      if (block.type === 'text' && block.requirements.length > 0) {
-        for (const marker of block.requirements) {
-          if (filter?.level && marker.level !== filter.level) {
-            continue;
-          }
-
-          const sentence = extractSentence(block.content, marker.position);
-
-          requirements.push({
-            id: `R-${sectionId}-${idCounter++}`,
-            level: marker.level,
-            text: sentence.trim(),
-            section: sectionId,
-            sectionTitle: section.title,
-            fullContext: block.content,
-          });
-        }
-      }
-    }
-
-    for (const subsection of section.subsections) {
-      processSection(subsection, `${sectionId}.${subsection.number || ''}`);
-    }
-  }
-
-  for (const section of sections) {
-    processSection(section, section.number || '');
-  }
-
-  return requirements;
+  return extractRequirementsFromSections(sections, filter, { parseComponents: false });
 }

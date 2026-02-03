@@ -45,19 +45,22 @@ rfcxml-mcp/
 ├── src/
 │   ├── index.ts                 # MCPサーバーエントリポイント
 │   ├── config.ts                # 設定の一元管理
-│   ├── constants.ts             # BCP 14 キーワード定義
+│   ├── constants.ts             # BCP 14 キーワード定義 + 正規表現パターン
 │   ├── services/
 │   │   ├── rfc-fetcher.ts       # RFC XML 取得・キャッシュ
 │   │   ├── rfcxml-parser.ts     # RFCXML パーサー
-│   │   └── rfc-text-parser.ts   # テキストフォールバックパーサー
+│   │   ├── rfc-text-parser.ts   # テキストフォールバックパーサー
+│   │   └── checklist-generator.ts # チェックリスト生成サービス
 │   ├── tools/
 │   │   ├── definitions.ts       # MCPツール定義
 │   │   └── handlers.ts          # ツールハンドラー実装 + toolHandlers Map
 │   ├── types/
-│   │   └── index.ts             # 型定義
+│   │   └── index.ts             # 型定義（ParsedRFC含む）
 │   └── utils/
 │       ├── cache.ts             # LRU キャッシュ
 │       ├── fetch.ts             # 並列フェッチユーティリティ
+│       ├── requirement-extractor.ts # 共通要件抽出ユーティリティ
+│       ├── section.ts           # セクション検索・クロスリファレンス
 │       ├── text.ts              # テキスト処理ユーティリティ
 │       └── validation.ts        # 入力バリデーション
 ├── package.json
@@ -119,12 +122,20 @@ rfcxml-mcp/
 
 **問題**: XMLの `anchor` が `section-3.5` 形式、`number` が `3.5` 形式で混在
 
-**修正内容**: `src/tools/handlers.ts` の `normalizeSectionNumber` 関数と `findSection` 関数を追加・修正
+**修正内容**: `src/utils/section.ts` に `normalizeSectionNumber` 関数と `findSection` 関数を分離
 
 ```typescript
-// セクション番号を正規化（section-3.5 → 3.5）
-function normalizeSectionNumber(sectionId: string): string {
+// src/utils/section.ts
+export function normalizeSectionNumber(sectionId: string): string {
   return sectionId.replace(/^section-/, '');
+}
+
+export function findSection(sections: Section[], target: string): Section | null {
+  // 複数フォーマット対応のセクション検索
+}
+
+export function collectCrossReferences(section: Section): Set<string> {
+  // セクションからクロスリファレンスを収集
 }
 ```
 
@@ -162,6 +173,32 @@ function collectReferenceSections(sections: any | any[]): any[] {
 **問題**: タイムアウト未設定でハングする可能性
 
 **対応**: `AbortController` で 30 秒タイムアウトを追加
+
+### ✅ 解決済み: コードの責務分割 (v0.4.1)
+
+**問題**: `handlers.ts` が 510 行と肥大化、要件抽出ロジックが重複
+
+**対応**: 共通ユーティリティへの分離
+1. `src/utils/requirement-extractor.ts` - XML/テキストパーサー共通の要件抽出
+2. `src/utils/section.ts` - セクション検索・クロスリファレンス収集
+3. `src/services/checklist-generator.ts` - チェックリスト生成の専用サービス化
+
+**効果**: `handlers.ts` が 510 行 → 400 行（約22%削減）
+
+```typescript
+// 共通の要件抽出（parseComponents オプションで構成要素解析を制御）
+import { extractRequirementsFromSections } from '../utils/requirement-extractor.js';
+
+// XMLパーサー: 構成要素解析あり
+export function extractRequirements(sections, filter) {
+  return extractRequirementsFromSections(sections, filter, { parseComponents: true });
+}
+
+// テキストパーサー: 構成要素解析なし（精度が低いため）
+export function extractTextRequirements(sections, filter) {
+  return extractRequirementsFromSections(sections, filter, { parseComponents: false });
+}
+```
 
 ### 残課題: `validate_statement` のマッチング精度
 

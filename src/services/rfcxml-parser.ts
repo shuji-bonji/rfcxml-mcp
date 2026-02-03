@@ -12,12 +12,17 @@ import type {
   RFCReference,
   TextBlock,
   ContentBlock,
+  ParsedRFC,
 } from '../types/index.js';
 
-// Re-export Section type for use in handlers
-export type { Section };
+// Re-export types for use in handlers
+export type { Section, ParsedRFC };
 import { createRequirementRegex } from '../constants.js';
-import { extractSentence, extractCrossReferences, toArray } from '../utils/text.js';
+import { extractCrossReferences, toArray } from '../utils/text.js';
+import {
+  extractRequirementsFromSections,
+  type RequirementFilter,
+} from '../utils/requirement-extractor.js';
 
 /**
  * XML パーサー設定
@@ -45,20 +50,6 @@ export function parseRFCXML(xml: string): ParsedRFC {
     references: extractReferences(rfc.back?.references || []),
     definitions: extractDefinitions(rfc),
   };
-}
-
-export interface ParsedRFC {
-  metadata: {
-    title: string;
-    docName?: string;
-    number?: number;
-  };
-  sections: Section[];
-  references: {
-    normative: RFCReference[];
-    informative: RFCReference[];
-  };
-  definitions: Definition[];
 }
 
 /**
@@ -113,10 +104,13 @@ function extractContent(section: any): ContentBlock[] {
     blocks.push({
       type: 'list',
       style: 'symbols',
-      items: toArray(list.li).map((li) => ({
-        content: extractText(li),
-        requirements: extractRequirementMarkers(extractText(li)),
-      })),
+      items: toArray(list.li).map((li) => {
+        const content = extractText(li);
+        return {
+          content,
+          requirements: extractRequirementMarkers(content),
+        };
+      }),
     });
   }
 
@@ -124,10 +118,13 @@ function extractContent(section: any): ContentBlock[] {
     blocks.push({
       type: 'list',
       style: 'numbers',
-      items: toArray(list.li).map((li) => ({
-        content: extractText(li),
-        requirements: extractRequirementMarkers(extractText(li)),
-      })),
+      items: toArray(list.li).map((li) => {
+        const content = extractText(li);
+        return {
+          content,
+          requirements: extractRequirementMarkers(content),
+        };
+      }),
     });
   }
 
@@ -183,111 +180,13 @@ function extractRequirementMarkers(text: string): TextBlock['requirements'] {
 
 /**
  * 要件の完全抽出（文脈付き）
+ * 共通ユーティリティのラッパー
  */
 export function extractRequirements(
   sections: Section[],
-  filter?: { section?: string; level?: RequirementLevel }
+  filter?: RequirementFilter
 ): Requirement[] {
-  const requirements: Requirement[] = [];
-  let idCounter = 1;
-
-  function processSection(section: Section, path: string) {
-    const sectionId = section.number || section.anchor || path;
-
-    // フィルタリング
-    if (filter?.section && !sectionId.startsWith(filter.section)) {
-      // サブセクションも処理するため、完全一致ではなく前方一致
-    }
-
-    for (const block of section.content) {
-      if (block.type === 'text' && block.requirements.length > 0) {
-        for (const marker of block.requirements) {
-          // レベルフィルタ
-          if (filter?.level && marker.level !== filter.level) {
-            continue;
-          }
-
-          // 文を抽出（マーカー位置から文末まで）
-          const sentence = extractSentence(block.content, marker.position);
-
-          requirements.push({
-            id: `R-${sectionId}-${idCounter++}`,
-            level: marker.level,
-            text: sentence.trim(),
-            section: sectionId,
-            sectionTitle: section.title,
-            fullContext: block.content,
-            ...parseRequirementComponents(sentence, marker.level),
-          });
-        }
-      }
-
-      // リストアイテムからも抽出
-      if (block.type === 'list') {
-        for (const item of block.items) {
-          for (const marker of item.requirements) {
-            if (filter?.level && marker.level !== filter.level) {
-              continue;
-            }
-
-            requirements.push({
-              id: `R-${sectionId}-${idCounter++}`,
-              level: marker.level,
-              text: item.content.trim(),
-              section: sectionId,
-              sectionTitle: section.title,
-              fullContext: item.content,
-              ...parseRequirementComponents(item.content, marker.level),
-            });
-          }
-        }
-      }
-    }
-
-    // サブセクションを再帰処理
-    for (const subsection of section.subsections) {
-      processSection(subsection, `${sectionId}.${subsection.number || ''}`);
-    }
-  }
-
-  for (const section of sections) {
-    processSection(section, section.number || '');
-  }
-
-  return requirements;
-}
-
-/**
- * 要件文から構成要素を解析
- */
-function parseRequirementComponents(text: string, level: RequirementLevel): Partial<Requirement> {
-  const result: Partial<Requirement> = {};
-
-  // 主語の抽出（"The client MUST" → "client"）
-  const subjectMatch = text.match(/^(?:The\s+)?(\w+(?:\s+\w+)?)\s+(?:MUST|SHALL|SHOULD|MAY)/i);
-  if (subjectMatch) {
-    result.subject = subjectMatch[1].toLowerCase();
-  }
-
-  // 条件の抽出（"if", "when", "unless"）
-  const conditionMatch = text.match(/\b(if|when|unless|where|in case)\s+([^,.]+)/i);
-  if (conditionMatch) {
-    result.condition = conditionMatch[2].trim();
-  }
-
-  // 例外の抽出
-  const exceptionMatch = text.match(/\b(unless|except|excluding)\s+([^,.]+)/i);
-  if (exceptionMatch) {
-    result.exception = exceptionMatch[2].trim();
-  }
-
-  // アクションの抽出（キーワードの後）
-  const actionMatch = text.match(new RegExp(`${level}\\s+(.+?)(?:\\.|,|$)`, 'i'));
-  if (actionMatch) {
-    result.action = actionMatch[1].trim();
-  }
-
-  return result;
+  return extractRequirementsFromSections(sections, filter, { parseComponents: true });
 }
 
 /**

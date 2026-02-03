@@ -10,8 +10,14 @@ import {
   type Section,
 } from '../services/rfcxml-parser.js';
 import { parseRFCText } from '../services/rfc-text-parser.js';
+import {
+  generateChecklist,
+  generateChecklistMarkdown,
+  getChecklistStats,
+} from '../services/checklist-generator.js';
 import { LRUCache } from '../utils/cache.js';
 import { validateRFCNumber } from '../utils/validation.js';
+import { findSection, collectCrossReferences } from '../utils/section.js';
 import { CACHE_CONFIG } from '../config.js';
 import type {
   GetRFCStructureArgs,
@@ -21,7 +27,6 @@ import type {
   GenerateChecklistArgs,
   ValidateStatementArgs,
   Requirement,
-  ImplementationChecklist,
   RequirementLevel,
   ContentBlock,
 } from '../types/index.js';
@@ -279,39 +284,6 @@ export async function handleGetDependencies(args: GetDependenciesArgs): Promise<
 }
 
 /**
- * Normalize section number (section-3.5 -> 3.5)
- */
-function normalizeSectionNumber(sectionId: string): string {
-  return sectionId.replace(/^section-/, '');
-}
-
-/**
- * Find section (supports multiple formats)
- */
-function findSection(sections: Section[], target: string): Section | null {
-  const normalizedTarget = normalizeSectionNumber(target);
-
-  for (const sec of sections) {
-    // Try matching each format
-    const secNumber = sec.number ? normalizeSectionNumber(sec.number) : '';
-    const secAnchor = sec.anchor ? normalizeSectionNumber(sec.anchor) : '';
-
-    if (
-      secNumber === normalizedTarget ||
-      secAnchor === normalizedTarget ||
-      sec.number === target ||
-      sec.anchor === target
-    ) {
-      return sec;
-    }
-
-    const found = findSection(sec.subsections || [], target);
-    if (found) return found;
-  }
-  return null;
-}
-
-/**
  * get_related_sections handler
  */
 export async function handleGetRelatedSections(args: { rfc: number; section: string }) {
@@ -325,18 +297,8 @@ export async function handleGetRelatedSections(args: { rfc: number; section: str
     };
   }
 
-  // Collect cross-references
-  const relatedSections = new Set<string>();
-
-  for (const block of targetSection.content || []) {
-    if (block.type === 'text' && block.crossReferences) {
-      for (const ref of block.crossReferences) {
-        if (ref.type === 'section' && ref.section) {
-          relatedSections.add(ref.section);
-        }
-      }
-    }
-  }
+  // Collect cross-references using utility
+  const relatedSections = collectCrossReferences(targetSection);
 
   return {
     rfc: args.rfc,
@@ -364,98 +326,21 @@ export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
     section: args.sections?.[0],
   });
 
-  // Filter by role (simple implementation based on subject)
-  const filteredReqs =
-    args.role && args.role !== 'both'
-      ? requirements.filter((r) => {
-          const subject = r.subject?.toLowerCase() || '';
-          if (args.role === 'client') {
-            return subject.includes('client') || !subject.includes('server');
-          }
-          return subject.includes('server') || !subject.includes('client');
-        })
-      : requirements;
-
-  // Classify by level
-  const must = filteredReqs.filter((r) =>
-    ['MUST', 'MUST NOT', 'REQUIRED', 'SHALL', 'SHALL NOT'].includes(r.level)
-  );
-  const should = filteredReqs.filter((r) =>
-    ['SHOULD', 'SHOULD NOT', 'RECOMMENDED', 'NOT RECOMMENDED'].includes(r.level)
-  );
-  const may = filteredReqs.filter((r) => ['MAY', 'OPTIONAL'].includes(r.level));
+  // Generate checklist using service
+  const checklist = generateChecklist(args.rfc, parsed.metadata.title, requirements, args.role);
 
   // Generate Markdown
-  const markdown = generateChecklistMarkdown({
-    rfc: args.rfc,
-    title: parsed.metadata.title,
-    role: args.role,
-    must: must.map((r) => ({ id: r.id, requirement: r, checked: false })),
-    should: should.map((r) => ({ id: r.id, requirement: r, checked: false })),
-    may: may.map((r) => ({ id: r.id, requirement: r, checked: false })),
-    generatedAt: new Date().toISOString(),
-  });
+  const markdown = generateChecklistMarkdown(checklist);
+  const stats = getChecklistStats(checklist);
 
   return {
     rfc: args.rfc,
     role: args.role || 'both',
-    stats: {
-      must: must.length,
-      should: should.length,
-      may: may.length,
-      total: filteredReqs.length,
-    },
+    stats,
     markdown,
     _source: source,
     _sourceNote: source === 'text' ? getTextSourceNote('checklist') : undefined,
   };
-}
-
-/**
- * Generate checklist Markdown
- */
-function generateChecklistMarkdown(checklist: ImplementationChecklist): string {
-  const lines: string[] = [];
-
-  lines.push(`# RFC ${checklist.rfc} Implementation Checklist`);
-  lines.push('');
-  lines.push(`**${checklist.title}**`);
-  lines.push('');
-  if (checklist.role && checklist.role !== 'both') {
-    lines.push(`Role: ${checklist.role}`);
-    lines.push('');
-  }
-  lines.push(`Generated: ${checklist.generatedAt}`);
-  lines.push('');
-
-  if (checklist.must.length > 0) {
-    lines.push('## Mandatory Requirements (MUST / REQUIRED / SHALL)');
-    lines.push('');
-    for (const item of checklist.must) {
-      lines.push(`- [ ] ${item.requirement.text} (${item.requirement.section})`);
-    }
-    lines.push('');
-  }
-
-  if (checklist.should.length > 0) {
-    lines.push('## Recommended Requirements (SHOULD / RECOMMENDED)');
-    lines.push('');
-    for (const item of checklist.should) {
-      lines.push(`- [ ] ${item.requirement.text} (${item.requirement.section})`);
-    }
-    lines.push('');
-  }
-
-  if (checklist.may.length > 0) {
-    lines.push('## Optional Requirements (MAY / OPTIONAL)');
-    lines.push('');
-    for (const item of checklist.may) {
-      lines.push(`- [ ] ${item.requirement.text} (${item.requirement.section})`);
-    }
-    lines.push('');
-  }
-
-  return lines.join('\n');
 }
 
 /**

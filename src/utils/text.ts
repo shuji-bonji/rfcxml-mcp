@@ -4,6 +4,7 @@
  */
 
 import type { CrossReference } from '../types/index.js';
+import { createRFCReferenceRegex, createSectionReferenceRegex } from '../constants.js';
 
 /**
  * 指定位置を含む文を抽出
@@ -37,7 +38,7 @@ export function extractCrossReferences(text: string): CrossReference[] {
   const refs: CrossReference[] = [];
 
   // RFC参照パターン
-  const rfcPattern = /RFC\s*(\d+)/gi;
+  const rfcPattern = createRFCReferenceRegex();
   let match;
   while ((match = rfcPattern.exec(text)) !== null) {
     refs.push({
@@ -47,7 +48,7 @@ export function extractCrossReferences(text: string): CrossReference[] {
   }
 
   // セクション参照パターン
-  const sectionPattern = /[Ss]ection\s+([\d.]+)/g;
+  const sectionPattern = createSectionReferenceRegex();
   while ((match = sectionPattern.exec(text)) !== null) {
     refs.push({
       target: match[1],

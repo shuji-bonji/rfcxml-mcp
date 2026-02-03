@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-02-03
+
+### Changed
+
+- **Code refactoring**: Improved code organization and maintainability
+  - Extracted shared requirement extraction logic to `src/utils/requirement-extractor.ts`
+  - Extracted checklist generation to `src/services/checklist-generator.ts`
+  - Extracted section utilities to `src/utils/section.ts`
+  - Reduced `handlers.ts` from 510 lines to ~400 lines (~22% reduction)
+
+### Added
+
+- **New utility modules**:
+  - `src/utils/requirement-extractor.ts` - Shared requirement extraction for XML/text parsers
+  - `src/utils/section.ts` - Section search and cross-reference collection utilities
+  - `src/services/checklist-generator.ts` - Dedicated checklist generation service
+
+### Performance
+
+- **List extraction optimization**: Fixed duplicate `extractText()` calls in `rfcxml-parser.ts`
+  - List item content is now extracted once and reused for requirement marker extraction
+
+### Internal
+
+- Centralized `ParsedRFC` interface in `types/index.ts`
+- Extracted `SECTION_HEADER_PATTERN` to `constants.ts`
+- Both XML and text parsers now use shared `extractRequirementsFromSections()` function
+
 ## [0.4.0] - 2026-02-01
 
 ### Changed

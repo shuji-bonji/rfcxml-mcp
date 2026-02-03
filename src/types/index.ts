@@ -3,6 +3,28 @@
  */
 
 // ========================================
+// パース済みRFC構造
+// ========================================
+
+/**
+ * パース済みRFCドキュメント構造
+ * XMLとテキストパーサー共通のインターフェース
+ */
+export interface ParsedRFC {
+  metadata: {
+    title: string;
+    docName?: string;
+    number?: number;
+  };
+  sections: Section[];
+  references: {
+    normative: RFCReference[];
+    informative: RFCReference[];
+  };
+  definitions: Definition[];
+}
+
+// ========================================
 // RFC メタデータ
 // ========================================
 

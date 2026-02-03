@@ -6,6 +6,8 @@
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-blueviolet)](https://claude.ai/code)
 
+[日本語版 README](README.ja.md)
+
 A Model Context Protocol (MCP) server for **structured understanding** of RFC documents.
 
 ## Purpose
@@ -33,15 +35,15 @@ Unlike existing text-based RFC MCP servers, this server leverages the semantic s
 
 ## Comparison with Existing MCPs
 
-| Feature | Existing mcp-rfc | RFCXML MCP |
-|---------|------------------|------------|
-| RFC text retrieval | ✅ | ✅ |
-| Section extraction | ✅ (text-based) | ✅ (structure-based) |
-| MUST/SHOULD/MAY extraction | ❌ | ✅ |
-| Condition/exception structuring | ❌ | ✅ |
-| RFC dependency graph | ❌ | ✅ |
-| Definition scope management | ❌ | ✅ |
-| Implementation checklist | ❌ | ✅ |
+| Feature                         | Existing mcp-rfc | RFCXML MCP           |
+| ------------------------------- | ---------------- | -------------------- |
+| RFC text retrieval              | ✅               | ✅                   |
+| Section extraction              | ✅ (text-based)  | ✅ (structure-based) |
+| MUST/SHOULD/MAY extraction      | ❌               | ✅                   |
+| Condition/exception structuring | ❌               | ✅                   |
+| RFC dependency graph            | ❌               | ✅                   |
+| Definition scope management     | ❌               | ✅                   |
+| Implementation checklist        | ❌               | ✅                   |
 
 ## Quick Start
 
@@ -61,6 +63,7 @@ Add the following to your MCP configuration file:
 ```
 
 Configuration file locations:
+
 - **Claude Desktop (macOS)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Claude Code**: `.claude/settings.json` or use `claude settings` command
@@ -119,17 +122,17 @@ All responses include source information:
 }
 ```
 
-| `_source` | Description |
-|-----------|-------------|
-| `xml` | Parsed from RFCXML (high accuracy) |
-| `text` | Parsed from text (medium accuracy) |
+| `_source` | Description                        |
+| --------- | ---------------------------------- |
+| `xml`     | Parsed from RFCXML (high accuracy) |
+| `text`    | Parsed from text (medium accuracy) |
 
 ### Compatibility
 
-| RFC | Format | Notes |
-|-----|--------|-------|
-| RFC 8650+ | XML | Official RFCXML v3 support |
-| Before RFC 8650 | Text | Automatic fallback |
+| RFC             | Format | Notes                      |
+| --------------- | ------ | -------------------------- |
+| RFC 8650+       | XML    | Official RFCXML v3 support |
+| Before RFC 8650 | Text   | Automatic fallback         |
 
 ## Output Samples
 
@@ -254,13 +257,14 @@ Role: Client
 
 See the [examples/](./examples/) directory for complete checklist samples:
 
-| RFC | Protocol | Source |
-|-----|----------|--------|
+| RFC                                                   | Protocol  | Source          |
+| ----------------------------------------------------- | --------- | --------------- |
 | [RFC 6455](./examples/rfc6455-websocket-checklist.md) | WebSocket | Text (fallback) |
-| [RFC 9293](./examples/rfc9293-tcp-checklist.md) | TCP | RFCXML |
-| [RFC 7540](./examples/rfc7540-http2-checklist.md) | HTTP/2 | Text (fallback) |
+| [RFC 9293](./examples/rfc9293-tcp-checklist.md)       | TCP       | RFCXML          |
+| [RFC 7540](./examples/rfc7540-http2-checklist.md)     | HTTP/2    | Text (fallback) |
 
 **Example prompt for Claude:**
+
 ```
 Generate an implementation checklist for RFC 9293 (TCP).
 ```
@@ -277,7 +281,8 @@ src/
 ├── services/
 │   ├── rfc-fetcher.ts          # RFC fetching (parallel)
 │   ├── rfcxml-parser.ts        # RFCXML parser
-│   └── rfc-text-parser.ts      # Text fallback parser
+│   ├── rfc-text-parser.ts      # Text fallback parser
+│   └── checklist-generator.ts  # Checklist generation service
 ├── tools/
 │   ├── definitions.ts          # MCP tool definitions
 │   └── handlers.ts             # Tool handlers
@@ -286,7 +291,10 @@ src/
 └── utils/
     ├── cache.ts                # LRU cache
     ├── fetch.ts                # Parallel fetch utility
-    └── text.ts                 # Text processing utility
+    ├── requirement-extractor.ts # Shared requirement extraction
+    ├── section.ts              # Section search utilities
+    ├── text.ts                 # Text processing utility
+    └── validation.ts           # Input validation
 ```
 
 ### RFC Fetch Optimization
@@ -318,12 +326,12 @@ Sends parallel requests to multiple sources (RFC Editor, IETF Tools, Datatracker
 
 LRU (Least Recently Used) cache with memory limits:
 
-| Cache | Max Entries | Content |
-|-------|-------------|---------|
-| XML Cache | 20 | Raw RFCXML |
-| Text Cache | 20 | Raw text |
-| Metadata Cache | 100 | RFC metadata |
-| Parse Cache | 50 | Parsed structure |
+| Cache          | Max Entries | Content          |
+| -------------- | ----------- | ---------------- |
+| XML Cache      | 20          | Raw RFCXML       |
+| Text Cache     | 20          | Raw text         |
+| Metadata Cache | 100         | RFC metadata     |
+| Parse Cache    | 50          | Parsed structure |
 
 ## Development
 
