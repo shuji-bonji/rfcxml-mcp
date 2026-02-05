@@ -103,8 +103,12 @@ export async function fetchRFCMetadata(rfcNumber: number): Promise<RFCMetadata> 
 
     metadataCache.set(rfcNumber, metadata);
     return metadata;
-  } catch (_error) {
-    // Fallback: minimal metadata
+  } catch (error) {
+    // Log the error for debugging, then fallback to minimal metadata
+    logger.warn(
+      `RFC ${rfcNumber}`,
+      `Metadata fetch failed: ${error instanceof Error ? error.message : String(error)}`
+    );
     return {
       number: rfcNumber,
       title: `RFC ${rfcNumber}`,

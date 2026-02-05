@@ -8,7 +8,7 @@ import {
   generateChecklistMarkdown,
   getChecklistStats,
 } from '../services/checklist-generator.js';
-import { getParsedRFC, clearParseCache, getTextSourceNote } from '../services/rfc-service.js';
+import { getParsedRFC, clearParseCache, getSourceNoteIfText } from '../services/rfc-service.js';
 import { validateRFCNumber } from '../utils/validation.js';
 import { findSection, collectCrossReferences } from '../utils/section.js';
 import type {
@@ -18,10 +18,10 @@ import type {
   GetDependenciesArgs,
   GenerateChecklistArgs,
   ValidateStatementArgs,
-  Requirement,
   RequirementLevel,
   ContentBlock,
 } from '../types/index.js';
+import { matchStatement } from '../utils/statement-matcher.js';
 
 // Re-export clearParseCache for testing
 export { clearParseCache };
@@ -73,7 +73,7 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
       informative: parsed.references.informative.length,
     },
     _source: source,
-    _sourceNote: source === 'text' ? getTextSourceNote('structure') : undefined,
+    _sourceNote: getSourceNoteIfText(source, 'structure'),
   };
 }
 
@@ -108,7 +108,7 @@ export async function handleGetRequirements(args: GetRequirementsArgs) {
     stats,
     requirements,
     _source: source,
-    _sourceNote: source === 'text' ? getTextSourceNote('requirements') : undefined,
+    _sourceNote: getSourceNoteIfText(source, 'requirements'),
   };
 }
 
@@ -136,7 +136,7 @@ export async function handleGetDefinitions(args: GetDefinitionsArgs) {
     count: definitions.length,
     definitions,
     _source: source,
-    _sourceNote: source === 'text' ? getTextSourceNote('definitions') : undefined,
+    _sourceNote: getSourceNoteIfText(source, 'definitions'),
   };
 }
 
@@ -176,9 +176,7 @@ export async function handleGetDependencies(args: GetDependenciesArgs): Promise<
   };
 
   // Text source cannot extract reference information
-  if (source === 'text') {
-    result._sourceNote = getTextSourceNote('dependencies');
-  }
+  result._sourceNote = getSourceNoteIfText(source, 'dependencies');
 
   // TODO: Get referencedBy from IETF Datatracker API
   if (args.includeReferencedBy) {
@@ -218,7 +216,7 @@ export async function handleGetRelatedSections(args: { rfc: number; section: str
       };
     }),
     _source: source,
-    _sourceNote: source === 'text' ? getTextSourceNote('sections') : undefined,
+    _sourceNote: getSourceNoteIfText(source, 'sections'),
   };
 }
 
@@ -245,43 +243,64 @@ export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
     stats,
     markdown,
     _source: source,
-    _sourceNote: source === 'text' ? getTextSourceNote('checklist') : undefined,
+    _sourceNote: getSourceNoteIfText(source, 'checklist'),
   };
 }
 
 /**
  * validate_statement handler
+ * Uses weighted keyword matching for better precision
  */
 export async function handleValidateStatement(args: ValidateStatementArgs) {
   validateRFCNumber(args.rfc);
   const { data: parsed, source } = await getParsedRFC(args.rfc);
   const requirements = extractRequirements(parsed.sections);
 
-  // Simple keyword matching
-  const statementLower = args.statement.toLowerCase();
-  const keywords = statementLower.split(/\s+/).filter((w) => w.length > 3);
+  // Use weighted matching
+  const { matches, conflicts, statementLevel, statementSubject } = matchStatement(
+    args.statement,
+    requirements,
+    { maxResults: 10 }
+  );
 
-  const matchingRequirements = requirements.filter((req) => {
-    const reqText = (req.text + ' ' + req.fullContext).toLowerCase();
-    return keywords.some((kw) => reqText.includes(kw));
-  });
-
-  // Conflict detection (simple version)
-  const conflicts: Requirement[] = [];
-  // TODO: More advanced conflict detection logic
+  // Build suggestions
+  const suggestions: string[] = [];
+  if (matches.length === 0) {
+    suggestions.push('No matching requirements found. Try different keywords.');
+  }
+  if (conflicts.length > 0) {
+    suggestions.push(
+      'Potential conflicts detected. Review the requirement levels (MUST/SHOULD/MAY) carefully.'
+    );
+  }
+  if (statementLevel && !statementSubject) {
+    suggestions.push(
+      'Consider specifying the subject (e.g., "client", "server") for better matching.'
+    );
+  }
 
   return {
     rfc: args.rfc,
     statement: args.statement,
+    analysis: {
+      detectedLevel: statementLevel,
+      detectedSubject: statementSubject,
+    },
     isValid: conflicts.length === 0,
-    matchingRequirements: matchingRequirements.slice(0, 10), // Top 10
-    conflicts,
-    suggestions:
-      matchingRequirements.length === 0
-        ? ['No matching requirements found. Try different keywords.']
-        : undefined,
+    matchingRequirements: matches.map((m) => ({
+      ...m.requirement,
+      _matchScore: m.score,
+      _matchedKeywords: m.matchedKeywords,
+      _subjectMatch: m.subjectMatch,
+      _levelMatch: m.levelMatch,
+    })),
+    conflicts: conflicts.map((c) => ({
+      requirement: c.requirement,
+      reason: c.reason,
+    })),
+    suggestions: suggestions.length > 0 ? suggestions : undefined,
     _source: source,
-    _sourceNote: source === 'text' ? getTextSourceNote('validation') : undefined,
+    _sourceNote: getSourceNoteIfText(source, 'validation'),
   };
 }
 

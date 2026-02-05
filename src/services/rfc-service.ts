@@ -47,6 +47,17 @@ export function getTextSourceNote(context: SourceNoteContext): string {
 }
 
 /**
+ * Get source note only if source is 'text' (helper for conditional inclusion)
+ * Returns undefined for 'xml' source (won't appear in JSON output)
+ */
+export function getSourceNoteIfText(
+  source: 'xml' | 'text',
+  context: SourceNoteContext
+): string | undefined {
+  return source === 'text' ? getTextSourceNote(context) : undefined;
+}
+
+/**
  * Parsed RFC cache (main cache)
  * Parsing is CPU-intensive, so we cache the results
  */

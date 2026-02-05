@@ -24,6 +24,28 @@ import {
   type RequirementFilter,
 } from '../utils/requirement-extractor.js';
 
+// ========================================
+// XML Parser Types
+// ========================================
+
+/**
+ * fast-xml-parser の出力ノード型
+ * XMLパース結果は動的なため、Record型でインデックスアクセスを許可
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type XmlNode = Record<string, any>;
+
+/**
+ * RFC XML のルート構造
+ */
+interface RfcXml extends XmlNode {
+  '@_docName'?: string;
+  '@_number'?: string;
+  front?: XmlNode;
+  middle?: { section?: XmlNode | XmlNode[] };
+  back?: { references?: XmlNode | XmlNode[] };
+}
+
 /**
  * XML パーサー設定
  */
@@ -55,7 +77,7 @@ export function parseRFCXML(xml: string): ParsedRFC {
 /**
  * メタデータ抽出
  */
-function extractMetadata(rfc: any): ParsedRFC['metadata'] {
+function extractMetadata(rfc: RfcXml): ParsedRFC['metadata'] {
   const front = rfc.front || {};
 
   return {
@@ -68,7 +90,7 @@ function extractMetadata(rfc: any): ParsedRFC['metadata'] {
 /**
  * セクション構造の抽出
  */
-function extractSections(sections: any | any[]): Section[] {
+function extractSections(sections: XmlNode | XmlNode[]): Section[] {
   if (!sections) return [];
 
   const sectionArray = Array.isArray(sections) ? sections : [sections];
@@ -87,7 +109,7 @@ function extractSections(sections: any | any[]): Section[] {
 /**
  * コンテンツブロックの抽出
  */
-function extractContent(section: any): ContentBlock[] {
+function extractContent(section: XmlNode): ContentBlock[] {
   const blocks: ContentBlock[] = [];
 
   // テキストパラグラフ <t>
@@ -192,15 +214,15 @@ export function extractRequirements(
 /**
  * 参照の抽出
  */
-function extractReferences(referenceSections: any | any[]): ParsedRFC['references'] {
+function extractReferences(referenceSections: XmlNode | XmlNode[]): ParsedRFC['references'] {
   const result = {
     normative: [] as RFCReference[],
     informative: [] as RFCReference[],
   };
 
   // 入れ子構造に対応: 外側のreferencesコンテナをフラット化
-  function collectReferenceSections(sections: any | any[]): any[] {
-    const collected: any[] = [];
+  function collectReferenceSections(sections: XmlNode | XmlNode[]): XmlNode[] {
+    const collected: XmlNode[] = [];
     const sectionArray = toArray(sections);
 
     for (const section of sectionArray) {
@@ -233,7 +255,7 @@ function extractReferences(referenceSections: any | any[]): ParsedRFC['reference
       slugAttr.includes('normative');
 
     const refs = toArray(refSection.reference).concat(
-      toArray(refSection.referencegroup).flatMap((g: any) => toArray(g.reference))
+      toArray(refSection.referencegroup).flatMap((g: XmlNode) => toArray(g.reference))
     );
 
     for (const ref of refs) {
@@ -252,7 +274,7 @@ function extractReferences(referenceSections: any | any[]): ParsedRFC['reference
 /**
  * 個別参照のパース
  */
-function parseReference(ref: any, type: 'normative' | 'informative'): RFCReference {
+function parseReference(ref: XmlNode, type: 'normative' | 'informative'): RFCReference {
   const front = ref.front || {};
   const seriesInfo = toArray(ref.seriesInfo);
 
@@ -275,11 +297,11 @@ function parseReference(ref: any, type: 'normative' | 'informative'): RFCReferen
 /**
  * 定義の抽出（<dl> 定義リストから）
  */
-function extractDefinitions(rfc: any): Definition[] {
+function extractDefinitions(rfc: XmlNode): Definition[] {
   const definitions: Definition[] = [];
 
   // 再帰的に <dl> を探す
-  function findDefinitionLists(obj: any, section: string = '') {
+  function findDefinitionLists(obj: XmlNode, section: string = '') {
     if (!obj || typeof obj !== 'object') return;
 
     if (obj.dl) {
@@ -329,7 +351,7 @@ function extractDefinitions(rfc: any): Definition[] {
  * テキストコンテンツを抽出（ネストされた要素を含む）
  * 最適化: 配列を1回だけ生成し、文字列結合を最小化
  */
-function extractText(node: any): string {
+function extractText(node: XmlNode | string | number | undefined | null): string {
   if (!node) return '';
   if (typeof node === 'string') return node;
   if (typeof node === 'number') return String(node);

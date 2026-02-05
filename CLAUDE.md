@@ -63,6 +63,7 @@ rfcxml-mcp/
 │       ├── logger.ts            # ログ抽象化 (v0.4.3)
 │       ├── requirement-extractor.ts # 共通要件抽出ユーティリティ
 │       ├── section.ts           # セクション検索・クロスリファレンス
+│       ├── statement-matcher.ts # 重み付きマッチング (v0.4.4)
 │       ├── text.ts              # テキスト処理ユーティリティ
 │       └── validation.ts        # 入力バリデーション
 ├── package.json
@@ -93,7 +94,7 @@ rfcxml-mcp/
 | ツール | 説明 | 状態 |
 |--------|------|------|
 | `generate_checklist` | 実装チェックリスト生成 | ✅ 動作 |
-| `validate_statement` | 主張の仕様準拠検証 | ⚠️ 要改善（マッチング精度） |
+| `validate_statement` | 主張の仕様準拠検証 | ✅ 動作（重み付きマッチング対応 v0.4.4） |
 
 ### フォールバック対応
 | 機能 | 状態 |
@@ -223,13 +224,57 @@ export function clearParseCache(): void
 export function getTextSourceNote(context: SourceNoteContext): string
 ```
 
-### 残課題: `validate_statement` のマッチング精度
+### ✅ 解決済み: fetchRFCMetadata のエラーログ (v0.4.4)
+
+**問題**: `catch (_error)` でエラーが握りつぶされ、デバッグが困難
+
+**対応**: `logger.warn` でエラー情報を出力
+
+```typescript
+// src/services/rfc-fetcher.ts
+} catch (error) {
+  logger.warn(
+    `RFC ${rfcNumber}`,
+    `Metadata fetch failed: ${error instanceof Error ? error.message : String(error)}`
+  );
+  // Fallback to minimal metadata
+  return { /* ... */ };
+}
+```
+
+### ✅ 解決済み: `validate_statement` のマッチング精度 (v0.4.4)
 
 **問題**: 簡易的なキーワードマッチングのため精度が低い
 
-**今後の改善案**:
-- 形態素解析や自然言語処理の導入
-- 意味的類似度による検索
+**対応**: 重み付きキーワードマッチングを実装
+
+1. `src/utils/statement-matcher.ts` - 専用マッチングユーティリティ
+2. キーワード重み付け:
+   - Subject terms (client, server): 重み 3
+   - Technical terms (request, connection): 重み 2
+   - Regular words: 重み 1
+   - Stop words (the, this): 無視
+3. ボーナススコア:
+   - 主語一致: +5点
+   - 要件レベル一致: +3点
+4. 競合検出: MAY vs MUST の矛盾を検出
+
+```typescript
+// src/utils/statement-matcher.ts
+export function matchStatement(
+  statement: string,
+  requirements: Requirement[],
+  options?: { maxResults?: number }
+): {
+  matches: MatchResult[];
+  conflicts: ConflictResult[];
+  statementLevel: RequirementLevel | null;
+  statementSubject: string | null;
+}
+```
+
+**今後の拡張案**:
+- 意味的類似度による検索（埋め込みベクトル）
 - LLM を使った検証
 
 ---
@@ -423,6 +468,30 @@ export const PACKAGE_INFO = {
 function isRFCXMLAvailable(rfcNumber: number): boolean {
   return rfcNumber >= 8650;
 }
+```
+
+---
+
+## テスト
+
+### テストファイル構成
+
+| ファイル | テスト数 | 対象 |
+|----------|---------|------|
+| `handlers.test.ts` | 23 | ツールハンドラー統合テスト |
+| `rfcxml-parser.test.ts` | 13 | XMLパーサー |
+| `rfc-text-parser.test.ts` | 15 | テキストパーサー |
+| `cache.test.ts` | 16 | LRUキャッシュ |
+| `validation.test.ts` | 30 | RFC番号バリデーション |
+| `statement-matcher.test.ts` | 29 | 重み付きマッチング |
+| **合計** | **126** | |
+
+### テスト実行
+
+```bash
+npm test              # ウォッチモード
+npm test -- --run     # 単発実行
+npm test -- --coverage  # カバレッジ
 ```
 
 ---

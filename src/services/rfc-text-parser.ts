@@ -19,6 +19,32 @@ import {
   type RequirementFilter,
 } from '../utils/requirement-extractor.js';
 
+// ========================================
+// Text Parser Configuration
+// ========================================
+
+/**
+ * メタデータ抽出の設定
+ */
+const METADATA_EXTRACTION = {
+  /** タイトル検索で走査する最大行数 */
+  MAX_LINES_TO_SCAN: 30,
+  /** タイトルとして有効な最小文字数 */
+  TITLE_MIN_LENGTH: 10,
+  /** タイトルとして有効な最大文字数 */
+  TITLE_MAX_LENGTH: 100,
+} as const;
+
+/**
+ * 定義抽出の設定
+ */
+const DEFINITION_EXTRACTION = {
+  /** 用語として認識する最小文字数 */
+  MIN_TERM_LENGTH: 2,
+  /** 定義として認識する最小文字数 */
+  MIN_DEFINITION_LENGTH: 10,
+} as const;
+
 /**
  * RFC テキストをパースして構造化データに変換（中精度）
  */
@@ -43,10 +69,15 @@ function extractTextMetadata(lines: string[], rfcNumber: number): ParsedRFC['met
   let title = `RFC ${rfcNumber}`;
 
   // タイトルを探す（通常は最初の数行にある）
-  for (let i = 0; i < Math.min(30, lines.length); i++) {
+  for (let i = 0; i < Math.min(METADATA_EXTRACTION.MAX_LINES_TO_SCAN, lines.length); i++) {
     const line = lines[i].trim();
     // 空行を挟んで大文字で始まるタイトルっぽい行を探す
-    if (line.length > 10 && line.length < 100 && !line.includes(':') && !line.match(/^\d/)) {
+    if (
+      line.length > METADATA_EXTRACTION.TITLE_MIN_LENGTH &&
+      line.length < METADATA_EXTRACTION.TITLE_MAX_LENGTH &&
+      !line.includes(':') &&
+      !line.match(/^\d/)
+    ) {
       // RFC番号の行ではない
       if (!line.toLowerCase().includes('request for comments')) {
         title = line;
@@ -192,7 +223,10 @@ function extractTextDefinitions(lines: string[]): Definition[] {
       const definition = defMatch[2].trim();
 
       // 短すぎる用語や一般的な単語は除外
-      if (term.length >= 2 && definition.length >= 10) {
+      if (
+        term.length >= DEFINITION_EXTRACTION.MIN_TERM_LENGTH &&
+        definition.length >= DEFINITION_EXTRACTION.MIN_DEFINITION_LENGTH
+      ) {
         definitions.push({
           term,
           definition,

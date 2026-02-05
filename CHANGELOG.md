@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.4] - 2026-02-05
+
+### Added
+
+- **Weighted matching for `validate_statement`**: Improved matching accuracy
+  - New `src/utils/statement-matcher.ts` module with keyword weighting system
+  - Technical terms (client, server, etc.) get higher weight than regular words
+  - Subject detection (client/server/sender/receiver) with match bonus
+  - Requirement level detection and conflict detection
+  - `MATCHING_WEIGHTS` and `MATCHING_LIMITS` constants for tuning
+
+- **Test coverage expansion**: 75 new tests
+  - `src/utils/cache.test.ts` - 16 tests for LRUCache
+  - `src/utils/validation.test.ts` - 30 tests for RFC number validation
+  - `src/utils/statement-matcher.test.ts` - 29 tests for weighted matching
+  - Total test count: 126 tests (up from 51)
+
+### Changed
+
+- **`_sourceNote` pattern simplification**: Reduced code duplication
+  - New `getSourceNoteIfText()` helper in `rfc-service.ts`
+  - 7 repetitive patterns in `handlers.ts` consolidated to single function call
+
+- **TypeScript type safety improvements**: Eliminated `any` type warnings
+  - Added `XmlNode` type alias and `RfcXml` interface in `rfcxml-parser.ts`
+  - Reduced eslint-disable comments to minimum required (2 necessary cases)
+
+- **Constants extraction**: Magic numbers replaced with named constants
+  - `METADATA_EXTRACTION` and `DEFINITION_EXTRACTION` in `rfc-text-parser.ts`
+  - `MATCHING_WEIGHTS` and `MATCHING_LIMITS` in `statement-matcher.ts`
+
+### Fixed
+
+- **Error logging in `fetchRFCMetadata`**: Added `logger.warn` call in catch block
+  - Previously failed silently, now logs warning with error details
+
 ## [0.4.3] - 2026-02-03
 
 ### Changed
