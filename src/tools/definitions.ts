@@ -146,6 +146,11 @@ export const tools: Tool[] = [
           items: { type: 'string' },
           description: 'Sections to include (all if omitted)',
         },
+        includeSubsections: {
+          type: 'boolean',
+          description: 'Include subsections when filtering by sections (default: true)',
+          default: true,
+        },
       },
       required: ['rfc'],
     },

@@ -2,6 +2,61 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.5] - 2026-02-05
+
+### Fixed
+
+- **Critical: `<bcp14>` tag processing bug** in `get_requirements` and `generate_checklist`
+  - BCP 14 keywords (MUST, SHOULD, MAY, etc.) wrapped in `<bcp14>` tags were being dropped from extracted text
+  - Example: "A TCP implementation `<bcp14>`MUST`</bcp14>` support..." was extracted as "A TCP implementation support..."
+  - Added `normalizeBcp14Tags()` preprocessing step to convert `<bcp14>MUST</bcp14>` to `MUST` before XML parsing
+  - Keywords now appear in correct position within extracted requirement text
+
+- **Critical: `validate_statement` semantic verification** - conflict detection now works
+  - Previously returned `isValid: true` even for obvious RFC violations
+  - Added semantic negation pattern detection (mask/unmasked, encrypt/unencrypted, validate/skip validation)
+  - New helper functions: `hasPositiveAction()`, `hasNegativeAction()`, `actionsContradict()`
+  - Example: "client sends unmasked frames" now correctly conflicts with "client MUST mask"
+  - Example: "server masks frames" now correctly conflicts with "server MUST NOT mask"
+  - Fixed false positive detection for incidental verb mentions (e.g., "sends" in "MUST NOT mask...sends")
+
+### Added
+
+- **New tests**: 24 additional tests
+  - 3 tests for `<bcp14>` tag normalization in `rfcxml-parser.test.ts`
+  - 8 tests for semantic conflict detection in `statement-matcher.test.ts`
+  - 3 tests for `<xref>` extraction in `rfcxml-parser.test.ts`
+  - 10 tests for requirement filtering in `requirement-extractor.test.ts`
+  - Total test count: 150 tests (up from 126)
+
+### Changed
+
+- **Negation pattern expansion**: Added more negative patterns for better detection
+  - `validate`: added "skips validation", "no validation"
+  - `encrypt`: added "without encryption"
+  - `authenticate`: added "skip authentication"
+  - `mask`: added "without masking"
+
+- **`get_related_sections` now returns cross-references**
+  - Added `<xref>` tag extraction from RFCXML
+  - Extracts both section references (`<xref target="section-3.5"/>`) and RFC references (`<xref target="RFC2119"/>`)
+  - Combined with existing text pattern detection ("Section X.Y")
+
+- **`generate_checklist` improvements**
+  - Now supports multiple sections in `sections` array (previously only first was used)
+  - Added `includeSubsections` option (default: true) to include subsections when filtering
+  - Section filter now supports both formats: `section-3.5` (XML) and `3.5` (plain)
+
+- **Text fallback improvements**
+  - Added RFC reference extraction from text (detected as informative references)
+  - Improved section header detection heuristics to reduce false positives
+  - Status codes (1000, 1001) and numbered list items no longer detected as sections
+  - Validates section titles against common RFC section keywords
+
+- **Section number format normalization**
+  - `get_requirements` now accepts both `section-3.5` and `3.5` formats
+  - Automatic `section-` prefix stripping for consistent filtering
+
 ## [0.4.4] - 2026-02-05
 
 ### Added

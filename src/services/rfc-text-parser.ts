@@ -11,8 +11,13 @@ import type {
   TextBlock,
   ParsedRFC,
   RequirementLevel,
+  RFCReference,
 } from '../types/index.js';
-import { createRequirementRegex, SECTION_HEADER_PATTERN } from '../constants.js';
+import {
+  createRequirementRegex,
+  SECTION_HEADER_PATTERN,
+  createRFCReferenceRegex,
+} from '../constants.js';
 import { extractCrossReferences } from '../utils/text.js';
 import {
   extractRequirementsFromSections,
@@ -54,11 +59,38 @@ export function parseRFCText(text: string, rfcNumber: number): ParsedRFC {
   return {
     metadata: extractTextMetadata(lines, rfcNumber),
     sections: extractTextSections(lines),
-    references: {
-      normative: [],
-      informative: [],
-    },
+    references: extractTextReferences(text, rfcNumber),
     definitions: extractTextDefinitions(lines),
+  };
+}
+
+/**
+ * テキストからRFC参照を抽出
+ * テキストでは normative/informative の区別ができないため、すべて informative として扱う
+ */
+function extractTextReferences(text: string, currentRfcNumber: number): ParsedRFC['references'] {
+  const refs: RFCReference[] = [];
+  const seenRfcs = new Set<number>();
+  const regex = createRFCReferenceRegex();
+
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    const rfcNum = parseInt(match[1], 10);
+    // 自己参照と重複を除外
+    if (rfcNum !== currentRfcNumber && !seenRfcs.has(rfcNum)) {
+      seenRfcs.add(rfcNum);
+      refs.push({
+        anchor: `RFC${rfcNum}`,
+        type: 'informative', // テキストでは区別不可のため informative
+        rfcNumber: rfcNum,
+        title: `RFC ${rfcNum}`,
+      });
+    }
+  }
+
+  return {
+    normative: [],
+    informative: refs,
   };
 }
 
@@ -93,6 +125,86 @@ function extractTextMetadata(lines: string[], rfcNumber: number): ParsedRFC['met
 }
 
 /**
+ * セクションヘッダーとして妥当かを検証
+ * 誤検出を防ぐためのヒューリスティクス
+ */
+function isValidSectionHeader(sectionNum: string, title: string): boolean {
+  // セクション番号の検証
+  const numParts = sectionNum.split('.');
+  const depth = numParts.length;
+
+  // 深すぎる階層は除外（通常5レベル以下）
+  if (depth > 5) return false;
+
+  // 最初の番号が大きすぎる場合は除外（ステータスコードの可能性）
+  // 例: "1000", "1001" はセクション番号ではなくステータスコード
+  const firstNum = parseInt(numParts[0], 10);
+  if (firstNum > 99) return false;
+
+  // タイトルの検証
+  const trimmedTitle = title.trim();
+
+  // タイトルが短すぎる（リスト項目の可能性）
+  if (trimmedTitle.length < 3) return false;
+
+  // タイトルが小文字のみで始まる場合（リスト項目の可能性が高い）
+  // ただし "a", "an", "the" で始まる正式なタイトルもあるので注意
+  if (/^[a-z]/.test(trimmedTitle) && trimmedTitle.length < 20) {
+    // 短い小文字始まりの行はセクションタイトルではない可能性が高い
+    return false;
+  }
+
+  // 典型的なセクションタイトルキーワードをチェック
+  const sectionKeywords = [
+    'introduction',
+    'overview',
+    'background',
+    'requirements',
+    'specification',
+    'protocol',
+    'format',
+    'security',
+    'considerations',
+    'references',
+    'acknowledgments',
+    'appendix',
+    'terminology',
+    'definitions',
+    'abstract',
+    'scope',
+    'normative',
+    'informative',
+    'implementation',
+    'examples',
+    'error',
+    'status',
+    'codes',
+    'messages',
+    'operations',
+  ];
+
+  const lowerTitle = trimmedTitle.toLowerCase();
+  for (const keyword of sectionKeywords) {
+    if (lowerTitle.includes(keyword)) {
+      return true;
+    }
+  }
+
+  // 大文字で始まり、適度な長さがあればセクションタイトルとして受け入れる
+  if (/^[A-Z]/.test(trimmedTitle) && trimmedTitle.length >= 5) {
+    return true;
+  }
+
+  // それ以外は厳密にチェック
+  // セクション番号にドットが含まれる場合はより信頼性が高い（1.1, 2.3 など）
+  if (depth >= 2) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * セクション構造の抽出（テキストから）
  */
 function extractTextSections(lines: string[]): Section[] {
@@ -100,27 +212,34 @@ function extractTextSections(lines: string[]): Section[] {
   let currentSection: Section | null = null;
   let currentContent: string[] = [];
 
-  // セクション番号パターン（例: "1.", "1.1", "1.1.1"）
-
   for (const line of lines) {
     const trimmed = line.trim();
     const match = trimmed.match(SECTION_HEADER_PATTERN);
 
     if (match) {
-      // 前のセクションを保存
-      if (currentSection) {
-        currentSection.content = createTextBlocks(currentContent.join('\n'));
-        sections.push(currentSection);
-      }
+      const sectionNum = match[1].replace(/\.$/, '');
+      const title = match[2];
 
-      // 新しいセクションを開始
-      currentSection = {
-        number: match[1].replace(/\.$/, ''),
-        title: match[2],
-        content: [],
-        subsections: [],
-      };
-      currentContent = [];
+      // セクションヘッダーとして妥当性を検証
+      if (isValidSectionHeader(sectionNum, title)) {
+        // 前のセクションを保存
+        if (currentSection) {
+          currentSection.content = createTextBlocks(currentContent.join('\n'));
+          sections.push(currentSection);
+        }
+
+        // 新しいセクションを開始
+        currentSection = {
+          number: sectionNum,
+          title: title,
+          content: [],
+          subsections: [],
+        };
+        currentContent = [];
+      } else if (currentSection) {
+        // 検証に失敗した行はコンテンツとして扱う
+        currentContent.push(line);
+      }
     } else if (currentSection) {
       currentContent.push(line);
     }

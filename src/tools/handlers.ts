@@ -227,7 +227,8 @@ export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
   validateRFCNumber(args.rfc);
   const { data: parsed, source } = await getParsedRFC(args.rfc);
   const requirements = extractRequirements(parsed.sections, {
-    section: args.sections?.[0],
+    sections: args.sections,
+    includeSubsections: args.includeSubsections !== false, // デフォルト true
   });
 
   // Generate checklist using service

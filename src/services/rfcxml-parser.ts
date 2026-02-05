@@ -13,6 +13,7 @@ import type {
   TextBlock,
   ContentBlock,
   ParsedRFC,
+  CrossReference,
 } from '../types/index.js';
 
 // Re-export types for use in handlers
@@ -47,7 +48,8 @@ interface RfcXml extends XmlNode {
 }
 
 /**
- * XML パーサー設定
+ * XML パーサー設定（メイン: preserveOrder: false）
+ * 構造化データの抽出に使用
  */
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -60,10 +62,24 @@ const parser = new XMLParser({
 });
 
 /**
+ * BCP 14 タグを正規化
+ * <bcp14>MUST</bcp14> → MUST に置換してテキストに統合
+ *
+ * 複数行にまたがる場合や属性付きの場合も考慮
+ */
+function normalizeBcp14Tags(xml: string): string {
+  // <bcp14>KEYWORD</bcp14> → KEYWORD
+  // 属性付きの場合も対応: <bcp14 class="...">KEYWORD</bcp14>
+  return xml.replace(/<bcp14[^>]*>([^<]+)<\/bcp14>/gi, '$1');
+}
+
+/**
  * RFCXML をパースして構造化データに変換
  */
 export function parseRFCXML(xml: string): ParsedRFC {
-  const parsed = parser.parse(xml);
+  // BCP 14 タグを正規化してテキストに統合
+  const normalizedXml = normalizeBcp14Tags(xml);
+  const parsed = parser.parse(normalizedXml);
   const rfc = parsed.rfc || parsed;
 
   return {
@@ -117,7 +133,7 @@ function extractContent(section: XmlNode): ContentBlock[] {
   for (const t of paragraphs) {
     const text = extractText(t);
     if (text) {
-      blocks.push(createTextBlock(text));
+      blocks.push(createTextBlock(text, t));
     }
   }
 
@@ -172,14 +188,96 @@ function extractContent(section: XmlNode): ContentBlock[] {
 
 /**
  * テキストブロックを作成
+ * @param text - 抽出されたテキスト内容
+ * @param node - 元のXMLノード（xref抽出用、オプション）
  */
-function createTextBlock(text: string): TextBlock {
+function createTextBlock(text: string, node?: XmlNode): TextBlock {
+  // テキストパターンからのクロスリファレンス
+  const textRefs = extractCrossReferences(text);
+
+  // XMLのxrefタグからのクロスリファレンス
+  const xrefRefs = node ? extractXrefReferences(node) : [];
+
+  // 重複を除いてマージ
+  const allRefs = [...textRefs];
+  const existingTargets = new Set(textRefs.map((r) => r.target));
+  for (const ref of xrefRefs) {
+    if (!existingTargets.has(ref.target)) {
+      allRefs.push(ref);
+    }
+  }
+
   return {
     type: 'text',
     content: text,
     requirements: extractRequirementMarkers(text),
-    crossReferences: extractCrossReferences(text),
+    crossReferences: allRefs,
   };
+}
+
+/**
+ * XMLノードから<xref>タグを抽出
+ * <xref target="section-3.5"/> → セクション参照
+ * <xref target="RFC2119"/> → RFC参照
+ */
+function extractXrefReferences(node: XmlNode): CrossReference[] {
+  const refs: CrossReference[] = [];
+
+  function traverse(obj: XmlNode | unknown) {
+    if (!obj || typeof obj !== 'object') return;
+
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        traverse(item);
+      }
+      return;
+    }
+
+    const xmlObj = obj as XmlNode;
+
+    // xref要素を検出
+    if (xmlObj.xref) {
+      const xrefs = toArray(xmlObj.xref);
+      for (const xref of xrefs) {
+        const target = xref['@_target'];
+        if (target) {
+          // section-X.Y 形式はセクション参照
+          if (target.startsWith('section-') || /^\d+(\.\d+)*$/.test(target)) {
+            const sectionNum = target.replace(/^section-/, '');
+            refs.push({
+              target: sectionNum,
+              type: 'section',
+              section: sectionNum,
+            });
+          }
+          // RFC参照
+          else if (/^RFC\d+$/i.test(target)) {
+            refs.push({
+              target: target.toUpperCase(),
+              type: 'rfc',
+            });
+          }
+          // その他の参照（アンカー等）
+          else {
+            refs.push({
+              target,
+              type: 'section',
+              section: target,
+            });
+          }
+        }
+      }
+    }
+
+    // 再帰的に子要素を探索
+    for (const key of Object.keys(xmlObj)) {
+      if (key.startsWith('@_')) continue; // 属性をスキップ
+      traverse(xmlObj[key]);
+    }
+  }
+
+  traverse(node);
+  return refs;
 }
 
 /**
@@ -349,7 +447,9 @@ function extractDefinitions(rfc: XmlNode): Definition[] {
 
 /**
  * テキストコンテンツを抽出（ネストされた要素を含む）
- * 最適化: 配列を1回だけ生成し、文字列結合を最小化
+ *
+ * Note: <bcp14> タグは parseRFCXML で事前に正規化されるため、
+ * この関数では通常のテキストノードとして処理される
  */
 function extractText(node: XmlNode | string | number | undefined | null): string {
   if (!node) return '';

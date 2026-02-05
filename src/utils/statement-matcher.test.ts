@@ -242,3 +242,130 @@ describe('matchStatement', () => {
     expect(Array.isArray(result.conflicts)).toBe(true);
   });
 });
+
+// Semantic conflict detection tests
+describe('detectConflicts - semantic analysis', () => {
+  // WebSocket-style requirements for masking tests
+  const maskingRequirements: Requirement[] = [
+    {
+      level: 'MUST',
+      text: 'A client MUST mask all frames that it sends to the server.',
+      section: '5.1',
+      fullContext: 'A client MUST mask all frames that it sends to the server.',
+      subject: 'client',
+      action: 'mask all frames that it sends to the server',
+    },
+    {
+      level: 'MUST NOT',
+      text: 'A server MUST NOT mask any frames that it sends to the client.',
+      section: '5.1',
+      fullContext: 'A server MUST NOT mask any frames that it sends to the client.',
+      subject: 'server',
+      action: 'mask any frames that it sends to the client',
+    },
+  ];
+
+  it('should detect conflict when statement contradicts MUST requirement (unmasked vs MUST mask)', () => {
+    const statement = 'A WebSocket client sends unmasked frames to the server';
+    const conflicts = detectConflicts(statement, maskingRequirements);
+
+    expect(conflicts.length).toBeGreaterThan(0);
+    expect(conflicts[0].requirement.level).toBe('MUST');
+    expect(conflicts[0].reason).toContain('contradicts');
+  });
+
+  it('should detect conflict when statement does what MUST NOT forbids (masks vs MUST NOT mask)', () => {
+    const statement = 'The server masks all frames sent to the client';
+    const conflicts = detectConflicts(statement, maskingRequirements);
+
+    expect(conflicts.length).toBeGreaterThan(0);
+    expect(conflicts[0].requirement.level).toBe('MUST NOT');
+    expect(conflicts[0].reason).toContain('forbids');
+  });
+
+  it('should not detect conflict for compliant statements', () => {
+    // Client masks frames - compliant with MUST mask
+    const statement1 = 'The client masks all frames before sending';
+    const conflicts1 = detectConflicts(statement1, maskingRequirements);
+    expect(conflicts1).toHaveLength(0);
+
+    // Server does not mask frames - compliant with MUST NOT mask
+    const statement2 = 'The server sends unmasked frames to the client';
+    const conflicts2 = detectConflicts(statement2, maskingRequirements);
+    expect(conflicts2).toHaveLength(0);
+  });
+
+  it('should detect conflict without explicit requirement level in statement', () => {
+    // Statement has no MUST/SHOULD/MAY but contradicts a requirement
+    const statement = 'The client sends frames without masking';
+    const conflicts = detectConflicts(statement, maskingRequirements);
+
+    // Should detect that this contradicts "client MUST mask"
+    expect(conflicts.length).toBeGreaterThan(0);
+  });
+
+  it('should only detect conflicts for matching subjects', () => {
+    // Statement about server should not conflict with client requirements
+    const statement = 'The server sends unmasked data';
+    const conflicts = detectConflicts(statement, maskingRequirements);
+
+    // Server sending unmasked is NOT a conflict (MUST NOT mask applies to server)
+    // Actually this is compliant since server MUST NOT mask
+    expect(conflicts).toHaveLength(0);
+  });
+});
+
+describe('detectConflicts - encryption negation patterns', () => {
+  const encryptionRequirements: Requirement[] = [
+    {
+      level: 'MUST',
+      text: 'The client MUST encrypt all data.',
+      section: '3',
+      subject: 'client',
+      action: 'encrypt all data',
+    },
+    {
+      level: 'MUST NOT',
+      text: 'The server MUST NOT send unencrypted responses.',
+      section: '4',
+      subject: 'server',
+      action: 'send unencrypted responses',
+    },
+  ];
+
+  it('should detect conflict for unencrypted data vs MUST encrypt', () => {
+    const statement = 'The client sends unencrypted data to the server';
+    const conflicts = detectConflicts(statement, encryptionRequirements);
+
+    expect(conflicts.length).toBeGreaterThan(0);
+    expect(conflicts[0].requirement.level).toBe('MUST');
+  });
+});
+
+describe('matchStatement with semantic conflicts', () => {
+  const requirements: Requirement[] = [
+    {
+      level: 'MUST',
+      text: 'The client MUST validate all input.',
+      section: '2',
+      subject: 'client',
+      action: 'validate all input',
+    },
+  ];
+
+  it('should include semantic conflicts in matchStatement result', () => {
+    const result = matchStatement('The client skips validation for performance', requirements);
+
+    // Should have conflicts even without explicit requirement level
+    expect(result.conflicts.length).toBeGreaterThan(0);
+  });
+
+  it('should return isValid-relevant info through conflicts', () => {
+    const statement = 'The client does not validate user input';
+    const result = matchStatement(statement, requirements);
+
+    // Conflicts array indicates validity issues
+    const hasConflict = result.conflicts.length > 0;
+    expect(hasConflict).toBe(true);
+  });
+});

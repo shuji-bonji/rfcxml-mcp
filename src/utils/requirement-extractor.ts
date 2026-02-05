@@ -10,7 +10,13 @@ import { extractSentence } from './text.js';
  * 要件抽出フィルタ
  */
 export interface RequirementFilter {
+  /** 単一セクション（後方互換性のため維持） */
   section?: string;
+  /** 複数セクション指定 */
+  sections?: string[];
+  /** サブセクションを含めるか（デフォルト: true） */
+  includeSubsections?: boolean;
+  /** 要件レベルでフィルタ */
   level?: RequirementLevel;
 }
 
@@ -20,6 +26,42 @@ export interface RequirementFilter {
 export interface ParseOptions {
   /** 主語・アクション等の構成要素を解析するか */
   parseComponents?: boolean;
+}
+
+/**
+ * セクション番号を正規化（section- プレフィックスを除去）
+ */
+function normalizeSectionId(id: string): string {
+  return id.replace(/^section-/, '');
+}
+
+/**
+ * セクションがフィルタに一致するかチェック
+ */
+function matchesSectionFilter(sectionId: string, filter?: RequirementFilter): boolean {
+  // フィルタなしの場合は全て一致
+  if (!filter) return true;
+
+  const normalizedId = normalizeSectionId(sectionId);
+  const includeSubsections = filter.includeSubsections !== false; // デフォルト true
+
+  // 複数セクション指定
+  const filterSections = filter.sections || (filter.section ? [filter.section] : []);
+  if (filterSections.length === 0) return true;
+
+  for (const filterSec of filterSections) {
+    const normalizedFilter = normalizeSectionId(filterSec);
+
+    // 完全一致
+    if (normalizedId === normalizedFilter) return true;
+
+    // サブセクション一致（例: "3.5.1" は "3.5" にマッチ）
+    if (includeSubsections && normalizedId.startsWith(normalizedFilter + '.')) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -36,8 +78,8 @@ export function extractRequirementsFromSections(
   function processSection(section: Section, path: string) {
     const sectionId = section.number || section.anchor || path;
 
-    // セクションフィルタリング（サブセクションも処理続行）
-    const shouldProcess = !filter?.section || sectionId.startsWith(filter.section);
+    // セクションフィルタリング
+    const shouldProcess = matchesSectionFilter(sectionId, filter);
 
     if (shouldProcess) {
       // テキストブロックから要件抽出

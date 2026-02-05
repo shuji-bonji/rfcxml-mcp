@@ -231,6 +231,7 @@ export interface GenerateChecklistArgs {
   rfc: number;
   role?: 'client' | 'server' | 'both';
   sections?: string[];
+  includeSubsections?: boolean;
 }
 
 export interface ValidateStatementArgs {
