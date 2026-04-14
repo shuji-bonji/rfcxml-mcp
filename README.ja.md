@@ -60,7 +60,9 @@ MCP 設定ファイルに以下を追加：
 
 - **Claude Desktop (macOS)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **Claude Code**: `.claude/settings.json` または `claude settings` コマンド
+- **Claude Code (プロジェクトスコープ)**: プロジェクトルートの `.mcp.json`
+- **Claude Code (ユーザースコープ)**: `~/.claude.json`
+- **Claude Code (CLI)**: `claude mcp add rfcxml -- npx -y @shuji-bonji/rfcxml-mcp`
 
 ### インストール（オプション）
 
@@ -68,8 +70,11 @@ MCP 設定ファイルに以下を追加：
 
 ```bash
 npm install -g @shuji-bonji/rfcxml-mcp
+```
 
-# MCP 設定
+MCP 設定：
+
+```json
 {
   "mcpServers": {
     "rfcxml": {
@@ -275,20 +280,27 @@ RFC 9293 (TCP) の実装チェックリストを生成してください。
 src/
 ├── index.ts                    # MCP サーバーエントリポイント
 ├── config.ts                   # 設定の一元管理
-├── constants.ts                # BCP 14 キーワード定義
+├── constants.ts                # BCP 14 キーワード定義 + RFC 番号制限
 ├── services/
 │   ├── rfc-fetcher.ts          # RFC 取得（並列フェッチ）
+│   ├── rfc-service.ts          # RFC パース・キャッシュ管理
 │   ├── rfcxml-parser.ts        # RFCXML パーサー
-│   └── rfc-text-parser.ts      # テキストフォールバック
+│   ├── rfc-text-parser.ts      # テキストフォールバックパーサー
+│   └── checklist-generator.ts  # チェックリスト生成サービス
 ├── tools/
 │   ├── definitions.ts          # MCP ツール定義
-│   └── handlers.ts             # ツールハンドラー
+│   └── handlers.ts             # ツールハンドラー（toolHandlers マップ）
 ├── types/
 │   └── index.ts                # 型定義
 └── utils/
     ├── cache.ts                # LRU キャッシュ
     ├── fetch.ts                # 並列フェッチユーティリティ
-    └── text.ts                 # テキスト処理ユーティリティ
+    ├── logger.ts               # ログ抽象化
+    ├── requirement-extractor.ts # 共通要件抽出
+    ├── section.ts              # セクション検索ユーティリティ
+    ├── statement-matcher.ts    # 重み付きマッチング
+    ├── text.ts                 # テキスト処理ユーティリティ
+    └── validation.ts           # 入力バリデーション
 ```
 
 ### RFC 取得の最適化
@@ -339,8 +351,14 @@ npm run dev
 # ビルド
 npm run build
 
-# テスト
+# テスト（ウォッチモード）
 npm test
+
+# テスト（単発実行 — CI 等で使用）
+npm test -- --run
+
+# E2E テスト（MCP クライアント統合）
+npm run test:e2e
 
 # リント
 npm run lint

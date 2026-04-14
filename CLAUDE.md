@@ -38,299 +38,189 @@ RFC文書を**構造的に理解**するためのMCPサーバー。既存の`mcp
 
 ```
 rfcxml-mcp/
-├── .github/
-│   └── workflows/
-│       ├── ci.yml               # CI (lint, test, build)
-│       └── publish.yml          # npm publish on tags
+├── .github/workflows/
+│   ├── ci.yml                   # CI (lint, test, build)
+│   └── publish.yml              # npm publish on tags
 ├── src/
 │   ├── index.ts                 # MCPサーバーエントリポイント
 │   ├── config.ts                # 設定の一元管理
-│   ├── constants.ts             # BCP 14 キーワード定義 + RFC番号制限
+│   ├── constants.ts             # BCP 14 キーワード + RFC_NUMBER_LIMITS
 │   ├── services/
-│   │   ├── rfc-fetcher.ts       # RFC XML 取得・キャッシュ
-│   │   ├── rfc-service.ts       # RFC パース・キャッシュ管理 (v0.4.3)
+│   │   ├── rfc-fetcher.ts       # RFC XML/テキスト取得（並列 + AbortController）
+│   │   ├── rfc-service.ts       # RFC パース・キャッシュ管理
 │   │   ├── rfcxml-parser.ts     # RFCXML パーサー
 │   │   ├── rfc-text-parser.ts   # テキストフォールバックパーサー
-│   │   └── checklist-generator.ts # チェックリスト生成サービス
+│   │   └── checklist-generator.ts # チェックリスト生成
 │   ├── tools/
 │   │   ├── definitions.ts       # MCPツール定義
-│   │   └── handlers.ts          # ツールハンドラー実装 + toolHandlers Map
+│   │   └── handlers.ts          # ツールハンドラー + toolHandlers Map
 │   ├── types/
 │   │   └── index.ts             # 型定義（ParsedRFC含む）
 │   └── utils/
 │       ├── cache.ts             # LRU キャッシュ
-│       ├── fetch.ts             # 並列フェッチユーティリティ
-│       ├── logger.ts            # ログ抽象化 (v0.4.3)
-│       ├── requirement-extractor.ts # 共通要件抽出ユーティリティ
+│       ├── fetch.ts             # 並列フェッチ
+│       ├── logger.ts            # ログ抽象化
+│       ├── requirement-extractor.ts # 要件抽出
 │       ├── section.ts           # セクション検索・クロスリファレンス
-│       ├── statement-matcher.ts # 重み付きマッチング (v0.4.4)
-│       ├── text.ts              # テキスト処理ユーティリティ
+│       ├── statement-matcher.ts # 重み付きマッチング
+│       ├── text.ts              # テキスト処理
 │       └── validation.ts        # 入力バリデーション
 ├── package.json
-├── tsconfig.json
-├── CHANGELOG.md
-├── CLAUDE.md                    # 本ファイル（Claude Code 用）
-└── README.md
+├── CHANGELOG.md                 # 変更履歴（技術的背景はこちら）
+├── CLAUDE.md                    # 本ファイル
+└── README.md / README.ja.md
 ```
 
 ---
 
-## ツール一覧と状態
+## ツール一覧
 
 ### Phase 1: 基本構造
-| ツール | 説明 | 状態 |
-|--------|------|------|
-| `get_rfc_structure` | セクション階層とメタデータ取得 | ✅ 動作 |
-| `get_requirements` | 規範性要件（MUST/SHOULD/MAY）抽出 | ✅ 動作 |
-| `get_definitions` | 用語定義とスコープ | ✅ 動作 |
+| ツール | 説明 |
+|--------|------|
+| `get_rfc_structure` | セクション階層とメタデータ取得 |
+| `get_requirements` | 規範性要件（MUST/SHOULD/MAY）抽出 |
+| `get_definitions` | 用語定義とスコープ |
 
 ### Phase 2: 関係性
-| ツール | 説明 | 状態 |
-|--------|------|------|
-| `get_rfc_dependencies` | 参照RFC（normative/informative） | ✅ 動作（入れ子構造対応済み） |
-| `get_related_sections` | 関連セクション | ✅ 動作（セクション番号正規化済み） |
+| ツール | 説明 |
+|--------|------|
+| `get_rfc_dependencies` | 参照RFC（normative/informative） |
+| `get_related_sections` | 関連セクション（`<xref>` + テキスト両対応）|
 
 ### Phase 3: 検証支援
-| ツール | 説明 | 状態 |
-|--------|------|------|
-| `generate_checklist` | 実装チェックリスト生成 | ✅ 動作 |
-| `validate_statement` | 主張の仕様準拠検証 | ✅ 動作（重み付きマッチング対応 v0.4.4） |
+| ツール | 説明 |
+|--------|------|
+| `generate_checklist` | 実装チェックリスト生成 |
+| `validate_statement` | 主張の仕様準拠検証（重み付きマッチング + 意味的否定検出）|
 
 ### フォールバック対応
-| 機能 | 状態 |
-|------|------|
-| 古いRFC (< 8650) のテキストフォールバック | ✅ 実装済み |
-| ソース情報の表示 (`_source: 'xml' | 'text'`) | ✅ 実装済み |
-| 精度警告の表示 (`_sourceNote`) | ✅ 実装済み |
+- 古いRFC (< 8650) のテキストフォールバック ✅
+- ソース情報の表示 (`_source: 'xml' | 'text'`) ✅
+- 精度警告の表示 (`_sourceNote`) ✅
 
 ---
 
-## 既知の課題と対応方針
+## 共通パターン（`shuji-mcp-patterns` skill へ移譲）
 
-### ✅ 解決済み: 古いRFCのXML未対応
+以下の横断的実装パターンは `shuji-mcp-patterns` skill に分離済み。必要に応じて skill の該当ファイルを参照。
 
-**問題**: RFC 8650 (2019年12月) より前のRFCは公式RFCXMLが存在しない
+| パターン | Skill 内の参照先 |
+|---------|------------------|
+| Tool ハンドラの Map ディスパッチ（`toolHandlers`） | `handler-dispatch.md` |
+| `createRequire` による `package.json` からの動的バージョン取得 | `esm-version.md` |
+| `logger` 抽象化（DEBUG 対応、stderr 経由） | `logger.md` |
+| `/g` フラグ正規表現のファクトリ関数パターン | `safe-regex.md` |
+| `asserts` 型述語による入力検査 + 定数一元管理 | `validation.md` |
+| git tag → GitHub Actions による npm publish 自動化 | `release-workflow.md` |
 
-**対応**: ハイブリッドアプローチを実装
-1. XMLが取得できたら構造化解析（高精度）
-2. 取得できなければテキスト形式を取得→正規表現解析（中精度）
-3. 結果に `_source: 'xml' | 'text'` と `_sourceNote` を付与して精度を明示
+新規ツール追加時は、`handler-dispatch.md` のチェックリストに従うと抜け漏れが防げる。
 
-**関連ファイル**:
-- `src/services/rfc-fetcher.ts` - テキスト取得機能追加
-- `src/services/rfc-text-parser.ts` - 新規作成（テキストパーサー）
-- `src/tools/handlers.ts` - フォールバック処理
+---
 
-### ✅ 解決済み: `get_related_sections` のセクション番号形式
+## プロジェクト固有の実装ノート
 
-**問題**: XMLの `anchor` が `section-3.5` 形式、`number` が `3.5` 形式で混在
+### RFCXML のパース
 
-**修正内容**: `src/utils/section.ts` に `normalizeSectionNumber` 関数と `findSection` 関数を分離
+- `fast-xml-parser` を使用
+- 属性は `@_` プレフィックス、テキストノードは `#text`
+- `<bcp14>` タグは XML パース前に `normalizeBcp14Tags()` で `MUST` などの素テキストに正規化（v0.4.5 で修正）
+- 入れ子構造の `<references>` は `collectReferenceSections()` で再帰的にフラット化
 
-```typescript
-// src/utils/section.ts
-export function normalizeSectionNumber(sectionId: string): string {
-  return sectionId.replace(/^section-/, '');
-}
+### BCP 14 キーワードの扱い
 
-export function findSection(sections: Section[], target: string): Section | null {
-  // 複数フォーマット対応のセクション検索
-}
+長いキーワードから順にマッチさせる。`MUST NOT` を `MUST` より先に並べる（`src/constants.ts` の `REQUIREMENT_KEYWORDS`）。
 
-export function collectCrossReferences(section: Section): Set<string> {
-  // セクションからクロスリファレンスを収集
+```ts
+export const REQUIREMENT_KEYWORDS: RequirementLevel[] = [
+  'MUST NOT',    // MUST より先
+  'MUST',
+  'REQUIRED',
+  'SHALL NOT',   // SHALL より先
+  'SHALL',
+  // ...
+];
+```
+
+### RFC 番号と XML 可用性
+
+- RFC 8650 (2019年12月) 以降は公式 RFCXML v3 が確実に利用可能
+- それ以前は一部のみ利用可能（テキストフォールバック必須）
+
+```ts
+// src/config.ts
+export function isRFCXMLLikelyAvailable(rfcNumber: number): boolean {
+  return rfcNumber >= RFC_CONFIG.xmlAvailableFrom; // 8650
 }
 ```
 
-### ✅ 解決済み: `get_rfc_dependencies` の参照情報が空
+### セクション番号の正規化
 
-**問題**: `extractReferences` 関数でXMLの入れ子構造（`<references>` の中に `<references>`）を処理できていなかった
+XMLの `anchor` は `section-3.5` 形式、`number` は `3.5` 形式で混在するため、`src/utils/section.ts` の `normalizeSectionNumber` / `findSection` で吸収する。`get_requirements` / `generate_checklist` はどちらの形式でも受け付ける。
 
-**修正内容**: `src/services/rfcxml-parser.ts` の `extractReferences` 関数を再帰的にフラット化するように修正
+### `validate_statement` のマッチング方式
 
-```typescript
-// 入れ子構造に対応: 外側のreferencesコンテナをフラット化
-function collectReferenceSections(sections: any | any[]): any[] {
-  // 再帰的に references を収集
-}
-```
+`src/utils/statement-matcher.ts` で重み付きキーワードマッチングを実装（v0.4.4 以降）。
 
-### ✅ 解決済み: 国際化 (i18n)
-
-**問題**: 日本語がハードコーディングされており、海外ユーザーに不便
-
-**対応** (v0.4.0):
-1. ツール description を英語化（`definitions.ts`）
-2. `_sourceNote` メッセージを英語化（`handlers.ts`）
-3. チェックリスト生成を英語化（`handlers.ts`）
-4. エラーメッセージを英語化（`rfc-fetcher.ts`）
-
-### ✅ 解決済み: バージョン不一致
-
-**問題**: `index.ts` と `config.ts` でバージョンがハードコードされ、`package.json` と不一致
-
-**対応**: `package.json` から動的に読み込むように変更
-
-### ✅ 解決済み: fetchRFCMetadata タイムアウト
-
-**問題**: タイムアウト未設定でハングする可能性
-
-**対応**: `AbortController` で 30 秒タイムアウトを追加
-
-### ✅ 解決済み: コードの責務分割 (v0.4.1)
-
-**問題**: `handlers.ts` が 510 行と肥大化、要件抽出ロジックが重複
-
-**対応**: 共通ユーティリティへの分離
-1. `src/utils/requirement-extractor.ts` - XML/テキストパーサー共通の要件抽出
-2. `src/utils/section.ts` - セクション検索・クロスリファレンス収集
-3. `src/services/checklist-generator.ts` - チェックリスト生成の専用サービス化
-
-**効果**: `handlers.ts` が 510 行 → 400 行（約22%削減）
-
-```typescript
-// 共通の要件抽出（parseComponents オプションで構成要素解析を制御）
-import { extractRequirementsFromSections } from '../utils/requirement-extractor.js';
-
-// XMLパーサー: 構成要素解析あり
-export function extractRequirements(sections, filter) {
-  return extractRequirementsFromSections(sections, filter, { parseComponents: true });
-}
-
-// テキストパーサー: 構成要素解析なし（精度が低いため）
-export function extractTextRequirements(sections, filter) {
-  return extractRequirementsFromSections(sections, filter, { parseComponents: false });
-}
-```
-
-### ✅ 解決済み: サービス層の責務分離 (v0.4.3)
-
-**問題**: `handlers.ts` に `getParsedRFC()` やキャッシュ処理が混在
-
-**対応**: 専用サービスに抽出
-1. `src/services/rfc-service.ts` - RFC パース・キャッシュ管理
-2. `src/utils/logger.ts` - ログ抽象化（`console.error` → `logger.info`）
-3. `src/constants.ts` - `RFC_NUMBER_LIMITS` 定数追加
-
-```typescript
-// src/services/rfc-service.ts
-export interface ParsedRFCWithSource {
-  data: ParsedRFC;
-  source: 'xml' | 'text';
-}
-
-export async function getParsedRFC(rfcNumber: number): Promise<ParsedRFCWithSource>
-export function clearParseCache(): void
-export function getTextSourceNote(context: SourceNoteContext): string
-```
-
-### ✅ 解決済み: fetchRFCMetadata のエラーログ (v0.4.4)
-
-**問題**: `catch (_error)` でエラーが握りつぶされ、デバッグが困難
-
-**対応**: `logger.warn` でエラー情報を出力
-
-```typescript
-// src/services/rfc-fetcher.ts
-} catch (error) {
-  logger.warn(
-    `RFC ${rfcNumber}`,
-    `Metadata fetch failed: ${error instanceof Error ? error.message : String(error)}`
-  );
-  // Fallback to minimal metadata
-  return { /* ... */ };
-}
-```
-
-### ✅ 解決済み: `validate_statement` のマッチング精度 (v0.4.4)
-
-**問題**: 簡易的なキーワードマッチングのため精度が低い
-
-**対応**: 重み付きキーワードマッチングを実装
-
-1. `src/utils/statement-matcher.ts` - 専用マッチングユーティリティ
-2. キーワード重み付け:
-   - Subject terms (client, server): 重み 3
-   - Technical terms (request, connection): 重み 2
-   - Regular words: 重み 1
-   - Stop words (the, this): 無視
-3. ボーナススコア:
-   - 主語一致: +5点
-   - 要件レベル一致: +3点
-4. 競合検出: MAY vs MUST の矛盾を検出
-
-```typescript
-// src/utils/statement-matcher.ts
-export function matchStatement(
-  statement: string,
-  requirements: Requirement[],
-  options?: { maxResults?: number }
-): {
-  matches: MatchResult[];
-  conflicts: ConflictResult[];
-  statementLevel: RequirementLevel | null;
-  statementSubject: string | null;
-}
-```
-
-**今後の拡張案**:
-- 意味的類似度による検索（埋め込みベクトル）
-- LLM を使った検証
+- Subject terms (client, server): 重み 3
+- Technical terms (request, connection): 重み 2
+- Regular words: 重み 1
+- Stop words: 無視
+- ボーナス: 主語一致 +5、要件レベル一致 +3
+- 競合検出: MAY vs MUST の矛盾検出
+- 意味的否定パターン検出（v0.4.5〜）: mask/unmasked, encrypt/unencrypted 等
 
 ---
 
 ## 開発コマンド
 
 ```bash
-# 依存関係インストール
-npm install
-
-# 開発モード（ウォッチ）
-npm run dev
-
-# ビルド
-npm run build
-
-# テスト
-npm test
-
-# リント
-npm run lint
-
-# フォーマット
-npm run format
-
-# MCP サーバー起動
-npm start
+npm install        # 依存関係インストール
+npm run dev        # 開発モード（ウォッチビルド）
+npm run build      # ビルド
+npm test           # テスト（ウォッチ）
+npm test -- --run  # テスト（単発）
+npm run test:e2e   # E2E テスト（MCP クライアント統合）
+npm run lint       # リント
+npm run format     # フォーマット
+npm start          # MCP サーバー起動
 ```
+
+`DEBUG=1 npm start` で詳細ログ出力。
 
 ---
 
-## CI/CD
+## テスト
 
-### GitHub Actions
+| ファイル | 対象 |
+|----------|------|
+| `handlers.test.ts` | ツールハンドラー統合 |
+| `rfcxml-parser.test.ts` | XML パーサー（bcp14 / xref 対応含む） |
+| `rfc-text-parser.test.ts` | テキストパーサー |
+| `cache.test.ts` | LRU キャッシュ |
+| `validation.test.ts` | RFC 番号バリデーション |
+| `statement-matcher.test.ts` | 重み付きマッチング + 意味的否定 |
+| `requirement-extractor.test.ts` | 要件フィルタリング |
 
-| ワークフロー | トリガー | 内容 |
-|-------------|---------|------|
-| `ci.yml` | push/PR to main | lint, test, build |
-| `publish.yml` | push tags `v*` | test, build, npm publish |
-
-### リリース手順
+実行:
 
 ```bash
-# 1. バージョン更新
-npm version patch  # or minor, major
-
-# 2. タグをプッシュ
-git push origin main --tags
-# → GitHub Actions が自動で npm publish
+npm test -- --run           # 単発実行
+npm test -- --coverage      # カバレッジ
 ```
 
-**注意**: `publish.yml` は `package.json` の version と git tag の一致を検証する
+### テスト用 RFC
+
+| RFC | 内容 | XML状態 |
+|-----|------|---------|
+| 9293 | TCP (2022) | ✅ 利用可能 |
+| 9110 | HTTP Semantics (2022) | ✅ 利用可能 |
+| 6455 | WebSocket (2011) | ❌ XML なし（テキストフォールバック） |
+| 7230 | HTTP/1.1 (2014) | ❌ XML なし |
 
 ---
 
-## MCP 設定（Claude Desktop / Claude Code）
+## MCP 設定（開発時）
 
 ```json
 {
@@ -343,167 +233,13 @@ git push origin main --tags
 }
 ```
 
----
-
-## 実装時の注意事項
-
-### ツールハンドラーのディスパッチ
-
-`src/tools/handlers.ts` で `toolHandlers` Map を export し、`src/index.ts` で使用:
-
-```typescript
-// handlers.ts
-export const toolHandlers: Record<string, (args: any) => Promise<unknown>> = {
-  get_rfc_structure: handleGetRFCStructure,
-  get_requirements: handleGetRequirements,
-  // ...
-};
-
-// index.ts
-const handler = toolHandlers[name];
-if (!handler) throw new Error(`Unknown tool: ${name}`);
-const result = await handler(args);
-```
-
-新しいツールを追加する際は `toolHandlers` にエントリを追加するだけでよい。
-
-### XML パース
-- `fast-xml-parser` を使用
-- 属性は `@_` プレフィックス
-- テキストノードは `#text`
-
-### BCP 14 キーワード
-長いキーワードから順にマッチさせる（`MUST NOT` を `MUST` より先に）
-
-```typescript
-const REQUIREMENT_KEYWORDS: RequirementLevel[] = [
-  'MUST NOT',    // MUST より先
-  'MUST',
-  'REQUIRED',
-  'SHALL NOT',   // SHALL より先
-  'SHALL',
-  // ...
-];
-```
-
-### 正規表現の安全な使用
-グローバルフラグ `/g` 付きの正規表現は `lastIndex` を保持するため、`exec()` ループで再利用すると問題が発生する可能性がある。ファクトリ関数を使用：
-
-```typescript
-// ✅ 推奨: ファクトリ関数で毎回新規インスタンス
-import { createRequirementRegex } from '../constants.js';
-
-function extractMarkers(text: string) {
-  const regex = createRequirementRegex();  // 新規インスタンス
-  while ((match = regex.exec(text)) !== null) { ... }
-}
-
-// ❌ 非推奨: グローバル変数の再利用
-import { REQUIREMENT_REGEX } from '../constants.js';
-// → exec() ループで lastIndex が残る可能性
-```
-
-### RFC 番号バリデーション
-全ハンドラーで入力バリデーションを実施。制限値は `constants.ts` で一元管理：
-
-```typescript
-// src/constants.ts
-export const RFC_NUMBER_LIMITS = {
-  MIN: 1,
-  MAX: 99999,
-} as const;
-
-// src/utils/validation.ts
-import { RFC_NUMBER_LIMITS } from '../constants.js';
-
-export function validateRFCNumber(rfc: unknown): asserts rfc is number {
-  if (rfc < RFC_NUMBER_LIMITS.MIN || rfc > RFC_NUMBER_LIMITS.MAX) {
-    throw new Error(`Invalid RFC number`);
-  }
-}
-```
-
-### ログ出力
-`console.error` は直接使用せず、`logger` ユーティリティを経由：
-
-```typescript
-// src/utils/logger.ts
-import { logger } from '../utils/logger.js';
-
-// ✅ 推奨
-logger.info(`RFC ${rfcNumber}`, `Fetched from ${source}`);
-logger.warn(`RFC ${rfcNumber}`, 'XML not available, trying text fallback...');
-logger.error(`RFC ${rfcNumber}`, 'Failed to fetch', error);
-
-// ❌ 非推奨
-console.error(`[RFC ${rfcNumber}] Fetched from ${source}`);
-```
-
-DEBUG 環境変数を設定すると詳細ログを出力：
-
-```bash
-DEBUG=1 npm start
-```
-
-### バージョン管理
-バージョンは `package.json` から動的に読み込む（ハードコード禁止）：
-
-```typescript
-// src/config.ts
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const packageJson = require('../package.json');
-
-export const PACKAGE_INFO = {
-  name: packageJson.name,
-  version: packageJson.version,  // 動的取得
-} as const;
-```
-
-### RFC 番号と XML 可用性
-
-```typescript
-// RFC 8650 以降は公式 RFCXML v3 が確実に利用可能
-// それ以前は一部のみ利用可能（要フォールバック）
-function isRFCXMLAvailable(rfcNumber: number): boolean {
-  return rfcNumber >= 8650;
-}
-```
+ユーザー向けインストール方法は README.md を参照。
 
 ---
 
-## テスト
+## 変更履歴と技術的背景
 
-### テストファイル構成
-
-| ファイル | テスト数 | 対象 |
-|----------|---------|------|
-| `handlers.test.ts` | 23 | ツールハンドラー統合テスト |
-| `rfcxml-parser.test.ts` | 13 | XMLパーサー |
-| `rfc-text-parser.test.ts` | 15 | テキストパーサー |
-| `cache.test.ts` | 16 | LRUキャッシュ |
-| `validation.test.ts` | 30 | RFC番号バリデーション |
-| `statement-matcher.test.ts` | 29 | 重み付きマッチング |
-| **合計** | **126** | |
-
-### テスト実行
-
-```bash
-npm test              # ウォッチモード
-npm test -- --run     # 単発実行
-npm test -- --coverage  # カバレッジ
-```
-
----
-
-## テスト用 RFC
-
-| RFC | 内容 | XML状態 |
-|-----|------|---------|
-| 9293 | TCP (2022) | ✅ 利用可能 |
-| 9110 | HTTP Semantics (2022) | ✅ 利用可能 |
-| 6455 | WebSocket (2011) | ❌ XML なし |
-| 7230 | HTTP/1.1 (2014) | ❌ XML なし |
+過去のバージョンで解決した技術的課題（i18n 対応、バージョン同期バグ、`<bcp14>` タグ処理、意味的否定検出など）の詳細は [CHANGELOG.md](./CHANGELOG.md) を参照。CLAUDE.md では**現在の設計の要点**のみを記載する方針。
 
 ---
 
@@ -519,15 +255,20 @@ graph LR
     D --> E[日本語RFC出力]
 ```
 
-### 関連プロジェクト
+### 検討中の機能
+
+- 意味的類似度による検索（埋め込みベクトル）
+- LLM を使った validate_statement の精度向上
+
+---
+
+## 関連プロジェクト
 
 - [mjpitz/mcp-rfc](https://github.com/mjpitz/mcp-rfc) - テキストベースの RFC MCP
 - [tizee/mcp-server-ietf](https://github.com/tizee/mcp-server-ietf) - RFC 取得 MCP
 - [ietf-tools/RFCXML](https://github.com/ietf-tools/RFCXML) - RFCXML スキーマ
 
----
-
-## 参考情報
+### 参考仕様
 
 - RFCXML v3 仕様: RFC 7991
 - BCP 14 キーワード: RFC 2119, RFC 8174

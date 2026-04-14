@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.7] - 2026-04-15
+
+### Documentation
+
+- **README.md / README.ja.md**: Corrected Claude Code MCP configuration paths
+  - Removed incorrect `.claude/settings.json` and `claude settings` references
+  - Added correct locations: `.mcp.json` (project scope), `~/.claude.json` (user scope), and `claude mcp add` CLI command
+- **README.md / README.ja.md**: Split bash and JSON code blocks in the global install example for cleaner copy-paste
+- **README.md**: Synchronized `_sourceNote` sample string with the actual implementation (`Warning: Parsed from text format. Accuracy may be limited.`)
+- **README.md / README.ja.md**: Updated `src/` directory tree to include `rfc-service.ts`, `logger.ts`, `statement-matcher.ts`, and `requirement-extractor.ts`
+- **README.md / README.ja.md**: Clarified test commands — distinguished watch mode (`npm test`) from single-run (`npm test -- --run`) and added `npm run test:e2e`
+- **CLAUDE.md**: Slimmed down from ~490 lines to 275 lines by extracting cross-MCP common patterns to a dedicated skill and removing duplicated history already tracked in CHANGELOG
+
+### Internal
+
+- Added `.claude/` to `.gitignore` (Claude Code local settings are user-specific)
+
+No code changes in this release — source artifacts identical to 0.4.6.
+
 ## [0.4.6] - 2026-02-16
 
 ### Changed

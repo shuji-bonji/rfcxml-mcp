@@ -66,7 +66,9 @@ Configuration file locations:
 
 - **Claude Desktop (macOS)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **Claude Code**: `.claude/settings.json` or use `claude settings` command
+- **Claude Code (project scope)**: `.mcp.json` at the project root
+- **Claude Code (user scope)**: `~/.claude.json`
+- **Claude Code (CLI)**: `claude mcp add rfcxml -- npx -y @shuji-bonji/rfcxml-mcp`
 
 ### Installation (Optional)
 
@@ -74,8 +76,11 @@ For global installation:
 
 ```bash
 npm install -g @shuji-bonji/rfcxml-mcp
+```
 
-# MCP configuration
+Then configure MCP:
+
+```json
 {
   "mcpServers": {
     "rfcxml": {
@@ -118,7 +123,7 @@ All responses include source information:
   "rfc": 6455,
   "sections": [...],
   "_source": "text",
-  "_sourceNote": "⚠️ Parsed from text format. Accuracy may be lower."
+  "_sourceNote": "Warning: Parsed from text format. Accuracy may be limited."
 }
 ```
 
@@ -249,7 +254,7 @@ Role: Client
     { "number": "5", "title": "Data Framing" }
   ],
   "_source": "text",
-  "_sourceNote": "⚠️ Parsed from text format. Accuracy may be lower."
+  "_sourceNote": "Warning: Parsed from text format. Accuracy may be limited."
 }
 ```
 
@@ -277,22 +282,25 @@ Generate an implementation checklist for RFC 9293 (TCP).
 src/
 ├── index.ts                    # MCP server entry point
 ├── config.ts                   # Centralized configuration
-├── constants.ts                # BCP 14 keyword definitions
+├── constants.ts                # BCP 14 keyword definitions + RFC number limits
 ├── services/
 │   ├── rfc-fetcher.ts          # RFC fetching (parallel)
+│   ├── rfc-service.ts          # RFC parse & cache management
 │   ├── rfcxml-parser.ts        # RFCXML parser
 │   ├── rfc-text-parser.ts      # Text fallback parser
 │   └── checklist-generator.ts  # Checklist generation service
 ├── tools/
 │   ├── definitions.ts          # MCP tool definitions
-│   └── handlers.ts             # Tool handlers
+│   └── handlers.ts             # Tool handlers (toolHandlers map)
 ├── types/
 │   └── index.ts                # Type definitions
 └── utils/
     ├── cache.ts                # LRU cache
     ├── fetch.ts                # Parallel fetch utility
+    ├── logger.ts               # Logger abstraction
     ├── requirement-extractor.ts # Shared requirement extraction
     ├── section.ts              # Section search utilities
+    ├── statement-matcher.ts    # Weighted statement matching
     ├── text.ts                 # Text processing utility
     └── validation.ts           # Input validation
 ```
@@ -345,8 +353,14 @@ npm run dev
 # Build
 npm run build
 
-# Test
+# Test (watch mode)
 npm test
+
+# Test (single run — for CI etc.)
+npm test -- --run
+
+# E2E test (MCP client integration)
+npm run test:e2e
 
 # Lint
 npm run lint
