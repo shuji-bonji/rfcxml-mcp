@@ -161,7 +161,13 @@ export interface DependencyGraph {
   rfc: number;
   normative: RFCDependency[];
   informative: RFCDependency[];
-  referencedBy?: RFCDependency[];
+  referencedBy?: ReferencedByEntry[];
+}
+
+export interface ReferencedByEntry {
+  rfcNumber: number;
+  name: string;
+  relationship: 'refnorm' | 'refinfo';
 }
 
 export interface RFCDependency {

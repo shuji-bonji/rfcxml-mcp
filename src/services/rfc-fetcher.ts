@@ -3,7 +3,7 @@
  * RFCXML source fetching and cache management
  */
 
-import type { RFCMetadata } from '../types/index.js';
+import type { RFCMetadata, ReferencedByEntry } from '../types/index.js';
 import { LRUCache } from '../utils/cache.js';
 import { fetchFromMultipleSources } from '../utils/fetch.js';
 import { logger } from '../utils/logger.js';
@@ -155,6 +155,75 @@ export async function fetchRFCText(rfcNumber: number): Promise<string> {
       `Failed to fetch RFC ${rfcNumber} text from all sources. ` +
         `Error: ${error instanceof Error ? error.message : String(error)}`
     );
+  }
+}
+
+/**
+ * Datatracker API response types
+ */
+interface DataTrackerRelatedDocResponse {
+  meta: { total_count: number; next: string | null };
+  objects: Array<{
+    source: string; // e.g. "/api/v1/doc/document/rfc9511/"
+    relationship: string; // e.g. "/api/v1/name/docrelationshipname/refnorm/"
+  }>;
+}
+
+/**
+ * Fetch RFCs that reference this RFC (via IETF Datatracker API)
+ * Returns only published RFCs (not drafts) with normative/informative relationships
+ */
+export async function fetchReferencedBy(rfcNumber: number): Promise<ReferencedByEntry[]> {
+  const url = DATATRACKER_API.referencedBy(rfcNumber);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), HTTP_CONFIG.timeout);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': HTTP_CONFIG.userAgent,
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = (await response.json()) as DataTrackerRelatedDocResponse;
+
+    const entries: ReferencedByEntry[] = [];
+    for (const obj of data.objects) {
+      // Extract RFC name from source URI: "/api/v1/doc/document/rfc9511/" -> "rfc9511"
+      const sourceName = obj.source.split('/').filter(Boolean).pop() || '';
+      const rfcMatch = sourceName.match(/^rfc(\d+)$/);
+      if (!rfcMatch) continue;
+
+      // Extract relationship slug: "/api/v1/name/docrelationshipname/refnorm/" -> "refnorm"
+      const relSlug = obj.relationship.split('/').filter(Boolean).pop() || '';
+      if (relSlug !== 'refnorm' && relSlug !== 'refinfo') continue;
+
+      entries.push({
+        rfcNumber: parseInt(rfcMatch[1], 10),
+        name: sourceName.toUpperCase(),
+        relationship: relSlug as 'refnorm' | 'refinfo',
+      });
+    }
+
+    // Sort by RFC number
+    entries.sort((a, b) => a.rfcNumber - b.rfcNumber);
+
+    logger.info(`RFC ${rfcNumber}`, `Found ${entries.length} RFCs that reference this RFC`);
+    return entries;
+  } catch (error) {
+    logger.warn(
+      `RFC ${rfcNumber}`,
+      `referencedBy fetch failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return [];
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

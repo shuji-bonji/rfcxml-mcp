@@ -94,6 +94,9 @@ export const RFC_TEXT_SOURCES = {
 export const DATATRACKER_API = {
   /** RFC document information */
   document: (num: number) => `https://datatracker.ietf.org/api/v1/doc/document/rfc${num}/`,
+  /** Documents that reference a given RFC (normative/informative, RFC sources only) */
+  referencedBy: (num: number, limit = 100) =>
+    `https://datatracker.ietf.org/api/v1/doc/relateddocument/?target__name=rfc${num}&relationship__slug__in=refnorm,refinfo&source__type__slug=rfc&limit=${limit}`,
 } as const;
 
 /**

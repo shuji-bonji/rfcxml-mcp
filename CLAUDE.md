@@ -85,7 +85,7 @@ rfcxml-mcp/
 ### Phase 2: 関係性
 | ツール | 説明 |
 |--------|------|
-| `get_rfc_dependencies` | 参照RFC（normative/informative） |
+| `get_rfc_dependencies` | 参照RFC（normative/informative）+ referencedBy（Datatracker API） |
 | `get_related_sections` | 関連セクション（`<xref>` + テキスト両対応）|
 
 ### Phase 3: 検証支援
@@ -175,15 +175,16 @@ XMLの `anchor` は `section-3.5` 形式、`number` は `3.5` 形式で混在す
 ## 開発コマンド
 
 ```bash
-npm install        # 依存関係インストール
-npm run dev        # 開発モード（ウォッチビルド）
-npm run build      # ビルド
-npm test           # テスト（ウォッチ）
-npm test -- --run  # テスト（単発）
-npm run test:e2e   # E2E テスト（MCP クライアント統合）
-npm run lint       # リント
-npm run format     # フォーマット
-npm start          # MCP サーバー起動
+npm install           # 依存関係インストール
+npm run dev           # 開発モード（ウォッチビルド）
+npm run build         # ビルド
+npm test              # テスト（単発実行）
+npm run test:watch    # テスト（ウォッチモード）
+npm run test:coverage # テスト + カバレッジ
+npm run test:e2e      # E2E テスト（MCP クライアント統合）
+npm run lint          # リント
+npm run format        # フォーマット
+npm start             # MCP サーバー起動
 ```
 
 `DEBUG=1 npm start` で詳細ログ出力。

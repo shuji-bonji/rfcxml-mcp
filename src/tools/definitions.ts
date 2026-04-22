@@ -96,7 +96,7 @@ export const tools: Tool[] = [
         },
         includeReferencedBy: {
           type: 'boolean',
-          description: 'Include RFCs that reference this RFC',
+          description: 'Include RFCs that reference this RFC (fetched from IETF Datatracker API)',
           default: false,
         },
       },

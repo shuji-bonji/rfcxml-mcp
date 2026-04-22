@@ -9,6 +9,7 @@ import {
   getChecklistStats,
 } from '../services/checklist-generator.js';
 import { getParsedRFC, clearParseCache, getSourceNoteIfText } from '../services/rfc-service.js';
+import { fetchReferencedBy } from '../services/rfc-fetcher.js';
 import { validateRFCNumber } from '../utils/validation.js';
 import { findSection, collectCrossReferences } from '../utils/section.js';
 import type {
@@ -20,6 +21,7 @@ import type {
   ValidateStatementArgs,
   RequirementLevel,
   ContentBlock,
+  ReferencedByEntry,
 } from '../types/index.js';
 import { matchStatement } from '../utils/statement-matcher.js';
 
@@ -149,8 +151,7 @@ interface DependencyResult {
   informative: Array<{ rfcNumber?: number; title: string; anchor: string }>;
   _source: 'xml' | 'text';
   _sourceNote?: string;
-  referencedBy?: never[];
-  _note?: string;
+  referencedBy?: ReferencedByEntry[];
 }
 
 /**
@@ -178,10 +179,9 @@ export async function handleGetDependencies(args: GetDependenciesArgs): Promise<
   // Text source cannot extract reference information
   result._sourceNote = getSourceNoteIfText(source, 'dependencies');
 
-  // TODO: Get referencedBy from IETF Datatracker API
+  // Fetch RFCs that reference this RFC from IETF Datatracker API
   if (args.includeReferencedBy) {
-    result.referencedBy = [];
-    result._note = 'referencedBy is not implemented (requires IETF Datatracker API integration)';
+    result.referencedBy = await fetchReferencedBy(args.rfc);
   }
 
   return result;

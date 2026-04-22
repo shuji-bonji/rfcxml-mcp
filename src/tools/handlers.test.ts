@@ -208,10 +208,38 @@ describe('handleGetDependencies', () => {
   });
 
   it('should handle includeReferencedBy flag', async () => {
+    // Mock both RFC XML fetch and Datatracker referencedBy API
+    globalThis.fetch = vi.fn().mockImplementation((url: string | URL) => {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('relateddocument')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              meta: { total_count: 1, next: null },
+              objects: [
+                {
+                  source: '/api/v1/doc/document/rfc9876/',
+                  relationship: '/api/v1/name/docrelationshipname/refnorm/',
+                },
+              ],
+            }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(mockRFCXML),
+      });
+    });
+
     const result = await handleGetDependencies({ rfc: 9999, includeReferencedBy: true });
 
     expect(result.referencedBy).toBeDefined();
-    expect(result._note).toContain('not implemented');
+    expect(Array.isArray(result.referencedBy)).toBe(true);
+    if (result.referencedBy && result.referencedBy.length > 0) {
+      expect(result.referencedBy[0]).toHaveProperty('rfcNumber');
+      expect(result.referencedBy[0]).toHaveProperty('relationship');
+    }
   });
 });
 

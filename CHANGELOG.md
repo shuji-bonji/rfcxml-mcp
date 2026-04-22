@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-04-23
+
+### Added
+
+- **`includeReferencedBy` implementation** in `get_rfc_dependencies`
+  - Fetches RFCs that reference the given RFC via IETF Datatracker `RelatedDocument` API
+  - Filters to published RFCs only (excludes drafts)
+  - Returns normative (`refnorm`) and informative (`refinfo`) relationship types
+  - New `fetchReferencedBy()` function in `rfc-fetcher.ts`
+  - New `ReferencedByEntry` type in `types/index.ts`
+  - New `DATATRACKER_API.referencedBy` endpoint in `config.ts`
+  - Graceful fallback: returns empty array on API failure
+
+### Changed
+
+- **`@modelcontextprotocol/sdk` updated**: 1.26.0 → 1.29.0
+- **Test scripts reorganized** in `package.json`
+  - `npm test` now runs single-pass (`vitest --run`) instead of watch mode
+  - Added `npm run test:watch` for development watch mode
+  - Added `npm run test:coverage` for coverage reporting
+- **CI improvements** (`.github/workflows/ci.yml`)
+  - Added Node.js 20 + 22 matrix for test and build jobs
+  - Lint runs on Node.js 22 only
+- **Trusted Publisher support** (`.github/workflows/publish.yml`)
+  - Added `permissions.id-token: write` for OIDC-based npm provenance
+  - Added `environment: npm` for GitHub Environment protection
+  - Added `--provenance` flag to `npm publish`
+  - Added Node.js 20 + 22 matrix for test job
+  - Consolidated redundant build job into publish job
+
 ## [0.4.7] - 2026-04-15
 
 ### Documentation
