@@ -5,46 +5,28 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+  id-token: write # Required for Trusted Publisher (npm OIDC)
+
 jobs:
-  test:
+  publish:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20, 22]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run tests
         run: npm test
-
-  publish:
-    runs-on: ubuntu-latest
-    needs: test
-    permissions:
-      contents: read
-      id-token: write
-    environment: npm
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Install dependencies
-        run: npm ci
 
       - name: Build
         run: npm run build
@@ -59,7 +41,10 @@ jobs:
           fi
           echo "Version verified: $PACKAGE_VERSION"
 
+      # Trusted Publisher requires npm >= 11.5.1, but Node 22 ships with npm 10.x.
+      # `npm install -g npm@latest` is known to fail intermittently on GitHub Actions
+      # runners (self-overwrite race), so we invoke a fresh npm via npx only for
+      # this step. No NODE_AUTH_TOKEN needed: authentication is performed via OIDC
+      # token exchange with npm Trusted Publisher.
       - name: Publish to npm
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx -y npm@latest publish --provenance --access public
