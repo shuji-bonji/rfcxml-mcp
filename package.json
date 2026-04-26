@@ -1,6 +1,6 @@
 {
   "name": "@shuji-bonji/rfcxml-mcp",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "MCP server for structured understanding of RFC documents via RFCXML",
   "keywords": [
     "mcp",
@@ -20,7 +20,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "rfcxml-mcp": "dist/index.js"
+    "rfcxml-mcp": "dist/index.js",
+    "rfcxml-prefetch": "dist/cli/prefetch.js"
   },
   "files": [
     "dist"
@@ -29,6 +30,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
+    "prefetch": "node dist/cli/prefetch.js",
     "test": "vitest --run",
     "test:watch": "vitest",
     "test:coverage": "vitest --run --coverage",

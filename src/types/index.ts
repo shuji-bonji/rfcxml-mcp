@@ -215,6 +215,7 @@ export interface ImplementationChecklist {
 export interface GetRFCStructureArgs {
   rfc: number;
   includeContent?: boolean;
+  includeAuthors?: boolean;
 }
 
 export interface GetRequirementsArgs {

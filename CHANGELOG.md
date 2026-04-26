@@ -2,6 +2,76 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-04-27
+
+discussion #6 を踏まえた IETF Datatracker API のカバレッジ強化と、
+オフライン運用向けのディスクキャッシュ層追加。Phase 1 から Phase 3 まで順に実装。
+
+### Added — Phase 3: disk cache + prefetch CLI
+
+The MCP runtime can now read from and write to a persistent on-disk RFCXML cache, enabling offline / CI-pinned operation. The cache is opt-in via the `RFCXML_CACHE_DIR` environment variable.
+
+- **`utils/disk-cache.ts`** — `DiskCache` class. File layout: `<RFCXML_CACHE_DIR>/xml/rfc{N}.xml`. Errors on read/write are logged but never thrown (best-effort layer).
+- **`fetchRFCXML` cache hierarchy:**
+  1. in-memory LRU (`xmlCache`) — unchanged
+  2. on-disk cache (`DiskCache`) — new, opt-in via env var
+  3. parallel network fetch — unchanged
+  - Fresh network results are written back to both layers.
+  - New `forceFresh` option to bypass both caches (used by the prefetch CLI).
+- **`bin/rfcxml-prefetch` CLI** (`src/cli/prefetch.ts`):
+  - `--range A-B` / `--rfc N` (repeatable) for selecting RFCs.
+  - `--cache-dir DIR` (default `$RFCXML_CACHE_DIR` or `~/.cache/rfcxml-mcp`).
+  - `--concurrency N` (default 3 — be polite to RFC Editor).
+  - `--force` to redownload existing entries.
+  - Uses the same `fetchRFCXML` pipeline as the runtime, so source-priority and validation match exactly.
+  - Added to `package.json` `bin` so `npx @shuji-bonji/rfcxml-mcp` users get `rfcxml-prefetch` automatically. Also exposed as `npm run prefetch`.
+
+### Added — Phase 2: API metadata wiring
+
+`fetchRFCMetadata` was previously dead code. Phase 2 wires it into `handleGetRFCStructure` so the metadata block returned by `get_rfc_structure` is now enriched with Datatracker-derived `category` / `stream` / `date` / `abstract`, and optionally `authors`.
+
+- **`get_rfc_structure` tool input:**
+  - New `includeAuthors?: boolean` (default false). When true, resolves authors via the documentauthor + person APIs.
+- **`handleGetRFCStructure`:**
+  - Now fetches RFC body and Datatracker metadata in parallel (`Promise.all`).
+  - Merges: XML body wins for `title` / `docName` / `number`; API wins for everything else.
+  - On API failure, falls back gracefully to the minimal metadata shape that `fetchRFCMetadata` already provides.
+
+### Added — Phase 1: IETF Datatracker API coverage
+
+Background: discussion #6 pointed out that IETF officially provides three retrieval layers (REST API / bulk download / rsync) but this MCP only exercised a thin slice of the API layer. Phase 1 thickens the API layer; bulk DL is now handled by the Phase 3 prefetch CLI; rsync remains intentionally out of scope.
+
+- **`fetchReferences(rfcNumber)`** in `rfc-fetcher.ts`
+  - Fetches the RFCs that this RFC references (normative + informative) via Datatracker `relateddocument?source__name=rfcN`.
+  - Sister of the existing `fetchReferencedBy`. Filters out BCP/STD aliases — only real RFC targets are returned.
+  - Why: gives `get_rfc_dependencies` a structured fallback for old RFCs (< 8650) where no XML body exists. Previously these returned empty references with a "not available" note.
+- **`fetchAuthors(rfcNumber)`** in `rfc-fetcher.ts`
+  - Resolves authors via `documentauthor` API and joins to the `person` endpoint for fullnames.
+  - Per-process `personCache` (LRU 500) so the same author across multiple RFCs is fetched once.
+- **`fetchDocEvents(rfcNumber, limit?)`** in `rfc-fetcher.ts`
+  - Fetches recent document events (publication, sync, errata-tagging, etc.) via `docevent` API.
+- **`fetchRFCMetadata` options:**
+  - New `includeAuthors` flag — when true, fetches the documentauthor list in parallel with the document core call. Default false to keep the base call cheap.
+- **New `DATATRACKER_API` endpoints in `config.ts`:**
+  - `documentAuthor`, `docEvent`, `references` (sister of `referencedBy`).
+
+### Changed
+
+- **`get_rfc_dependencies` result shape:**
+  - Added `_referencesSource: 'xml' | 'api'`.
+  - When XML provides references, `_referencesSource = 'xml'` (unchanged behavior).
+  - When XML body is text-only **or** XML extraction yielded no references, the handler now falls back to `fetchReferences` and returns API-derived entries with `_referencesSource = 'api'`.
+  - The "References not available" warning is replaced with a more accurate note when API fallback is used.
+- **Pruned deprecated XML/text source URLs** in `RFC_XML_SOURCES` / `RFC_TEXT_SOURCES`:
+  - Removed `xml2rfc.ietf.org/public/rfc/...` (storage was consolidated into RFC Editor).
+  - Removed `tools.ietf.org/rfc/rfcN.txt` (retired in 2021, only 301-redirects to rfc-editor.org).
+  - Net effect: the parallel race no longer duplicates requests against the same backend.
+
+### Fixed
+
+- **`mapCategory` / `mapStream` URI normalization in `rfc-fetcher.ts`:**
+  - Datatracker returns `std_level` and `stream` as URIs (e.g., `/api/v1/name/stdlevelname/std/`). The previous string-comparison logic silently fell through to `'info'` / `'IETF'` for **every RFC**. Now a trailing-slug extractor handles both URI form and the legacy human-readable form.
+
 ## [0.5.0] - 2026-04-23
 
 ### Added

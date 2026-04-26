@@ -10,7 +10,8 @@ export const tools: Tool[] = [
   // ========================================
   {
     name: 'get_rfc_structure',
-    description: 'Get RFC section hierarchy and metadata.',
+    description:
+      'Get RFC section hierarchy and metadata. Metadata is enriched from the IETF Datatracker API (category, stream, publication date, abstract). Pass includeAuthors=true to also resolve author names (incurs extra API calls).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -21,6 +22,12 @@ export const tools: Tool[] = [
         includeContent: {
           type: 'boolean',
           description: 'Include section content (default: false)',
+          default: false,
+        },
+        includeAuthors: {
+          type: 'boolean',
+          description:
+            'Resolve author fullnames via Datatracker `documentauthor` + `person` API (default: false). Adds 1+N extra HTTP requests but results are cached.',
           default: false,
         },
       },

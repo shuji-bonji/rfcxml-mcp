@@ -31,9 +31,32 @@ npm run test:e2e      # E2E テスト（MCP クライアント統合）
 npm run lint          # リント
 npm run format        # フォーマット
 npm start             # MCP サーバー起動
+npm run prefetch      # RFCXML をディスクキャッシュに事前充填
 ```
 
 `DEBUG=1 npm start` で詳細ログ出力。
+
+### ディスクキャッシュ（Phase 3）
+
+`RFCXML_CACHE_DIR` 環境変数を設定すると、`fetchRFCXML` が永続キャッシュを利用する。
+
+```bash
+# 事前充填
+RFCXML_CACHE_DIR=~/.cache/rfcxml-mcp \
+  npx rfcxml-prefetch --range 9000-9120
+
+# その後 MCP サーバ起動時にも同じ環境変数を渡す
+RFCXML_CACHE_DIR=~/.cache/rfcxml-mcp npm start
+```
+
+未設定時はインメモリ LRU のみで従来通り動作する。CI で固定スナップショットを使いたい場合や、オフライン作業向け。
+
+### IETF Datatracker API カバレッジ
+
+discussion #6 を踏まえ、IETF が提供する三層（API / bulk DL / rsync）のうち
+**API 層を厚く、bulk は別 CLI、rsync は対応しない**方針。
+`src/services/rfc-fetcher.ts` で扱う API エンドポイントは `src/config.ts` の
+`DATATRACKER_API` に集約してある。新たに API を呼ぶときはここに追加する。
 
 ---
 
