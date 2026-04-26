@@ -184,12 +184,18 @@ interface DependencyResult {
   /** Where the RFC body came from (xml or text fallback). */
   _source: 'xml' | 'text';
   /**
-   * Where the references in this response came from.
-   *  - 'xml'  : extracted from RFCXML body
-   *  - 'api'  : fetched from Datatracker `relateddocument` API (used when
-   *             body is text-only or when XML parsing yielded no references)
+   * Where the references in this response actually came from.
+   *  - 'xml'  : extracted from RFCXML `<references>` (full anchor/title)
+   *  - 'text' : extracted from the plain-text RFC body's References section
+   *             (rfcNumber + placeholder title; anchor like "RFC2119")
+   *  - 'api'  : fetched from Datatracker `relateddocument` API (rfcNumber +
+   *             placeholder title; used when XML is unavailable AND the API
+   *             call succeeds)
+   *
+   * The previous v0.5.1 type was `'xml' | 'api'` which incorrectly reported
+   * `'xml'` when refs were actually salvaged from the text-format parser.
    */
-  _referencesSource: 'xml' | 'api';
+  _referencesSource: 'xml' | 'text' | 'api';
   _sourceNote?: string;
   referencedBy?: ReferencedByEntry[];
 }
@@ -197,40 +203,50 @@ interface DependencyResult {
 /**
  * get_rfc_dependencies handler.
  *
- * Reference resolution strategy (Phase 1 enhancement):
- *  1. If the body parsed from XML and yielded any references, use those (full
- *     anchor/title information available).
- *  2. Otherwise (text fallback, or empty XML references), fetch from
- *     Datatracker `relateddocument` API. This works for old RFCs (< 8650)
- *     where no XML exists, so callers no longer get an empty result with a
- *     "not available" note.
- *  3. The API entries don't carry titles/anchors, so we synthesize stub
- *     entries (`title: 'RFC N'`, `anchor: 'rfcN'`) — handlers can request
- *     the title separately via `get_rfc_structure` if needed.
+ * Reference resolution strategy:
+ *  1. XML body with refs            → use XML refs       (`_referencesSource: 'xml'`)
+ *  2. text body with refs           → use text refs      (`_referencesSource: 'text'`)
+ *     (only attempts API fallback if text refs are empty, so we don't lose
+ *     the more accurate body-derived data when the API is reachable but
+ *     redundant)
+ *  3. empty refs from body          → try Datatracker API
+ *     - API hit                     → use API refs       (`_referencesSource: 'api'`)
+ *     - API miss / failure          → keep empty (`_referencesSource` reflects
+ *                                     body source) and emit `_sourceNote`
+ *  4. The API entries don't carry titles/anchors, so we synthesize stub
+ *     entries (`title: 'RFC N'`, `anchor: 'RFCN'`). Callers wanting full
+ *     metadata should call `get_rfc_structure` on each target.
+ *
+ * `_sourceNote` is only emitted when the result is genuinely degraded (empty
+ * refs after exhausting all sources). Previously v0.5.1 emitted a "not
+ * available" warning even when text-parsed refs were present and accurate.
  */
 export async function handleGetDependencies(args: GetDependenciesArgs): Promise<DependencyResult> {
   validateRFCNumber(args.rfc);
   const { data: parsed, source } = await getParsedRFC(args.rfc);
 
-  const xmlNormative = parsed.references.normative.map((ref) => ({
+  const bodyNormative = parsed.references.normative.map((ref) => ({
     rfcNumber: ref.rfcNumber,
     title: ref.title,
     anchor: ref.anchor,
   }));
-  const xmlInformative = parsed.references.informative.map((ref) => ({
+  const bodyInformative = parsed.references.informative.map((ref) => ({
     rfcNumber: ref.rfcNumber,
     title: ref.title,
     anchor: ref.anchor,
   }));
-  const xmlHasRefs = xmlNormative.length + xmlInformative.length > 0;
-  const useXml = source === 'xml' && xmlHasRefs;
+  const bodyHasRefs = bodyNormative.length + bodyInformative.length > 0;
 
-  let normative = xmlNormative;
-  let informative = xmlInformative;
-  let referencesSource: 'xml' | 'api' = 'xml';
-  let sourceNote: string | undefined = getSourceNoteIfText(source, 'dependencies');
+  let normative = bodyNormative;
+  let informative = bodyInformative;
+  // Default reflects the actual origin of `normative` / `informative`:
+  // they came from `parsed.references`, which is xml or text depending on
+  // `source`. Only flip to 'api' when API fallback successfully replaces them.
+  let referencesSource: 'xml' | 'text' | 'api' = source;
+  let sourceNote: string | undefined;
 
-  if (!useXml) {
+  if (!bodyHasRefs) {
+    // Body had no references — try the Datatracker API as a last resort.
     const apiRefs = await fetchReferences(args.rfc);
     if (apiRefs.length > 0) {
       normative = apiRefs
@@ -240,12 +256,20 @@ export async function handleGetDependencies(args: GetDependenciesArgs): Promise<
         .filter((r) => r.relationship === 'refinfo')
         .map((r) => ({ rfcNumber: r.rfcNumber, title: `RFC ${r.rfcNumber}`, anchor: r.name }));
       referencesSource = 'api';
-      // Override the text-source warning since refs *are* available via API.
+      sourceNote =
+        'References fetched from IETF Datatracker API. Titles/anchors are placeholders; call get_rfc_structure on each target for details.';
+    } else {
+      // Genuinely empty: communicate the limitation honestly.
       sourceNote =
         source === 'text'
-          ? 'References fetched from IETF Datatracker API. Titles/anchors are not included; call get_rfc_structure on each target for details.'
-          : undefined;
+          ? 'References could not be extracted from text format and were not available via Datatracker API.'
+          : 'No references extracted; the RFC may not have a References section.';
     }
+  } else if (source === 'text') {
+    // Text-parsed refs are usable but lack `<reference>` metadata
+    // (titles/anchors are placeholders).
+    sourceNote =
+      'References extracted from text format. Titles/anchors are placeholders; call get_rfc_structure on each target for details.';
   }
 
   const result: DependencyResult = {

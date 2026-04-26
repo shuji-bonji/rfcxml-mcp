@@ -399,6 +399,101 @@ describe('handleGetDependencies', () => {
     expect(result.informative).toHaveLength(1);
     expect(result.informative[0].rfcNumber).toBe(7405);
   });
+
+  it('reports _referencesSource = "text" when text body has refs (v0.5.2 fix)', async () => {
+    // v0.5.1 のバグ: text パーサが refs を抽出していても _referencesSource が
+    // 'xml' のままになっていた。v0.5.2 では正しく 'text' を返す。
+    clearParseCache();
+    clearCache();
+
+    // 古い RFC を装うために RFC 番号 < 8650 を使い、XML 取得は失敗させて
+    // text フォールバックに落とす。
+    globalThis.fetch = vi.fn().mockImplementation((url: string | URL) => {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('.xml')) {
+        return Promise.resolve({ ok: false, status: 404 });
+      }
+      if (urlStr.includes('.txt')) {
+        return Promise.resolve({
+          ok: true,
+          text: () =>
+            Promise.resolve(
+              `
+
+Network Working Group                                          J. Doe
+Request for Comments: 2222                                  Test Inc.
+Category: Informational                                     April 2026
+
+
+                          Test Old RFC
+
+
+Status of This Memo
+
+   This memo provides information for the Internet community.
+
+1.  Introduction
+
+   The client MUST do something.
+
+References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, May 2017.
+`
+            ),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+
+    const result = await handleGetDependencies({ rfc: 2222 });
+    expect(result._source).toBe('text');
+    // 重要: text パーサが refs を拾えたので 'text' になる ('xml' ではない)
+    expect(result._referencesSource).toBe('text');
+    // refs がある以上 "not available" 警告は出さない
+    expect(result._sourceNote).toBeDefined();
+    expect(result._sourceNote).not.toMatch(/not available/);
+    expect(result.informative.length + result.normative.length).toBeGreaterThan(0);
+  });
+
+  it('emits "not available" only when refs are genuinely empty (v0.5.2 fix)', async () => {
+    clearParseCache();
+    clearCache();
+
+    // XML 形式で <references> セクションが空のケース。さらに API も 0件を返す。
+    // → body も API も refs 0件、_sourceNote が「not available」を含むはず。
+    const xmlNoRefs = `<?xml version="1.0" encoding="UTF-8"?>
+<rfc number="9992">
+  <front><title>Empty Refs RFC</title></front>
+  <middle>
+    <section anchor="s1"><name>Only section</name><t>The client MUST do X.</t></section>
+  </middle>
+</rfc>`;
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string | URL) => {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('source__name=rfc9992')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ meta: { total_count: 0, next: null }, objects: [] }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(xmlNoRefs),
+      });
+    });
+
+    const result = await handleGetDependencies({ rfc: 9992 });
+    expect(result.normative).toHaveLength(0);
+    expect(result.informative).toHaveLength(0);
+    // body も API も空 → ソースノートで通知
+    expect(result._sourceNote).toBeDefined();
+  });
 });
 
 describe('handleGetRelatedSections', () => {

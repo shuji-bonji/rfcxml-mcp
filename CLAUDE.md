@@ -18,6 +18,28 @@ RFC文書を**構造的に理解**するためのMCPサーバー。RFCXMLの意�
 
 古い RFC (< 8650) は XML がないためテキストフォールバックで対応。レスポンスに `_source` / `_sourceNote` を付与。
 
+### テキストフォールバック時の機能制約
+
+XMLXPath / 構造化情報に依存する一部機能は、テキストフォールバックでは精度が落ちるか、原理的に取得不能。下記マトリクスは known limitation として明文化しておく。
+
+| ツール | XML 形式 | text 形式 | API 補完 | 備考 |
+|---|:---:|:---:|:---:|---|
+| `get_rfc_structure` | ✅ 完全 | ⚠️ 階層精度低下 | ✅ メタデータ補完 | API で category/stream/date/abstract/authors を補完 |
+| `get_requirements` | ✅ 完全 | ⚠️ 抽出精度低下 | ❌ なし | 段落ベースの推測になる |
+| `get_definitions` | ✅ 完全 | ⚠️ 抽出精度低下 | ❌ なし | `<dl>` がなく、見出しベースで推測 |
+| `get_rfc_dependencies` | ✅ 完全 | ✅ 良 | ✅ Datatracker `relateddocument` | 本文に refs があれば text パーサで取得、無ければ API |
+| `get_related_sections` | ✅ 完全 | ❌ 取得不能 | ❌ なし | Issue #5: 節レベル相互参照は body 限定で API に存在しない |
+| `generate_checklist` | ✅ 完全 | ⚠️ 抽出精度低下 | ❌ なし | `get_requirements` 経由のため同じ制約 |
+| `validate_statement` | ✅ 完全 | ⚠️ 抽出精度低下 | ❌ なし | 同上 |
+
+凡例: ✅ 完全 / ⚠️ 制限あり（精度低下） / ❌ 取得不能。
+
+`_referencesSource` の値の意味（`get_rfc_dependencies` のみ）:
+
+- `'xml'` — RFCXML の `<references>` から抽出。完全な anchor / title 付き
+- `'text'` — テキスト本文の References セクションから抽出。title/anchor はプレースホルダ（`title: "RFC N"`, `anchor: "RFCN"`）
+- `'api'` — Datatracker `relateddocument` API から取得。同じくプレースホルダ。本文に refs が無いときに使う
+
 ---
 
 ## 開発コマンド

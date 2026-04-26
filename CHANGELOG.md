@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-04-27
+
+v0.5.1 のテキストフォールバック時のラベル不整合バグを修正し、Issue #5 と
+合わせてテキストフォールバック時の機能制約を明文化。
+
+### Fixed
+
+- **`_referencesSource` のラベル不整合 (`get_rfc_dependencies`)**:
+  - v0.5.1 ではテキストパーサが参照を抽出していても `_referencesSource: 'xml'` と返してしまっていた。
+  - また `_sourceNote` が「Reference information is not available」と誤主張するケースがあった。
+  - 修正後は `'xml' | 'text' | 'api'` の三値で実際の取得元を正確に表す。
+  - `_sourceNote` は本当に refs が空のときと、テキスト由来でプレースホルダ titles/anchors のときだけ出すように整理。
+
+### Changed
+
+- **`DependencyResult._referencesSource` 型拡張**: `'xml' | 'api'` → `'xml' | 'text' | 'api'`。
+  既存コードで `=== 'api'` だけを判定していた呼び出し元は影響なし。`=== 'xml'` を否定形で扱っていた箇所はレビュー推奨。
+- **依存解決の優先順位**:
+  1. body (xml/text) で refs があれば本文由来を優先（titles/anchors の質が高い）
+  2. body の refs が空のときだけ Datatracker API を呼ぶ
+  - v0.5.1 では body=text のとき常に API も呼んでいたが、上書きはせず無駄なリクエストを発生させていた挙動を整理。
+
+### Added
+
+- **テキストフォールバック時の機能制約マトリクス** (`CLAUDE.md`):
+  - 各ツールが XML / text / API でどこまで動くかを表で明文化。
+  - Issue #5 (`get_related_sections` の text 形式制約) を known limitation として記載。
+
 ## [0.5.1] - 2026-04-27
 
 discussion #6 を踏まえた IETF Datatracker API のカバレッジ強化と、
