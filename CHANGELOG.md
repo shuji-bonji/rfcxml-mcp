@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2026-05-09
+
+### Build
+
+- **build script に `chmod +x dist/index.js dist/cli/prefetch.js` を追加**: local dev で `./dist/index.js` (rfcxml-mcp) や `./dist/cli/prefetch.js` (rfcxml-prefetch) を直接実行した際の `permission denied` を回避。bin が 2 つあるため両方を chmod する。npm install / npx 経由の通常利用には影響なし。shuji 製 MCP 全体で build script を統一。
+
 ## [0.5.2] - 2026-04-27
 
 v0.5.1 のテキストフォールバック時のラベル不整合バグを修正し、Issue #5 と
