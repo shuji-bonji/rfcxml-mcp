@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.4] - 2026-07-14
+
+### Added
+
+- **`.claude-plugin/plugin.json` を追加**: Claude Code プラグインとしてインストール可能にした。`mcpServers.rfcxml` は `npx -y @shuji-bonji/rfcxml-mcp@latest` を起動する。プラグイン利用者は npm install や設定ファイルの手書きなしに MCP サーバを有効化できる。プラグインの `version` は package.json と揃えて管理する（リリース時は両方を同時に更新すること）。
+
 ## [0.5.3] - 2026-05-09
 
 ### Build
