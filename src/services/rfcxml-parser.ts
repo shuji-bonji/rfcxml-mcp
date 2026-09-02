@@ -74,11 +74,94 @@ function normalizeBcp14Tags(xml: string): string {
 }
 
 /**
+ * `<xref>` を、RFC が実際に印字する文字列へ置き換える。
+ *
+ * パーサは `preserveOrder: false` で動くため、インライン要素は本文テキストから
+ * 位置ごと落ちる。`(<xref .../>)` は `()` だけが残っていた（RFC 9110 §9.3.1 の
+ * "request smuggling attack ()."）。BCP 14 タグと同じく、パース前に素テキストへ
+ * 置き換えることで位置を保ったまま解決する。
+ *
+ * 置き換え規則は RFCXML の `format` / `sectionFormat` 属性に従う。公開版 RFCXML は
+ * `derivedContent` に印字用の文字列（節なら "Section 5.6.7"、参考文献なら "19" や
+ * "HTTP/1.1" といった書誌ラベル）を持つ。
+ *
+ * | format    | 印字 |
+ * |---|---|
+ * | `none`    | 要素の中身のみ |
+ * | `title`   | 対象の題名（要素の中身） |
+ * | `counter` | 番号だけ（"3.7.1"） |
+ * | `default` | 下記 `sectionFormat` に従う |
+ *
+ * | sectionFormat | 印字（`section` 属性があるとき） |
+ * |---|---|
+ * | `bare`   | "3.4"（前後の地の文が "Section" を書く） |
+ * | `of`     | "Section 11.2 of [HTTP/1.1]" |
+ * | `comma`  | "[HTTP/1.1], Section 11.2" |
+ * | `parens` | "[HTTP/1.1] (Section 11.2)" |
+ */
+function renderXrefTags(xml: string): string {
+  const attrOf = (attrs: string, name: string): string => {
+    const m = new RegExp(`\\b${name}="([^"]*)"`, 'i').exec(attrs);
+    return m ? m[1].trim() : '';
+  };
+
+  // 節アンカー（"section-3.5"）と裸の節番号（"3.5"）を節番号に正規化する。
+  const sectionNumberOf = (target: string): string | null => {
+    const bare = target.replace(/^section-/i, '');
+    return /^\d+(\.\d+)*$/.test(bare) ? bare : null;
+  };
+
+  // "Section 5.6.7" や "Appendix A" は、それ自体が印字形。
+  // それ以外（"19" や "HTTP/1.1"）は書誌ラベルなので角括弧で括る。
+  const asLabel = (derived: string, target: string): string => {
+    if (!derived) {
+      // 公開前の RFCXML には derivedContent が無い。節を指すものは自力で組み立てる。
+      const sectionNumber = sectionNumberOf(target);
+      if (sectionNumber) return `Section ${sectionNumber}`;
+    }
+
+    const text = derived || target;
+    if (!text) return '';
+    return /^(Section|Appendix|Table|Figure)\b/i.test(text) ? text : `[${text}]`;
+  };
+
+  const render = (attrs: string, inner?: string): string => {
+    const innerText = inner?.trim() ?? '';
+    const format = (attrOf(attrs, 'format') || 'default').toLowerCase();
+    const derived = attrOf(attrs, 'derivedContent');
+    const target = attrOf(attrs, 'target');
+
+    if (format === 'none') return innerText;
+    if (format === 'title') return innerText || derived;
+    if (format === 'counter') return derived || innerText;
+
+    const section = attrOf(attrs, 'section');
+    if (section) {
+      const sectionFormat = (attrOf(attrs, 'sectionFormat') || 'of').toLowerCase();
+      if (sectionFormat === 'bare') return section;
+
+      const label = asLabel(derived, target);
+      if (sectionFormat === 'comma') return `${label}, Section ${section}`;
+      if (sectionFormat === 'parens') return `${label} (Section ${section})`;
+      return `Section ${section} of ${label}`;
+    }
+
+    return asLabel(derived, target) || innerText;
+  };
+
+  return xml
+    .replace(/<xref\b([^>]*?)\/>/gi, (_m, attrs: string) => render(attrs))
+    .replace(/<xref\b([^>]*)>([\s\S]*?)<\/xref>/gi, (_m, attrs: string, inner: string) =>
+      render(attrs, inner)
+    );
+}
+
+/**
  * RFCXML をパースして構造化データに変換
  */
 export function parseRFCXML(xml: string): ParsedRFC {
-  // BCP 14 タグを正規化してテキストに統合
-  const normalizedXml = normalizeBcp14Tags(xml);
+  // BCP 14 タグと xref を素テキストへ正規化してから解析する
+  const normalizedXml = renderXrefTags(normalizeBcp14Tags(xml));
   const parsed = parser.parse(normalizedXml);
   const rfc = parsed.rfc || parsed;
 
@@ -100,7 +183,50 @@ function extractMetadata(rfc: RfcXml): ParsedRFC['metadata'] {
     title: extractText(front.title) || 'Untitled',
     docName: rfc['@_docName'],
     number: rfc['@_number'] ? parseInt(rfc['@_number'], 10) : undefined,
+    date: extractPublicationDate(front.date),
   };
+}
+
+/** 月名 → 月番号 */
+const MONTH_NUMBERS: Record<string, string> = {
+  january: '01',
+  february: '02',
+  march: '03',
+  april: '04',
+  may: '05',
+  june: '06',
+  july: '07',
+  august: '08',
+  september: '09',
+  october: '10',
+  november: '11',
+  december: '12',
+};
+
+/**
+ * `<front><date month="08" year="2022"/>` から公開年月を取り出す。
+ *
+ * `month` は数字（"08"）と月名（"August"）の双方があり、`day` は無いことが多い。
+ * 判らない部分は付けずに返す（`2022-08` / `2022`）。
+ */
+export function extractPublicationDate(dateNode: XmlNode | undefined): string | undefined {
+  if (!dateNode) return undefined;
+
+  const year = dateNode['@_year'];
+  if (!year) return undefined;
+
+  const rawMonth = dateNode['@_month'];
+  const day = dateNode['@_day'];
+
+  let month: string | undefined;
+  if (rawMonth) {
+    const asNumber = /^\d{1,2}$/.test(rawMonth) ? rawMonth.padStart(2, '0') : undefined;
+    month = asNumber ?? MONTH_NUMBERS[rawMonth.toLowerCase()];
+  }
+
+  if (!month) return String(year);
+  if (day && /^\d{1,2}$/.test(day)) return `${year}-${month}-${day.padStart(2, '0')}`;
+  return `${year}-${month}`;
 }
 
 /**

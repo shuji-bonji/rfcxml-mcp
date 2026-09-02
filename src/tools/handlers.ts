@@ -23,7 +23,7 @@ import type {
   ContentBlock,
   ReferencedByEntry,
 } from '../types/index.js';
-import { matchStatement, MATCHING_LIMITS } from '../utils/statement-matcher.js';
+import { matchStatement, isSubjectTerm, MATCHING_LIMITS } from '../utils/statement-matcher.js';
 
 // Re-export clearParseCache for testing
 export { clearParseCache };
@@ -92,7 +92,9 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
     title: parsed.metadata.title || apiMetadata.title,
     category: apiMetadata.category,
     stream: apiMetadata.stream,
-    date: apiMetadata.date || undefined,
+    // 公開日は本文（RFCXML の front/date、テキストではヘッダ行）から取る。
+    // Datatracker の document.time はレコードの更新時刻であって公開日ではない。
+    date: parsed.metadata.date,
     abstract: apiMetadata.abstract,
   };
   if (apiMetadata.authors.length > 0) {
@@ -368,8 +370,13 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
 
   // 判定を下してよいだけの根拠があるか。
   // 一致が無い、または最上位の一致が弱いときは true/false を主張しない。
-  const topScore = matches.length > 0 ? matches[0].score : 0;
-  const hasVerdictEvidence = topScore >= MATCHING_LIMITS.MIN_SCORE_FOR_VERDICT;
+  const topMatch = matches.length > 0 ? matches[0] : undefined;
+  const topScore = topMatch?.score ?? 0;
+  // 主語だけの一致では判定しない。何を論じているかを示す語を別に求める。
+  const contentKeywords = (topMatch?.matchedKeywords ?? []).filter((k) => !isSubjectTerm(k));
+  const hasVerdictEvidence =
+    topScore >= MATCHING_LIMITS.MIN_SCORE_FOR_VERDICT &&
+    contentKeywords.length >= MATCHING_LIMITS.MIN_CONTENT_KEYWORDS_FOR_VERDICT;
   const isValid: boolean | null = hasVerdictEvidence ? conflicts.length === 0 : null;
 
   // Build suggestions
@@ -380,7 +387,7 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
     );
   } else if (!hasVerdictEvidence) {
     suggestions.push(
-      'Matches are too weak to judge. Name the subject (e.g., "client", "server") and the action verb.'
+      'Matches are too weak to judge. Name the subject (e.g., "client", "server") and what it does, using the RFC\'s own nouns and verbs.'
     );
   }
   if (conflicts.length > 0) {

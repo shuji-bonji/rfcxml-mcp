@@ -121,7 +121,51 @@ function extractTextMetadata(lines: string[], rfcNumber: number): ParsedRFC['met
   return {
     title,
     number: rfcNumber,
+    date: extractTextPublicationDate(lines),
   };
+}
+
+/** ヘッダ行に現れる月名 → 月番号 */
+const TEXT_MONTHS: Record<string, string> = {
+  january: '01',
+  february: '02',
+  march: '03',
+  april: '04',
+  may: '05',
+  june: '06',
+  july: '07',
+  august: '08',
+  september: '09',
+  october: '10',
+  november: '11',
+  december: '12',
+};
+
+/**
+ * テキスト版 RFC のヘッダから公開年月を取り出す。
+ *
+ * 先頭のヘッダ塊は右寄せで発行者と日付が並ぶ。
+ *
+ * ```
+ * Internet Engineering Task Force (IETF)                     W. Eddy, Ed.
+ * Request for Comments: 9293                                 MTI Systems
+ * STD: 7                                                     August 2022
+ * ```
+ *
+ * 本文中の "August 2022" を拾わないよう、走査はヘッダの範囲に限る。
+ */
+function extractTextPublicationDate(lines: string[]): string | undefined {
+  const pattern =
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/i;
+
+  for (let i = 0; i < Math.min(METADATA_EXTRACTION.MAX_LINES_TO_SCAN, lines.length); i++) {
+    const match = pattern.exec(lines[i]);
+    if (match) {
+      return `${match[2]}-${TEXT_MONTHS[match[1].toLowerCase()]}`;
+    }
+  }
+
+  return undefined;
 }
 
 /**

@@ -11,6 +11,7 @@ import {
   detectConflicts,
   matchStatement,
   requiredActionOf,
+  isSubjectTerm,
 } from './statement-matcher.js';
 import type { Requirement } from '../types/index.js';
 
@@ -492,5 +493,32 @@ describe('requiredActionOf', () => {
     };
 
     expect(requiredActionOf(requirement)).toBeNull();
+  });
+});
+
+describe('機能語の除外', () => {
+  it('3 文字以上の機能語をキーワードに数えない', () => {
+    const keywords = extractKeywords('The server sends data and closes the connection');
+
+    expect([...keywords.keys()]).not.toContain('and');
+    expect([...keywords.keys()]).not.toContain('the');
+    expect([...keywords.keys()]).toContain('server');
+    expect([...keywords.keys()]).toContain('sends');
+  });
+
+  it('BCP 14 キーワードを内容語として数えない', () => {
+    // ほぼ全ての要件文に現れるため、内容の一致の証拠にならない。
+    // レベルの一致は LEVEL_MATCH_BONUS が別に見ている。
+    const keywords = extractKeywords('The client MUST NOT send unmasked frames');
+
+    expect([...keywords.keys()]).not.toContain('must');
+    expect([...keywords.keys()]).not.toContain('not');
+    expect([...keywords.keys()]).toContain('unmasked');
+  });
+
+  it('主語語かどうかを判定できる', () => {
+    expect(isSubjectTerm('client')).toBe(true);
+    expect(isSubjectTerm('Server')).toBe(true);
+    expect(isSubjectTerm('frames')).toBe(false);
   });
 });

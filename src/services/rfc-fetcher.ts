@@ -176,7 +176,7 @@ export async function fetchRFCMetadata(
       number: rfcNumber,
       title: `RFC ${rfcNumber}`,
       authors: authorsResult.status === 'fulfilled' ? authorsResult.value : [],
-      date: '',
+      datatrackerUpdated: '',
       category: 'info',
       stream: 'IETF',
     };
@@ -189,7 +189,7 @@ export async function fetchRFCMetadata(
     number: rfcNumber,
     title: core.title || `RFC ${rfcNumber}`,
     authors,
-    date: core.time || '',
+    datatrackerUpdated: core.time || '',
     category: mapCategory(core.std_level ?? null),
     stream: mapStream(core.stream ?? null),
     abstract: core.abstract || undefined,
