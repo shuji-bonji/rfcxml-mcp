@@ -312,9 +312,13 @@ export function requirementSource(
     return { text, position: keyword === -1 ? 0 : keyword, prose: true };
   }
 
-  // 図・ABNF の行に当たっているなら、その段落はそのまま返す（畳まない）。
+  // 図・表の行に当たっているなら、**その 1 行だけ**を切り出しの対象にする。
+  //
+  // 段落全体を返すと、表の全行が 1 件の要件になる。RFC 2131 §4.3.1 の Table 3 は
+  // 2 ページにわたるため、`generate_checklist` に 2,000 文字の「要件」が
+  // レベルごとに 4 回並んでいた。表の中のキーワードは、その行の話である。
   if (looksLikeDiagram(line)) {
-    return { text: content, position, prose: false };
+    return { text: line, position: position - lineStart, prose: false };
   }
 
   // 1 つの段落に図と散文が混じることがある。RFC 2616 §14.27 は ABNF の 1 行の

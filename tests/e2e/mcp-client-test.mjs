@@ -1598,12 +1598,24 @@ async function testTableHeavyRfc(client) {
     const res = await callTool(client, 'generate_checklist', { rfc: 2131 });
     const stray = (res.markdown || '').split('\n').filter((l) => /^\s+\S/.test(l));
 
+    const items = (res.markdown || '').split('\n').filter((l) => l.startsWith('- [ ]'));
+    const blob = items.filter((l) => l.length > 900);
+
     logResult(
       'checklist',
       'a table-heavy RFC still yields valid Markdown',
       stray.length === 0 ? 'PASS' : 'FAIL',
       {
         note: `continuationLines=${stray.length}`,
+      }
+    );
+
+    logResult(
+      'checklist',
+      'a whole table does not become one requirement',
+      blob.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `items=${items.length}, over900chars=${blob.length}`,
       }
     );
   } catch (e) {

@@ -474,3 +474,37 @@ describe('要件文は 1 行', () => {
     expect(result[0].fullContext).toMatch(/\n/);
   });
 });
+
+describe('表の行は 1 行ごとの要件', () => {
+  it('表の全行を 1 件にまとめない', () => {
+    // RFC 2131 §4.3.1 の Table 3 は 2 ページにわたる。段落全体を 1 件にすると
+    // `generate_checklist` に 2,000 文字の「要件」がレベルごとに並ぶ。
+    const table = [
+      'Option                    DHCPOFFER    DHCPACK            DHCPNAK',
+      '------                    ---------    -------            -------',
+      'Requested IP address      MUST NOT     MUST NOT           MUST NOT',
+      'Client identifier         MUST NOT     MUST NOT           MAY',
+    ].join('\n');
+    const result = extractRequirementsFromSections([
+      {
+        number: '4.3.1',
+        title: 'DHCPDISCOVER message',
+        content: [
+          {
+            type: 'text',
+            content: table,
+            requirements: [
+              { level: 'MUST NOT', position: table.indexOf('MUST NOT') },
+              { level: 'MAY', position: table.lastIndexOf('MAY') },
+            ],
+            crossReferences: [],
+          },
+        ],
+        subsections: [],
+      },
+    ] as never);
+
+    expect(result[0].text).toBe('Requested IP address MUST NOT MUST NOT MUST NOT');
+    expect(result[1].text).toBe('Client identifier MUST NOT MUST NOT MAY');
+  });
+});
