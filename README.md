@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@shuji-bonji/rfcxml-mcp.svg)](https://www.npmjs.com/package/@shuji-bonji/rfcxml-mcp)
 [![CI](https://img.shields.io/github/actions/workflow/status/shuji-bonji/rfcxml-mcp/ci.yml?branch=main&label=CI)](https://github.com/shuji-bonji/rfcxml-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-blueviolet)](https://claude.ai/code)
 
 [日本語版 README](README.ja.md)

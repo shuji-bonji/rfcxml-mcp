@@ -1,6 +1,6 @@
 {
   "name": "@shuji-bonji/rfcxml-mcp",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "description": "MCP server for structured understanding of RFC documents via RFCXML",
   "keywords": [
     "mcp",
@@ -41,21 +41,22 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "fast-xml-parser": "^4.5.0"
+    "@modelcontextprotocol/server": "^2.0.0",
+    "fast-xml-parser": "^5.11.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@modelcontextprotocol/client": "^2.0.0",
     "@types/node": "^22.0.0",
-    "@vitest/coverage-v8": "^2.1.9",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.0",
-    "typescript": "^5.7.0",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.53.0",
-    "vitest": "^2.1.0"
+    "vitest": "^4.1.11"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   }
 }

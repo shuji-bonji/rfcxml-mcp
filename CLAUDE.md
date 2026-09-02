@@ -82,6 +82,41 @@ discussion #6 を踏まえ、IETF が提供する三層（API / bulk DL / rsync�
 
 ---
 
+## サーバ構成（MCP SDK v2）
+
+v0.6.0 で `@modelcontextprotocol/sdk` (v1) から v2 のパッケージ群へ移行した。
+
+| ファイル | 役割 |
+|---|---|
+| `src/index.ts` | 起動のみ。`serveStdio(() => buildServer())` を呼ぶ |
+| `src/server.ts` | `buildServer()`。`instructions` の文面、ツール一括登録、リソース登録 |
+| `src/tools/definitions.ts` | ツールの JSON Schema（`ToolDefinition[]`） |
+| `src/tools/handlers.ts` | `toolHandlers` 対応表と各ハンドラ |
+| `src/resources/definitions.ts` | `rfcxml://schema` の表示情報と本体 |
+
+押さえておく点は 4 つ。
+
+1. **`serveStdio(factory)`** — v2 は接続開始時にプロトコル era（2025 系 / 2026-07-28 系）を確定し、
+   factory から作った 1 インスタンスをその接続に固定する。そのため `new McpServer(...)` を
+   module top-level に置かず `buildServer()` に閉じ込める。
+2. **`registerTool` + `fromJsonSchema`** — v2 の `registerTool` は Standard Schema を要求する。
+   `definitions.ts` は JSON Schema のままにし、`server.ts` で `fromJsonSchema()` に通す。
+   zod への書き換えは不要で、zod を直接依存に持つ必要もない。
+3. **入力検証がサーバ側で走る** — v1 は `inputSchema` を宣言するだけでスキーマ検証をしていなかった。
+   v2 は登録したスキーマで `tools/call` の引数を検証し、必須項目を欠く呼び出しは
+   ハンドラに届かず `isError` で返る。ハンドラ側の `validate*` は範囲検査として引き続き必要。
+4. **`instructions`** — `buildServer()` の第 2 引数で渡す。文面の意図は `server.ts` の JSDoc にある。
+   E2E テストの `testInstructions` が `client.getInstructions()` で到達を確認する。
+
+### TypeScript 7 について
+
+TypeScript 7.0.2（ネイティブ移植版）でのビルド自体は通る（`tsconfig.json` の
+`"types": ["node"]` はそのための準備でもある）。ただし `typescript-eslint` の peer 範囲が
+`>=4.8.4 <6.1.0` のままで TS 7 を受け付けないため、型情報付き lint を維持する限り採用できない。
+現状は TypeScript 6.0.x を使い、`typescript-eslint` が TS 7 に対応した時点で再検討する。
+
+---
+
 ## 実装上の注意点
 
 ### BCP 14 キーワードの順序

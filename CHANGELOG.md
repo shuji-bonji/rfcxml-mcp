@@ -2,6 +2,76 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-09-02
+
+MCP SDK を v1 (`@modelcontextprotocol/sdk`) から v2 (`@modelcontextprotocol/server` /
+`@modelcontextprotocol/client`) へ移行した。あわせて低レベル `Server` API から
+`McpServer` へ作り直している。
+
+### Changed
+
+- **MCP SDK v2 へ移行**:
+  - `@modelcontextprotocol/sdk@^1.29.0` を削除し、`@modelcontextprotocol/server@^2.0.0` を
+    dependencies に、`@modelcontextprotocol/client@^2.0.0` を devDependencies（E2E 用）に追加。
+  - import から `.js` 拡張子が外れる（`@modelcontextprotocol/server/stdio`）。
+  - v2 で低レベル `Server` は `@deprecated` 扱いになったため、`McpServer` +
+    `registerTool()` / `registerResource()` へ作り直した。`setRequestHandler` の
+    4 ハンドラ（`tools/list` / `tools/call` / `resources/list` / `resources/read`）は
+    SDK 側が持つ。
+  - 起動を `server.connect(new StdioServerTransport())` から `serveStdio(() => buildServer())` へ変更。
+    v2 は接続開始時にプロトコル era を確定し、factory から作った 1 インスタンスを
+    その接続に固定する。
+- **`src/server.ts` を新設**: サーバ組み立てを `buildServer()` に切り出し、`src/index.ts` は
+  起動のみにした。テストから `InMemoryTransport` で同じ関数を叩けるようにするための布石。
+- **`src/resources/definitions.ts` を新設**: `rfcxml://schema` の定義を `index.ts` から分離。
+- **`tools/definitions.ts` の型**: `Tool[]` から `ToolDefinition[]`（`inputSchema` を
+  `JsonSchemaType` に絞った型）へ。`Tool['inputSchema']` は wire 上の緩い JSON 値型で、
+  `fromJsonSchema()` にそのまま渡せないため。
+- **TypeScript 6.0.3 へ更新**: `tsconfig.json` に `"types": ["node"]` を追加。
+- **Node.js 22 以上を要求**: `engines.node` を `>=20.0.0` から `>=22.0.0` へ。
+  Node 20 は 2026-04 に EOL。
+- **CI の Node マトリクスを 22 / 24 へ**: `publish.yml` も Node 24 に更新。
+
+### Added
+
+- **`instructions` を追加**（`shuji-mcp-patterns` の Pattern G）:
+  `initialize` の応答でサーバの射程を宣言する。潰したい誤解は 2 つ。
+  1. `validate_statement` が適合判定器だと読まれること。実際は RFC 本文中の
+     BCP 14 キーワードと文を突き合わせて該当要件を返すだけで、判定はしない。
+  2. 空の結果が「そのような規定は存在しない」と読まれること。RFC 8650 より前は
+     テキストフォールバックのため取得できる範囲がツールごとに変わる。
+- **ツール定義とハンドラの対応漏れを起動時に検出**: `buildServer()` が
+  `toolHandlers` に無いツール名を見つけたら起動時に落ちる。
+- **E2E テストを 15 件から 19 件へ拡張**: `instructions` の到達、
+  `rfcxml://schema` の list / read、必須項目を欠いた `tools/call` の拒否を追加。
+
+### Fixed
+
+- **`tools/call` の入力検証がサーバ側で走るようになった**: v1 は `inputSchema` を
+  宣言するだけでスキーマ検証をしていなかったため、`{"rfc": "9293"}` のような
+  型違いや必須項目の欠落がハンドラまで届いていた。v2 は登録したスキーマで検証し、
+  違反はハンドラに到達せず `isError` で返る。ハンドラ側の `validateRFCNumber` 等は
+  範囲検査として引き続き必要。
+
+### Security
+
+- **`npm audit` の指摘を 0 件にした**（すべて依存更新のみ、本体コードの変更なし）:
+  - `fast-xml-parser` を `^4.5.0` から `^5.11.1` へ。GHSA-gh4j-gqv2-49f6 は `XMLBuilder`
+    （XML の書き出し）の問題で、本プロジェクトは parser しか使っていないため実害はないが、
+    警告を残さないため上げた。RFC 9293 / 6455 の解析結果が v4 と一致することを E2E で確認済み。
+  - `vitest` / `@vitest/coverage-v8` を `^2.1.0` から `^4.1.11` へ。
+    esbuild の開発サーバの問題（GHSA-67mh-4wv8-2f99）を解消。184 件のテストは全て通る。
+  - `brace-expansion` の推移的依存を更新（DoS 系 3 件）。
+
+### Notes
+
+- **TypeScript 7 は今回見送り**: TypeScript 7.0.2 でのビルド自体は 0 エラーで通るが、
+  `typescript-eslint` の peer 範囲が `>=4.8.4 <6.1.0` のままで TS 7 を受け付けない。
+  型情報付き lint を維持するため TypeScript 6.0.x に留める。
+  `typescript-eslint` が対応した時点で `devDependencies` の 1 行変更で移行できる。
+- **削除された v1 API のうち本プロジェクトで使っていたものはない**:
+  `SSEServerTransport` / `WebSocketClientTransport` は未使用。
+
 ## [0.5.4] - 2026-07-14
 
 ### Added

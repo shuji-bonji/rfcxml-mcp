@@ -1,10 +1,20 @@
 /**
  * MCP Tool Definitions
  */
+import type { JsonSchemaType, Tool } from '@modelcontextprotocol/server';
 
-import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+/**
+ * ツール定義。
+ *
+ * `Tool['inputSchema']` は wire 上の緩い JSON 値型のため、`fromJsonSchema()` が
+ * 受け取る `JsonSchemaType` にそのままは渡せない。ここで inputSchema だけを
+ * 差し替えて、`server.ts` 側でのキャストを不要にする。
+ */
+export type ToolDefinition = Omit<Tool, 'inputSchema'> & {
+  inputSchema: JsonSchemaType;
+};
 
-export const tools: Tool[] = [
+export const tools: ToolDefinition[] = [
   // ========================================
   // Phase 1: Basic Structure
   // ========================================
