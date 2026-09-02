@@ -262,20 +262,37 @@ async function testGetRfcDependencies(client) {
 async function testGetRelatedSections(client) {
   const toolName = 'get_related_sections';
 
-  // 5-a: XML format (RFC 9293 §3.7.1)
+  // 5-a: XML format (RFC 9110 §9.3.1)
   // 返す節はすべてこの RFC に実在し、題名が解決できること。
   // 以前は xref の anchor をそのまま返していたため title=Unknown が並んでいた。
   try {
-    const res = await callTool(client, toolName, { rfc: 9293, section: '3.7.1' });
+    const res = await callTool(client, toolName, { rfc: 9110, section: '9.3.1' });
     const related = res.relatedSections || [];
     const unresolved = related.filter((s) => s.title === 'Unknown');
     const ok = related.length > 0 && unresolved.length === 0;
 
-    logResult(toolName, 'RFC 9293 §3.7.1 (XML)', ok ? 'PASS' : 'FAIL', {
+    logResult(toolName, 'RFC 9110 §9.3.1 (XML)', ok ? 'PASS' : 'FAIL', {
       note: `${related.length} related sections, unresolved=${unresolved.length}, source=${res._source}`,
     });
   } catch (e) {
-    logResult(toolName, 'RFC 9293 §3.7.1 (XML)', 'FAIL', { error: e.message });
+    logResult(toolName, 'RFC 9110 §9.3.1 (XML)', 'FAIL', { error: e.message });
+  }
+
+  // 5-d: 平文で書かれた別文書参照を、この RFC の節にしないこと
+  // RFC 9293 §3.7.1 は "Section 3.4 of RFC 1122" と "RFC 6691, Section 3.1" を含む。
+  // それぞれ RFC 1122 / RFC 6691 の節であって、RFC 9293 の §3.4 / §3.1 ではない。
+  try {
+    const res = await callTool(client, toolName, { rfc: 9293, section: '3.7.1' });
+    const numbers = (res.relatedSections || []).map((s) => s.number);
+    const ok = !numbers.includes('3.4') && !numbers.includes('3.1');
+
+    logResult(toolName, 'RFC 9293 §3.7.1 excludes RFC 1122 / RFC 6691', ok ? 'PASS' : 'FAIL', {
+      note: `sections=[${numbers.join(', ')}]`,
+    });
+  } catch (e) {
+    logResult(toolName, 'RFC 9293 §3.7.1 excludes RFC 1122 / RFC 6691', 'FAIL', {
+      error: e.message,
+    });
   }
 
   // 5-c: 別文書の節をこの RFC の節として返さないこと
@@ -472,6 +489,67 @@ async function testXrefRendering(client) {
     );
   } catch (e) {
     logResult(toolName, 'xref is rendered into the body text', 'FAIL', { error: e.message });
+  }
+}
+
+// ========================================
+// Sentence extraction
+// ========================================
+
+/**
+ * 13. 要件文が節番号のピリオドで切れていないこと
+ *
+ * RFC 6455 §5.1 の "a client MUST mask all frames that it sends to the server
+ * (see Section 5.3 for further details)." は、以前は
+ * "… (see Section 5." で切れていた。
+ */
+async function testSentenceExtraction(client) {
+  const toolName = 'sentence';
+
+  try {
+    const res = await callTool(client, 'get_requirements', { rfc: 6455, section: '5.1' });
+    const requirements = res.requirements || [];
+    const masking = requirements.find((r) => /MUST mask all frames/.test(r.text || ''));
+
+    const complete = !!masking && masking.text.includes('for further details');
+    logResult(
+      toolName,
+      'requirement text is not cut at a section number',
+      complete ? 'PASS' : 'FAIL',
+      {
+        note: masking ? JSON.stringify(masking.text.slice(-60)) : 'requirement not found',
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'requirement text is not cut at a section number', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    const res = await callTool(client, 'get_requirements', { rfc: 6455 });
+    const requirements = res.requirements || [];
+
+    // 以前の切り出しが作っていた形を探す。
+    //   "(see Section 5."  節番号の途中で終わる
+    //   "(e."              略語の途中で終わる
+    // 括弧の釣り合いそのものは指標にならない。RFC 6455 §11.3.2 は原典が
+    // "(which is logically the same as ... contains all values." と閉じ括弧を
+    // 欠いており、忠実に取れば釣り合わない。
+    const cut = requirements.filter((r) =>
+      /\((?:[A-Za-z]|see Section \d+(?:\.\d+)*)\.$/.test((r.text || '').trim())
+    );
+
+    logResult(
+      toolName,
+      'no requirement text is cut mid-token',
+      cut.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `cut=${cut.length}/${requirements.length}${cut.length ? ' e.g. ' + JSON.stringify(cut[0].text.slice(-40)) : ''}`,
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'no requirement text is cut mid-token', 'FAIL', { error: e.message });
   }
 }
 
@@ -690,6 +768,10 @@ async function main() {
 
     console.log('--- 12. xref rendering ---');
     await testXrefRendering(client);
+    console.log('');
+
+    console.log('--- 13. sentence extraction ---');
+    await testSentenceExtraction(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);
