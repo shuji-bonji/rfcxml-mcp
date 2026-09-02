@@ -370,3 +370,62 @@ describe('目次の行を節にしないこと', () => {
     expect(parsed.sections.map((s) => s.number)).toEqual(['1', '2']);
   });
 });
+
+describe('本文の番号付きリストを節にしないこと', () => {
+  const doc = [
+    '',
+    'Internet Engineering Task Force (IETF)                          I. Fette',
+    'ISSN: 2070-1721                                         December 2011',
+    '',
+    '',
+    '        The WebSocket Protocol',
+    '',
+    '4.1.  Client Requirements',
+    '',
+    '   The client MUST open a connection.',
+    '',
+    '   1.  The components of the URI MUST be valid.',
+    '',
+    '   2.  If any of the components are invalid, the client MUST fail.',
+    '',
+    '5.  Data Framing',
+    '',
+    '   The server MUST NOT mask frames.',
+  ].join('\n');
+
+  it('字下げされた番号付き項目を節にしない', () => {
+    const parsed = parseRFCText(doc, 6455);
+    const flat = [];
+    const walk = (sections) => {
+      for (const s of sections) {
+        flat.push(s);
+        walk(s.subsections || []);
+      }
+    };
+    walk(parsed.sections);
+
+    expect(flat.map((s) => s.number).sort()).toEqual(['4.1', '5']);
+    expect(flat.find((s) => s.number === '5')?.title).toBe('Data Framing');
+  });
+
+  it('リスト項目の要件は親の節に属する', () => {
+    const requirements = extractTextRequirements(parseRFCText(doc, 6455).sections);
+    const inList = requirements.find((r) => /components of the URI/.test(r.text));
+
+    expect(inList?.section).toBe('4.1');
+  });
+
+  it('1 桁目から始まる節見出しは拾う', () => {
+    const parsed = parseRFCText(doc, 6455);
+    const numbers = [];
+    const walk = (sections) => {
+      for (const s of sections) {
+        numbers.push(s.number);
+        walk(s.subsections || []);
+      }
+    };
+    walk(parsed.sections);
+
+    expect(numbers).toContain('5');
+  });
+});

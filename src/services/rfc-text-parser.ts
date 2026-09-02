@@ -325,8 +325,16 @@ function extractTextSections(lines: string[]): Section[] {
   let currentContent: string[] = [];
 
   for (const line of lines) {
-    const trimmed = line.trim();
-    const match = trimmed.match(SECTION_HEADER_PATTERN);
+    // 節見出しは 1 桁目から始まる。字下げされた行は本文の番号付きリスト項目である。
+    //
+    // 以前は `line.trim()` してから照合していたため字下げが失われ、
+    // RFC 6455 の
+    //   "   1.  The handshake MUST be a valid HTTP request ..."
+    // のようなリスト項目を節として拾っていた（目次を除いたあとでも 141 節のうち
+    // 52 件が節番号の重複だった）。番号だけが同じ「節」がいくつも並ぶと
+    // `findSection` がどれを引くか定まらず、要件の `sectionTitle` にも本文の
+    // 1 行目が出る。
+    const match = line.replace(/\s+$/, '').match(SECTION_HEADER_PATTERN);
 
     if (match) {
       const sectionNum = match[1].replace(/\.$/, '');
