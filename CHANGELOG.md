@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.14] - 2026-09-02
+
+**公開前に `rfcxml-mcp-dev`（ローカルのビルド）で試用した最初の版。**
+
+### Fixed
+
+- **図・表の行から取った要件に、意味のない構成要素が付いていた**:
+  - v0.6.13 で表の行を 1 件ずつ切り出すようにしたところ、その行に
+    `parseRequirementComponents()` を当てていたため、RFC 2131 §4.3.1 の
+    `"Message SHOULD SHOULD SHOULD"` に `subject: "message should"`
+    `action: "SHOULD SHOULD"` が付いていた。
+  - 主語・条件・アクションは文の構造であり、表の行には無い。
+    切り出し元が図・表のときは付けない。図の隣にある散文には従来どおり付ける。
+
+- **否定の言い回しが動詞ごとに揃っていなかった** (`validate_statement`):
+  - `NEGATION_PAIRS` の `negative` は手書きで、`mask` には `"without mask"` が
+    あるのに `send` には無かった。そのため RFC 2818 §2.2.1 の
+    "Clients MUST send a closure alert before closing the connection." に対する
+    「The client closes the connection **without sending** a close_notify alert.」が
+    `isValid: true`（矛盾なし）になっていた。
+  - `not V` / `never V` / `without V` はどの動詞にも共通するので、対ごとに書かず
+    自動で足す。不規則な否定形（`unmask` / `exclude` / `reject` など）は従来どおり
+    各対に書く。一致は部分文字列で見るので `"without send"` は
+    `"without sending"` にも当たる。
+  - 実測（RFC に従う 29 文と、違反する 6 文）: 準拠した文の誤検出 **0 件**、
+    違反の検出 **6 / 6**（RFC 2818 の 1 件が新たに挙がるようになった）。
+
+### Added
+
+- **テストを 347 件から 351 件へ**: 表の行に構成要素を付けないこと、図の隣の散文には
+  付けること、`"without ..."` の形を矛盾として挙げること、要求どおりの記述は
+  挙げないこと。
+
 ## [0.6.13] - 2026-09-02
 
 v0.6.12 の試用で、`generate_checklist` の出力を見て気づいた。Markdown としては

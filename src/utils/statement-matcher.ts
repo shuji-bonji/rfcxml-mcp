@@ -511,7 +511,31 @@ interface NegationPair {
   generic?: true;
 }
 
-const NEGATION_PAIRS: NegationPair[] = [
+/**
+ * どの動詞にも共通する否定の言い回し。
+ *
+ * `NEGATION_PAIRS` の `negative` は手書きだったため、動詞ごとに揃っていなかった。
+ * `mask` には "without mask" があるのに `send` には無く、RFC 2818 §2.2.1 の
+ * "Clients MUST send a closure alert before closing the connection." に対する
+ * 「The client closes the connection **without sending** a close_notify alert.」が
+ * 矛盾として挙がらなかった。
+ *
+ * 一致は部分文字列で見るので、"without send" は "without sending" にも当たる。
+ * 不規則な否定形（unmask / exclude / reject など）は各対に書く。
+ */
+function commonNegations(positive: string): string[] {
+  return [`not ${positive}`, `never ${positive}`, `without ${positive}`];
+}
+
+/** 手書きの不規則な否定形に、共通の言い回しを足したもの。 */
+function withCommonNegations(pairs: NegationPair[]): NegationPair[] {
+  return pairs.map((pair) => ({
+    ...pair,
+    negative: [...new Set([...pair.negative, ...commonNegations(pair.positive)])],
+  }));
+}
+
+const NEGATION_PAIRS: NegationPair[] = withCommonNegations([
   {
     positive: 'mask',
     negative: ['unmask', 'unmasked', 'not mask', 'without mask', 'without masking'],
@@ -552,7 +576,7 @@ const NEGATION_PAIRS: NegationPair[] = [
   { positive: 'enable', negative: ['disable', 'not enable'], generic: true },
   { positive: 'close', negative: ['not close', 'keep open'], generic: true },
   { positive: 'open', negative: ['not open', 'close'], generic: true },
-];
+]);
 
 /**
  * テキストが positive アクションを含むか判定（negative でないことを確認）

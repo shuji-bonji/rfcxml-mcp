@@ -864,3 +864,39 @@ describe('名前と限定は要件文全体から取る', () => {
     ).toHaveLength(0);
   });
 });
+
+describe('否定の言い回しは動詞ごとに揃える', () => {
+  const closureAlert: Requirement[] = [
+    {
+      id: 'R-2.2.1-17',
+      level: 'MUST',
+      text: 'Clients MUST send a closure alert before closing the connection.',
+      section: '2.2.1',
+      sectionTitle: 'Client Behavior',
+      fullContext: 'Clients MUST send a closure alert before closing the connection.',
+      subject: 'clients',
+      action: 'send a closure alert before closing the connection',
+    },
+  ];
+
+  it('"without ..." の形を矛盾として挙げる', () => {
+    // negative の手書きが動詞ごとに揃っておらず、mask には "without mask" が
+    // あるのに send には無かった。
+    const conflicts = detectConflicts(
+      'The client closes the connection without sending a close_notify alert.',
+      closureAlert
+    );
+
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0].requirement.id).toBe('R-2.2.1-17');
+  });
+
+  it('要求どおりの記述は挙げない', () => {
+    const conflicts = detectConflicts(
+      'The client sends a closure alert before closing the connection.',
+      closureAlert
+    );
+
+    expect(conflicts).toHaveLength(0);
+  });
+});

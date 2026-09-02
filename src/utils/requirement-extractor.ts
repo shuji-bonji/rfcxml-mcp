@@ -126,9 +126,13 @@ export function extractRequirementsFromSections(
               continue;
             }
 
-            const components = options.parseComponents
-              ? parseRequirementComponents(sentence, marker.level)
-              : {};
+            // 図・表の行から取った要件には主語も条件もアクションも無い。
+            // RFC 2131 §4.3.1 の表の行 "Message SHOULD SHOULD SHOULD" に
+            // `subject: "message should"` `action: "SHOULD SHOULD"` が付いていた。
+            const components =
+              options.parseComponents && source.prose
+                ? parseRequirementComponents(sentence, marker.level)
+                : {};
 
             requirements.push({
               id: `R-${sectionId}-${idCounter++}`,

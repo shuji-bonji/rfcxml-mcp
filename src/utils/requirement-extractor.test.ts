@@ -508,3 +508,64 @@ describe('表の行は 1 行ごとの要件', () => {
     expect(result[1].text).toBe('Client identifier MUST NOT MUST NOT MAY');
   });
 });
+
+describe('図・表の行には構成要素を付けない', () => {
+  it('表の行から主語やアクションを作らない', () => {
+    // "Message SHOULD SHOULD SHOULD" に subject: "message should" が付いていた
+    const table = [
+      'Option                    DHCPOFFER    DHCPACK            DHCPNAK',
+      'Message                   SHOULD       SHOULD             SHOULD',
+    ].join('\n');
+    const result = extractRequirementsFromSections(
+      [
+        {
+          number: '4.3.1',
+          title: 'DHCPDISCOVER message',
+          content: [
+            {
+              type: 'text',
+              content: table,
+              requirements: [{ level: 'SHOULD', position: table.indexOf('SHOULD') }],
+              crossReferences: [],
+            },
+          ],
+          subsections: [],
+        },
+      ] as never,
+      undefined,
+      { parseComponents: true }
+    );
+
+    expect(result[0].text).toBe('Message SHOULD SHOULD SHOULD');
+    expect(result[0].subject).toBeUndefined();
+    expect(result[0].action).toBeUndefined();
+  });
+
+  it('図の隣の散文には構成要素を付ける', () => {
+    const mixed = [
+      '+-+-+-+-+-------+',
+      'A client MUST mask all frames that it sends to the server.',
+    ].join('\n');
+    const result = extractRequirementsFromSections(
+      [
+        {
+          number: '5.1',
+          title: 'Overview',
+          content: [
+            {
+              type: 'text',
+              content: mixed,
+              requirements: [{ level: 'MUST', position: mixed.indexOf('MUST') }],
+              crossReferences: [],
+            },
+          ],
+          subsections: [],
+        },
+      ] as never,
+      undefined,
+      { parseComponents: true }
+    );
+
+    expect(result[0].action).toBe('mask all frames that it sends to the server');
+  });
+});
