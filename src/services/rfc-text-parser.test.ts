@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { parseRFCText, extractTextRequirements } from './rfc-text-parser.js';
+import type { Section } from '../types/index.js';
 
 // サンプル RFC テキスト
 const sampleRFCText = `
@@ -653,5 +654,112 @@ describe('文が途中で終わる段落', () => {
     const blocks = parsed.sections[0].content.filter((b) => b.type === 'text');
 
     expect(blocks[0].content).toContain('but are not required to do so.');
+  });
+});
+
+describe('字下げした節見出し', () => {
+  // RFC 1122 は下位の見出しを深さに応じて字下げする
+  const doc = [
+    '1.  INTRODUCTION',
+    '',
+    '   1.1  The Internet Architecture',
+    '',
+    '      1.1.1  Internet Hosts',
+    '',
+    '   A host is a computer.',
+    '',
+    '   1.2  General Considerations',
+    '',
+    '   Some text here.',
+    '',
+  ].join('\n');
+
+  it('深さに見合う字下げの見出しを拾う', () => {
+    const parsed = parseRFCText(doc, 1122);
+    const numbers: string[] = [];
+    const walk = (sections: Section[]) => {
+      for (const s of sections) {
+        numbers.push(s.number ?? '');
+        walk(s.subsections ?? []);
+      }
+    };
+    walk(parsed.sections);
+
+    expect(numbers).toEqual(['1', '1.1', '1.1.1', '1.2']);
+  });
+
+  it('本文の番号付きリストは節にしない', () => {
+    // RFC 6455 §4.1 の形。1 段目の番号は 1 桁目から始まらなければ節ではない。
+    const body = [
+      '4.1.  Client Requirements',
+      '',
+      '   1.  The handshake MUST be a valid HTTP request',
+      '',
+      '   2.  The method of the request MUST be GET',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(body, 6455);
+
+    expect(parsed.sections).toHaveLength(1);
+    expect(parsed.sections[0].number).toBe('4.1');
+  });
+
+  it('直前の節の次に来ない番号は節にしない', () => {
+    const body = [
+      '4.1.  Client Requirements',
+      '',
+      '   9.9  Something Unrelated',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(body, 6455);
+
+    expect(parsed.sections[0].subsections).toHaveLength(0);
+  });
+});
+
+describe('表示例をはさんだ段落', () => {
+  it('要件に関わらない箇所では繋がない', () => {
+    // RFC 3261 §7.3.1 は "is equivalent to" と表示例を交互に並べる
+    const text = [
+      '7.3.1.  Header Field Format',
+      '',
+      '   is equivalent to',
+      '',
+      '      content-disposition: Session;HANDLING=required',
+      '',
+      '   The following two header fields are not equivalent.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 3261);
+    const blocks = parsed.sections[0].content.filter((b) => b.type === 'text');
+
+    expect(blocks[0].content).toBe('is equivalent to');
+  });
+});
+
+describe('古い書式の参考文献', () => {
+  const text = [
+    '                               REFERENCES',
+    '',
+    '[TCP:8] "Modularity and Efficiency in Protocol Implementation," D.',
+    '     Clark, RFC-817, July 1982.',
+    '',
+    '[TCP:9] "Congestion Control in IP/TCP," J. Nagle, RFC-896, January 1984.',
+    '',
+  ].join('\n');
+
+  it('1 桁目から始まる項目を拾う', () => {
+    const refs = parseRFCText(text, 1122).references.informative;
+
+    expect(refs.map((r) => r.anchor)).toEqual(['TCP:8', 'TCP:9']);
+  });
+
+  it('RFC-817 の書き方から番号を取る', () => {
+    const refs = parseRFCText(text, 1122).references.informative;
+
+    expect(refs[0].rfcNumber).toBe(817);
+    expect(refs[0].title).toBe('Modularity and Efficiency in Protocol Implementation,');
   });
 });

@@ -142,7 +142,7 @@ const REFERENCE_HEADING_PATTERN =
  *
  * 見出しの角括弧は 4 桁目から始まり、続きの行はさらに深く字下げされる。
  */
-const REFERENCE_ENTRY_PATTERN = /^ {1,6}\[([^\]\s][^\]]*)\]/;
+const REFERENCE_ENTRY_PATTERN = /^ {0,6}\[([^\]\s][^\]]*)\]/;
 
 /**
  * 参考文献の欄（"14.1 Normative References" / "14.2 Informative References"）から
@@ -193,6 +193,24 @@ function extractTextReferences(lines: string[], currentRfcNumber: number): Parse
     const line = raw.replace(/\s+$/, '');
     if (!line) continue;
 
+    // 項目の始まりは字下げの有無を問わない。RFC 1122 は 1 桁目から
+    // "[TCP:8] \"Modularity and Efficiency ...\"" と書く。
+    const entryStart = bucket ? line.match(REFERENCE_ENTRY_PATTERN) : null;
+    if (entryStart) {
+      flush();
+      anchor = entryStart[1].trim();
+      buffer = [line];
+      continue;
+    }
+
+    // 中央寄せの見出し（RFC 793 の "                REFERENCES"）。
+    // 番号を持たず字下げされるので、上の 1 桁目の規則では拾えない。
+    if (/^\s/.test(line) && line.length <= 60 && REFERENCE_HEADING_PATTERN.test(line.trim())) {
+      flush();
+      bucket = /normative/i.test(line) ? 'normative' : 'informative';
+      continue;
+    }
+
     // 1 桁目から始まる行だけが見出しになりうる。
     if (!/^\s/.test(line)) {
       const headerMatch = line.match(SECTION_HEADER_PATTERN);
@@ -220,15 +238,7 @@ function extractTextReferences(lines: string[], currentRfcNumber: number): Parse
     }
 
     if (!bucket) continue;
-
-    const entry = line.match(REFERENCE_ENTRY_PATTERN);
-    if (entry) {
-      flush();
-      anchor = entry[1].trim();
-      buffer = [line];
-    } else if (anchor) {
-      buffer.push(line);
-    }
+    if (anchor) buffer.push(line);
   }
 
   flush();
@@ -253,11 +263,12 @@ function parseTextReference(
   const entry = rawEntry.replace(/\s+/g, ' ').trim();
 
   let rfcNumber: number | undefined;
-  const fromAnchor = /^RFC\s*(\d+)$/i.exec(anchor);
+  const fromAnchor = /^RFC[\s-]*(\d+)$/i.exec(anchor);
   if (fromAnchor) {
     rfcNumber = parseInt(fromAnchor[1], 10);
   } else {
-    const inline = [...entry.matchAll(/\bRFC\s+(\d+)\b/g)];
+    // "RFC 2119" と "RFC-817"（古い RFC の書き方）の双方を拾う
+    const inline = [...entry.matchAll(/\bRFC[\s-]+(\d+)\b/g)];
     if (inline.length > 0) {
       rfcNumber = parseInt(inline[inline.length - 1][1], 10);
     }
@@ -486,6 +497,104 @@ function isValidSectionHeader(sectionNum: string, title: string): boolean {
 /**
  * セクション構造の抽出（テキストから）
  */
+/** 字下げした見出しの、1 段あたりの字下げ幅。 */
+const INDENTED_HEADER_STEP = 3;
+
+/** 字下げ幅の許容差。 */
+const INDENTED_HEADER_TOLERANCE = 2;
+
+/**
+ * 節番号が、直前の節の次に来る番号か。
+ *
+ * 字下げした見出しを拾うときに、本文の番号付きリストと区別するための検査である。
+ * RFC 6455 §4.1 の `   1.  The handshake MUST be ...` は、直前の節が §4.1 なので
+ * "1" は次に来る番号ではない。
+ *
+ * 次に来る番号とみなすのは 3 通り。
+ *
+ * - 子: `1.1` のあとの `1.1.1`
+ * - 兄弟: `1.1.1` のあとの `1.1.2`
+ * - 祖先の兄弟: `1.1.4` のあとの `1.2`
+ *
+ * 番号の飛びは 5 まで許す（RFC には欠番がある）。
+ */
+function isSuccessorSectionNumber(previous: string | null, candidate: string): boolean {
+  if (!previous) return false;
+
+  const prev = previous.split('.').map(Number);
+  const cand = candidate.split('.').map(Number);
+  if (prev.some((n) => !Number.isInteger(n)) || cand.some((n) => !Number.isInteger(n)))
+    return false;
+
+  if (cand.length === prev.length + 1) {
+    return cand.slice(0, prev.length).every((n, i) => n === prev[i]) && cand[cand.length - 1] === 1;
+  }
+
+  if (cand.length <= prev.length) {
+    const head = cand.length - 1;
+    if (!cand.slice(0, head).every((n, i) => n === prev[i])) return false;
+    const step = cand[head] - prev[head];
+    return step >= 1 && step <= 5;
+  }
+
+  return false;
+}
+
+/**
+ * その行が字下げした節見出しなら、番号と題名を返す。
+ *
+ * 古い RFC は下位の節見出しを深さに応じて字下げする。RFC 1122 は
+ *
+ * ```
+ * 1.  INTRODUCTION
+ *
+ *    1.1  The Internet Architecture
+ *
+ *       1.1.1  Internet Hosts
+ * ```
+ *
+ * と書く。1 桁目の規則だけでは 1 段目の 5 節しか拾えず、130 近い節と
+ * その要件が 5 つの節に押し込まれる。
+ *
+ * 本文の番号付きリストと区別するため、次をすべて満たすときだけ拾う。
+ *
+ * - 2 段目以降であること（1 段目の見出しは 1 桁目から始まる）
+ * - 字下げが深さに見合うこと（1 段につき 3 桁、許容差 2）
+ * - 前後が空行
+ * - 題名が大文字で始まり、3 文字以上で、読点や句点で終わらない
+ * - 直前の節の次に来る番号であること（`isSuccessorSectionNumber`）
+ */
+function indentedSectionHeader(
+  lines: string[],
+  index: number,
+  previousNumber: string | null
+): { number: string; title: string } | null {
+  const line = lines[index];
+  const indent = line.length - line.trimStart().length;
+  if (indent < 1 || indent > 12) return null;
+
+  const match = line.trim().match(SECTION_HEADER_PATTERN);
+  if (!match) return null;
+
+  const number = match[1].replace(/\.$/, '');
+  const depth = number.split('.').length;
+  if (depth < 2) return null;
+  if (Math.abs(indent - (depth - 1) * INDENTED_HEADER_STEP) > INDENTED_HEADER_TOLERANCE)
+    return null;
+
+  const title = match[2].trim();
+  if (title.length < 3 || !/^[A-Z]/.test(title) || /[.,;]$/.test(title)) return null;
+  if (!isValidSectionHeader(number, title)) return null;
+  if (!isSuccessorSectionNumber(previousNumber, number)) return null;
+
+  // 見出しの次の行は空く。直前は図や表の行のことがあるので問わない
+  // （RFC 1122 §1.4 と §4.2 は図表の直後に置かれている）。
+  const after = index + 1 < lines.length ? lines[index + 1] : '';
+  if (after.trim() !== '') return null;
+
+  return { number, title };
+}
+
 /** 中央寄せの見出しとみなす最小の字下げ。 */
 const CENTERED_HEADER_MIN_INDENT = 8;
 
@@ -530,6 +639,7 @@ function extractTextSections(lines: string[]): Section[] {
   const sections: Section[] = [];
   let currentSection: Section | null = null;
   let currentContent: string[] = [];
+  let lastSectionNumber: string | null = null;
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
@@ -539,18 +649,20 @@ function extractTextSections(lines: string[]): Section[] {
     // 手前の節に付く。字下げが深く、題名が全部大文字で、前後が空行の
     // 1 段目の見出しだけを拾う。RFC 793 の状態遷移図にある
     // "  2.  SYN-SENT --> ..." は字下げが浅く、小文字を含むので当たらない。
-    const centered = centeredSectionHeader(lines, index);
-    if (centered) {
+    const header: { number: string; title: string } | null =
+      centeredSectionHeader(lines, index) ?? indentedSectionHeader(lines, index, lastSectionNumber);
+    if (header) {
       if (currentSection) {
         currentSection.content = createTextBlocks(currentContent.join('\n'));
         sections.push(currentSection);
       }
       currentSection = {
-        number: centered.number,
-        title: centered.title,
+        number: header.number,
+        title: header.title,
         content: [],
         subsections: [],
       };
+      lastSectionNumber = header.number;
       currentContent = [];
       continue;
     }
@@ -585,6 +697,7 @@ function extractTextSections(lines: string[]): Section[] {
           content: [],
           subsections: [],
         };
+        lastSectionNumber = sectionNum;
         currentContent = [];
       } else if (currentSection) {
         // 検証に失敗した行はコンテンツとして扱う
@@ -669,7 +782,11 @@ function joinUnterminatedParagraphs(paragraphs: string[]): string[] {
       previous !== undefined &&
       !/[.!?:;]\s*$/.test(previous) &&
       !looksLikeDiagram(previous) &&
-      joinCount[last] < MAX_PARAGRAPH_JOINS;
+      joinCount[last] < MAX_PARAGRAPH_JOINS &&
+      // どちらかに BCP 14 キーワードがあること。要件に関わらない箇所では繋がない。
+      // RFC 3261 §7.3.1 は "is equivalent to" と表示例を交互に並べる。繋ぐと
+      // 要件文に "content-disposition: Session;HANDLING=OPTIONAL" が入る。
+      (createRequirementRegex().test(previous) || createRequirementRegex().test(paragraph));
 
     if (canJoin) {
       joined[last] = `${previous}\n${paragraph}`;

@@ -1506,6 +1506,71 @@ async function testEmptyDefinitions(client) {
   }
 }
 
+/**
+ * 30. 古い書式の RFC（v0.6.11）
+ *
+ * RFC 1122 は下位の節見出しを深さに応じて字下げする。1 桁目の規則だけでは
+ * 1 段目の 5 節しか拾えず、130 近い節とその要件が 5 つの節に押し込まれていた。
+ */
+async function testOldStyleLayout(client) {
+  try {
+    const res = await callTool(client, 'get_rfc_structure', { rfc: 1122 });
+    const count = (function walk(sections) {
+      return (sections || []).reduce((sum, s) => sum + 1 + walk(s.subsections), 0);
+    })(res.sections);
+
+    logResult(
+      'get_rfc_structure',
+      'indented section headers are picked up',
+      count > 100 ? 'PASS' : 'FAIL',
+      {
+        note: `RFC 1122 sections=${count}`,
+      }
+    );
+  } catch (e) {
+    logResult('get_rfc_structure', 'indented section headers are picked up', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    const res = await callTool(client, 'get_related_sections', { rfc: 1122, section: '4.2.2.1' });
+
+    logResult(
+      'get_related_sections',
+      'a deep indented section resolves',
+      !res.error ? 'PASS' : 'FAIL',
+      {
+        note: res.title ?? res.error,
+      }
+    );
+  } catch (e) {
+    logResult('get_related_sections', 'a deep indented section resolves', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    // RFC 1122 は 1 桁目から "[TCP:8] ... RFC-817, July 1982." と書く
+    const res = await callTool(client, 'get_rfc_dependencies', { rfc: 1122 });
+    const all = [...(res.normative || []), ...(res.informative || [])];
+    const rfc817 = all.find((r) => r.rfcNumber === 817);
+
+    logResult(
+      'dependencies',
+      'references written in the old style are read',
+      all.length > 20 && rfc817 ? 'PASS' : 'FAIL',
+      {
+        note: `total=${all.length}, RFC-817=${rfc817 ? 'found' : 'missing'}`,
+      }
+    );
+  } catch (e) {
+    logResult('dependencies', 'references written in the old style are read', 'FAIL', {
+      error: e.message,
+    });
+  }
+}
+
 // ========================================
 // Main Execution
 // ========================================
@@ -1638,6 +1703,10 @@ async function main() {
 
     console.log('--- 29. list join ---');
     await testListJoin(client);
+    console.log('');
+
+    console.log('--- 30. old style layout ---');
+    await testOldStyleLayout(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);
