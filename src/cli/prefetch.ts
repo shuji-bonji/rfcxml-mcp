@@ -28,7 +28,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
-import { fetchRFCXML, resetDiskCacheForTesting } from '../services/rfc-fetcher.js';
+import { fetchRFCText, fetchRFCXML, resetDiskCacheForTesting } from '../services/rfc-fetcher.js';
 import { DiskCache } from '../utils/disk-cache.js';
 import { PACKAGE_INFO } from '../config.js';
 
@@ -60,7 +60,7 @@ Options:
   --help, -h           Show this help
 
 Notes:
-  - Old RFCs (< 8650) generally have no XML; those will fail and are skipped.
+  - Old RFCs (< 8650) generally have no XML; those are cached as text instead.
   - The MCP server picks up the cache automatically when started with
     RFCXML_CACHE_DIR pointing at the same directory.
 `;
@@ -149,12 +149,19 @@ async function processOne(rfc: number, cache: DiskCache, force: boolean): Promis
     // in-memory cache returned a stale entry on a previous loop iteration.
     await cache.set(rfc, xml);
     return { rfc, status: 'ok' };
-  } catch (error) {
-    return {
-      rfc,
-      status: 'failed',
-      error: error instanceof Error ? error.message : String(error),
-    };
+  } catch (xmlError) {
+    // RFCXML が無い RFC はテキストで読む（RFC 8650 より前のほとんど）。
+    // ここで取っておかないと、MCP サーバは起動のたびに本文を取り直す。
+    try {
+      await fetchRFCText(rfc);
+      return { rfc, status: 'ok' };
+    } catch {
+      return {
+        rfc,
+        status: 'failed',
+        error: xmlError instanceof Error ? xmlError.message : String(xmlError),
+      };
+    }
   }
 }
 

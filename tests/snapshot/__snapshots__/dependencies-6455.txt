@@ -1,0 +1,144 @@
+# dependencies-6455
+
+tool: get_rfc_dependencies
+args: {"rfc":6455}
+
+--- json ---
+{
+  "rfc": 6455,
+  "normative": [
+    {
+      "title": "Coded Character Set - 7-bit American Standard Code for Information Interchange",
+      "anchor": "ANSI.X3-4.1986"
+    },
+    {
+      "title": "Secure Hash Standard",
+      "anchor": "FIPS.180-3"
+    },
+    {
+      "rfcNumber": 1928,
+      "title": "SOCKS Protocol Version 5",
+      "anchor": "RFC1928"
+    },
+    {
+      "rfcNumber": 2119,
+      "title": "Key words for use in RFCs to Indicate Requirement Levels",
+      "anchor": "RFC2119"
+    },
+    {
+      "rfcNumber": 2616,
+      "title": "Hypertext Transfer Protocol -- HTTP/1.1",
+      "anchor": "RFC2616"
+    },
+    {
+      "rfcNumber": 2817,
+      "title": "Upgrading to TLS Within HTTP/1.1",
+      "anchor": "RFC2817"
+    },
+    {
+      "rfcNumber": 2818,
+      "title": "HTTP Over TLS",
+      "anchor": "RFC2818"
+    },
+    {
+      "rfcNumber": 3629,
+      "title": "UTF-8, a transformation format of ISO 10646",
+      "anchor": "RFC3629"
+    },
+    {
+      "rfcNumber": 3864,
+      "title": "Registration Procedures for Message Header Fields",
+      "anchor": "RFC3864"
+    },
+    {
+      "rfcNumber": 3986,
+      "title": "Uniform Resource Identifier (URI): Generic Syntax",
+      "anchor": "RFC3986"
+    },
+    {
+      "rfcNumber": 3987,
+      "title": "Internationalized Resource Identifiers (IRIs)",
+      "anchor": "RFC3987"
+    },
+    {
+      "rfcNumber": 4086,
+      "title": "Randomness Requirements for Security",
+      "anchor": "RFC4086"
+    },
+    {
+      "rfcNumber": 4648,
+      "title": "The Base16, Base32, and Base64 Data Encodings",
+      "anchor": "RFC4648"
+    },
+    {
+      "rfcNumber": 5226,
+      "title": "Guidelines for Writing an IANA Considerations Section in RFCs",
+      "anchor": "RFC5226"
+    },
+    {
+      "rfcNumber": 5234,
+      "title": "Augmented BNF for Syntax Specifications: ABNF",
+      "anchor": "RFC5234"
+    },
+    {
+      "rfcNumber": 5246,
+      "title": "The Transport Layer Security (TLS) Protocol Version 1.2",
+      "anchor": "RFC5246"
+    },
+    {
+      "rfcNumber": 6066,
+      "title": "Transport Layer Security (TLS) Extensions: Extension Definitions",
+      "anchor": "RFC6066"
+    },
+    {
+      "rfcNumber": 6454,
+      "title": "The Web Origin Concept",
+      "anchor": "RFC6454"
+    }
+  ],
+  "informative": [
+    {
+      "rfcNumber": 4122,
+      "title": "A Universally Unique IDentifier (UUID) URN Namespace",
+      "anchor": "RFC4122"
+    },
+    {
+      "rfcNumber": 4270,
+      "title": "Attacks on Cryptographic Hashes in Internet Protocols",
+      "anchor": "RFC4270"
+    },
+    {
+      "rfcNumber": 5321,
+      "title": "Simple Mail Transfer Protocol",
+      "anchor": "RFC5321"
+    },
+    {
+      "rfcNumber": 6202,
+      "title": "Known Issues and Best Practices for the Use of Long Polling and Streaming in Bidirectional HTTP",
+      "anchor": "RFC6202"
+    },
+    {
+      "rfcNumber": 6265,
+      "title": "HTTP State Management Mechanism",
+      "anchor": "RFC6265"
+    },
+    {
+      "title": "Talking to Yourself for Fun and Profit",
+      "anchor": "TALKING"
+    },
+    {
+      "title": "Web Security Context: User Interface Guidelines",
+      "anchor": "W3C.REC-wsc-ui-20100812"
+    },
+    {
+      "title": "The WebSocket API",
+      "anchor": "WSAPI"
+    },
+    {
+      "title": "XMLHttpRequest",
+      "anchor": "XMLHttpRequest"
+    }
+  ],
+  "_source": "text",
+  "_referencesSource": "text"
+}

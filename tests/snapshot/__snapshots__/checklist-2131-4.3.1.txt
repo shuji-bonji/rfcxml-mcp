@@ -1,0 +1,59 @@
+# checklist-2131-4.3.1
+
+tool: generate_checklist
+args: {"rfc":2131,"sections":["4.3.1"]}
+
+--- markdown ---
+# RFC 2131 Implementation Checklist
+
+**Dynamic Host Configuration Protocol**
+
+Generated: <generatedAt>
+
+## Mandatory Requirements (MUST / REQUIRED / SHALL)
+
+- [ ] **MUST NOT** Requested IP address MUST NOT MUST NOT MUST NOT (§4.3.1)
+- [ ] **MUST** IP address lease time MUST MUST (DHCPREQUEST) MUST NOT (§4.3.1)
+- [ ] **MUST NOT** IP address lease time MUST MUST (DHCPREQUEST) MUST NOT (§4.3.1)
+- [ ] **MUST NOT** MUST NOT (DHCPINFORM) (§4.3.1)
+- [ ] **MUST NOT** Use 'file'/'sname' fields MAY MAY MUST NOT (§4.3.1)
+- [ ] **MUST NOT** Parameter request list MUST NOT MUST NOT MUST NOT (§4.3.1)
+- [ ] **MUST NOT** Client identifier MUST NOT MUST NOT MAY (§4.3.1)
+- [ ] **MUST** Server identifier MUST MUST MUST (§4.3.1)
+- [ ] **MUST NOT** Maximum message size MUST NOT MUST NOT MUST NOT (§4.3.1)
+- [ ] **MUST NOT** All others MAY MAY MUST NOT (§4.3.1)
+- [ ] **MUST** The configuration parameters MUST be selected by applying the following rules in the order given below. (§4.3.1)
+- [ ] **MUST** The server MUST return to the client: (§4.3.1)
+- [ ] **MUST** -- IF the server has been explicitly configured with a default value for the parameter, the server MUST include that value in an appropriate option in the 'option' field, ELSE -- IF the server recognizes the parameter as a parameter defined in the Host Requirements Document, the server MUST include the default value for that parameter as given in the Host Requirements Document in an appropriate option in the 'option' field, ELSE -- The server MUST NOT return a value for that parameter, The server MUST supply as many of the requested parameters as possible and MUST omit any parameters it cannot provide. (§4.3.1)
+- [ ] **MUST NOT** -- IF the server has been explicitly configured with a default value for the parameter, the server MUST include that value in an appropriate option in the 'option' field, ELSE -- IF the server recognizes the parameter as a parameter defined in the Host Requirements Document, the server MUST include the default value for that parameter as given in the Host Requirements Document in an appropriate option in the 'option' field, ELSE -- The server MUST NOT return a value for that parameter, The server MUST supply as many of the requested parameters as possible and MUST omit any parameters it cannot provide. (§4.3.1)
+- [ ] **MUST** The server MUST include each requested parameter only once unless explicitly allowed in the DHCP Options and BOOTP Vendor Extensions document. (§4.3.1)
+- [ ] **MUST** o Any parameters specific to this client (as identified by the contents of 'chaddr' or 'client identifier' in the DHCPDISCOVER or DHCPREQUEST message), e.g., as configured by the network administrator, o Any parameters specific to this client's class (as identified by the contents of the 'vendor class identifier' option in the DHCPDISCOVER or DHCPREQUEST message), e.g., as configured by the network administrator; the parameters MUST be identified by an exact match between the client's vendor class identifiers and the client's classes identified in the server, o Parameters with non-default values on the client's subnet. (§4.3.1)
+
+## Recommended Requirements (SHOULD / RECOMMENDED)
+
+- [ ] **SHOULD** If an address is available, the new address SHOULD be chosen as follows: (§4.3.1)
+- [ ] **SHOULD** While not required for correct operation of DHCP, the server SHOULD NOT reuse the selected network address before the client responds to the server's DHCPOFFER message. (§4.3.1)
+- [ ] **SHOULD** Message SHOULD SHOULD SHOULD (§4.3.1)
+
+## Optional Requirements (MAY / OPTIONAL)
+
+- [ ] **MAY** As described in section 4.2, a server MAY, for administrative reasons, assign an address other than the one requested, or may refuse to allocate an address to a particular client even though free addresses are available. (§4.3.1)
+- [ ] **MAY** Use 'file'/'sname' fields MAY MAY MUST NOT (§4.3.1)
+- [ ] **MAY** Client identifier MUST NOT MUST NOT MAY (§4.3.1)
+- [ ] **MAY** Vendor class identifier MAY MAY MAY (§4.3.1)
+- [ ] **MAY** All others MAY MAY MUST NOT (§4.3.1)
+- [ ] **MAY** The server MAY choose to return the 'vendor class identifier' used to determine the parameters in the DHCPOFFER message to assist the client in selecting which DHCPOFFER to accept. (§4.3.1)
+
+--- json ---
+{
+  "rfc": 2131,
+  "role": "both",
+  "stats": {
+    "must": 16,
+    "should": 3,
+    "may": 6,
+    "total": 25
+  },
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Checklist accuracy may be limited."
+}

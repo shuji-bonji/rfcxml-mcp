@@ -1,6 +1,6 @@
 {
   "name": "@shuji-bonji/rfcxml-mcp",
-  "version": "0.6.14",
+  "version": "0.6.15",
   "description": "MCP server for structured understanding of RFC documents via RFCXML",
   "keywords": [
     "mcp",
@@ -35,6 +35,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest --run --coverage",
     "test:e2e": "node tests/e2e/mcp-client-test.mjs",
+    "audit": "node tests/audit/run.mjs",
+    "snapshot": "node tests/snapshot/run.mjs",
     "lint": "eslint src",
     "format": "prettier --write src",
     "format:check": "prettier --check src",

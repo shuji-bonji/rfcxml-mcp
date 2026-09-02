@@ -32,8 +32,14 @@ const METADATA_EXTRACTION = {
   MAX_LINES_TO_SCAN: 30,
   /** タイトルとして有効な最小文字数 */
   TITLE_MIN_LENGTH: 10,
-  /** タイトルとして有効な最大文字数 */
-  TITLE_MAX_LENGTH: 100,
+  /**
+   * タイトルとして有効な最大文字数。
+   *
+   * RFC 1521 の "MIME (Multipurpose Internet Mail Extensions) Part One:
+   * Mechanisms for Specifying and Describing the Format of Internet Message
+   * Bodies" は 133 文字あり、100 では落ちて `metadata.title` が空になっていた。
+   */
+  TITLE_MAX_LENGTH: 200,
 } as const;
 
 /**
@@ -500,7 +506,27 @@ function isValidSectionHeader(sectionNum: string, title: string): boolean {
   // で、番号 25 の節として通っていた。句点のあとに語が続く題名は本文である。
   // RFC 8446 §7.4 "(EC)DHE Shared Secret Calculation" のように括弧で始まる
   // 題名はあるので、先頭の文字では判定しない。
-  return !/[.!?]\s+\S/.test(trimmed);
+  return !containsSentenceBreak(trimmed);
+}
+
+/**
+ * 題名の中の略語。ここに挙げた語のあとの `.` は文の終わりではない。
+ *
+ * RFC 1123 は出典を題名に書く。
+ * "3.2.1  Option Negotiation: RFC-854, pp. 2-3" の `pp.` を文の終わりと見ると、
+ * §3.2.1 から §3.2.8 の 8 節が丸ごと落ちる（v0.6.14 まで落ちていた）。
+ */
+const TITLE_ABBREVIATION =
+  /(?:^|[\s(])(?:pp?|vol|nos?|secs?|chs?|figs?|eds?|al|etc|cf|vs|e\.g|i\.e)\.$/i;
+
+/** 題名の中に、略語でない句点があるか。あればそれは題名ではなく本文である。 */
+function containsSentenceBreak(title: string): boolean {
+  const pattern = /[.!?]\s+\S/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(title)) !== null) {
+    if (!TITLE_ABBREVIATION.test(title.slice(0, match.index + 1))) return true;
+  }
+  return false;
 }
 
 /**
@@ -644,11 +670,56 @@ function centeredSectionHeader(
   return { number, title };
 }
 
+/**
+ * その節番号を、いま新しい節として受け入れてよいか。
+ *
+ * `SECTION_HEADER_PATTERN` は「数字 + 空白 + 何か」に当たるので、本文の中の
+ * 次のような行も節見出しに見える。
+ *
+ * | RFC | 行 | 実体 |
+ * |---|---|---|
+ * | 1123 | `1.   Unless there is private agreement between particular resolver and` | 要件一覧表の脚注 |
+ * | 1305 | 注釈 `test 1` の折り返しで、閉じ記号だけが残った行 | C の注釈 |
+ * | 1305 | `4 is used, this is the size of the clock filter …` | `Section` から折り返した本文 |
+ * | 1305 | `1.7 hours and a settling time to within one percent of the initial` | 折り返した本文 |
+ *
+ * どれも、その番号の節がすでに出たあとに現れる。RFC の節番号は文書の中で
+ * 一度しか使われず、前に戻ることもないので、次の 2 つで落とす。
+ *
+ * - すでに出した番号と同じ
+ * - 1 段目の番号が、いままでの最大より小さい
+ *
+ * RFC 1123 ではこれが実害になっていた。脚注の `1.` を節として受け入れると
+ * 直前の節番号が "1" に戻り、`isSuccessorSectionNumber` から見て §6.2 が
+ * 「次に来る番号」でなくなる。§6.2 以降の 8 節が丸ごと落ち、その節の要件が
+ * §6.1.5 に付いていた。
+ */
+function acceptsSectionNumber(
+  state: { seen: Set<string>; maxTopLevel: number },
+  candidate: string
+): boolean {
+  if (state.seen.has(candidate)) return false;
+
+  const topLevel = Number(candidate.split('.')[0]);
+  if (!Number.isInteger(topLevel)) return false;
+  if (state.seen.size > 0 && topLevel < state.maxTopLevel) return false;
+
+  return true;
+}
+
 function extractTextSections(lines: string[]): Section[] {
   const sections: Section[] = [];
   let currentSection: Section | null = null;
   let currentContent: string[] = [];
   let lastSectionNumber: string | null = null;
+  /** すでに節として出した番号と、1 段目の最大値。 */
+  const numbering = { seen: new Set<string>(), maxTopLevel: 0 };
+
+  const claimSectionNumber = (number: string): void => {
+    numbering.seen.add(number);
+    numbering.maxTopLevel = Math.max(numbering.maxTopLevel, Number(number.split('.')[0]) || 0);
+    lastSectionNumber = number;
+  };
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
@@ -658,8 +729,10 @@ function extractTextSections(lines: string[]): Section[] {
     // 手前の節に付く。字下げが深く、題名が全部大文字で、前後が空行の
     // 1 段目の見出しだけを拾う。RFC 793 の状態遷移図にある
     // "  2.  SYN-SENT --> ..." は字下げが浅く、小文字を含むので当たらない。
-    const header: { number: string; title: string } | null =
+    const candidate: { number: string; title: string } | null =
       centeredSectionHeader(lines, index) ?? indentedSectionHeader(lines, index, lastSectionNumber);
+    const header =
+      candidate && acceptsSectionNumber(numbering, candidate.number) ? candidate : null;
     if (header) {
       if (currentSection) {
         currentSection.content = createTextBlocks(currentContent.join('\n'));
@@ -671,7 +744,7 @@ function extractTextSections(lines: string[]): Section[] {
         content: [],
         subsections: [],
       };
-      lastSectionNumber = header.number;
+      claimSectionNumber(header.number);
       currentContent = [];
       continue;
     }
@@ -692,7 +765,7 @@ function extractTextSections(lines: string[]): Section[] {
       const title = match[2];
 
       // セクションヘッダーとして妥当性を検証
-      if (isValidSectionHeader(sectionNum, title)) {
+      if (isValidSectionHeader(sectionNum, title) && acceptsSectionNumber(numbering, sectionNum)) {
         // 前のセクションを保存
         if (currentSection) {
           currentSection.content = createTextBlocks(currentContent.join('\n'));
@@ -711,7 +784,7 @@ function extractTextSections(lines: string[]): Section[] {
           content: [],
           subsections: [],
         };
-        lastSectionNumber = sectionNum;
+        claimSectionNumber(sectionNum);
         currentContent = rest.length > 0 ? [rest.join(' ').trim()] : [];
       } else if (currentSection) {
         // 検証に失敗した行はコンテンツとして扱う

@@ -1,0 +1,120 @@
+/**
+ * 出力見本に固定する呼び出し。
+ *
+ * `assert` に落とせない不具合を目で見つけるためのものである。v0.6.6 以降で
+ * 直した不具合のうち、次のものは assert では気づかなかった。
+ *
+ * - チェックリストの 1 項目が 2,000 文字の表になっていた（RFC 2131 §4.3.1）
+ * - 箇条書きを繋いだ要件文が "…, or; …" で切れていた（RFC 9110 §9.3.5）
+ * - ABNF の注釈から取った要件が "…, MUST " で終わっていた（RFC 6455 §5.2）
+ *
+ * どれも「型は合っているが読めない」ものだった。見本を固定して差分を見れば、
+ * 同じ壊れ方をしたときに気づける。
+ *
+ * 世代と経路を分けてある。XML 経路と、テキスト経路の各世代を最低 1 本ずつ通す。
+ */
+
+/** @typedef {{ name: string, tool: string, args: Record<string, unknown> }} SnapshotCase */
+
+/** @type {SnapshotCase[]} */
+export const CASES = [
+  // --- generate_checklist ---
+  {
+    name: 'checklist-9110-9.3.5',
+    tool: 'generate_checklist',
+    args: { rfc: 9110, sections: ['9.3.5'] },
+  },
+  {
+    // 2 ページにわたる表がある。1 項目 2,000 文字の「要件」が出ていた節。
+    name: 'checklist-2131-4.3.1',
+    tool: 'generate_checklist',
+    args: { rfc: 2131, sections: ['4.3.1'] },
+  },
+  {
+    // `<dl>` の 1 項目が段落。2,150 文字が 4 件並んでいた節。
+    name: 'checklist-9113-8.3.1',
+    tool: 'generate_checklist',
+    args: { rfc: 9113, sections: ['8.3.1'] },
+  },
+
+  // --- get_requirements ---
+  {
+    // ABNF の注釈に要件を書く。
+    name: 'requirements-6455-5.2',
+    tool: 'get_requirements',
+    args: { rfc: 6455, section: '5.2' },
+  },
+  {
+    // 字下げした見出し。§3.2.1〜3.2.8 が落ちていた節の親。
+    name: 'requirements-1123-3.2',
+    tool: 'get_requirements',
+    args: { rfc: 1123, section: '3.2' },
+  },
+  {
+    name: 'requirements-9110-9.3.5',
+    tool: 'get_requirements',
+    args: { rfc: 9110, section: '9.3.5' },
+  },
+
+  // --- get_definitions ---
+  {
+    // `<iref primary="true">` から取る。
+    name: 'definitions-9110-cache',
+    tool: 'get_definitions',
+    args: { rfc: 9110, term: 'cache' },
+  },
+  {
+    // `<dl>` から取る。
+    name: 'definitions-9114',
+    tool: 'get_definitions',
+    args: { rfc: 9114 },
+  },
+
+  // --- get_rfc_structure ---
+  {
+    // 中央寄せの見出し（1980 年代）。
+    name: 'structure-793',
+    tool: 'get_rfc_structure',
+    args: { rfc: 793 },
+  },
+  {
+    // 見出しと本文が 1 行に入る（1990 年代前半）。
+    name: 'structure-1035',
+    tool: 'get_rfc_structure',
+    args: { rfc: 1035 },
+  },
+
+  // --- get_rfc_dependencies ---
+  {
+    // 参考文献の欄をテキストから読む。
+    name: 'dependencies-6455',
+    tool: 'get_rfc_dependencies',
+    args: { rfc: 6455 },
+  },
+
+  // --- get_related_sections ---
+  {
+    // `[RFC3986] Section 3.4` を外部参照として扱う節。
+    name: 'related-6749-3.1',
+    tool: 'get_related_sections',
+    args: { rfc: 6749, section: '3.1' },
+  },
+
+  // --- validate_statement ---
+  {
+    name: 'validate-6455-compliant',
+    tool: 'validate_statement',
+    args: {
+      rfc: 6455,
+      statement: 'The client MUST mask all frames sent to the server.',
+    },
+  },
+  {
+    name: 'validate-6455-violation',
+    tool: 'validate_statement',
+    args: {
+      rfc: 6455,
+      statement: 'The client sends unmasked frames to the server.',
+    },
+  },
+];

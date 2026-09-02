@@ -137,8 +137,11 @@ export function createExternalSectionRegexes(): Array<{
       sectionGroup: 2,
       documentGroup: 1,
     },
+    // 読点は無くてもよい。RFC 6749 は "([RFC3986] Section 3.4)" と書く。
+    // 読点を必須にしていたため、この形が「この RFC の §3.4」として扱われ、
+    // `get_related_sections` が実在しない節を返していた（RFC 6749 に §3.4 は無い）。
     {
-      pattern: /\[([^\]]+)\],\s+[Ss]ections?\s+(\d+(?:\.\d+)*)(?=[\s,.;)]|$)/g,
+      pattern: /\[([^\]]+)\],?\s+[Ss]ections?\s+(\d+(?:\.\d+)*)(?=[\s,.;)]|$)/g,
       sectionGroup: 2,
       documentGroup: 1,
     },

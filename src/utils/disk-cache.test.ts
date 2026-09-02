@@ -91,3 +91,23 @@ describe('DiskCache.has / get / set', () => {
     expect(await cache.get(1)).toBe('second');
   });
 });
+
+describe('テキストのディスクキャッシュ', () => {
+  it('kind: text は .txt を text/ の下に置く', () => {
+    const cache = new DiskCache('/var/cache/foo/text', 'text');
+    expect(cache.filepath(1122)).toBe(path.join('/var/cache/foo/text', 'rfc1122.txt'));
+  });
+
+  it('fromEnv("text") は <RFCXML_CACHE_DIR>/text/ を指す', () => {
+    process.env.RFCXML_CACHE_DIR = '/tmp/example';
+    const cache = DiskCache.fromEnv('text');
+    expect(cache?.dir).toBe(path.join('/tmp/example', 'text'));
+    expect(cache?.kind).toBe('text');
+  });
+
+  it('書いたテキストを読み戻せる', async () => {
+    const cache = new DiskCache(path.join(tmpDir, 'text'), 'text');
+    await cache.set(768, 'User Datagram Protocol');
+    expect(await cache.get(768)).toBe('User Datagram Protocol');
+  });
+});

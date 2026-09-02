@@ -1,0 +1,30 @@
+# checklist-9110-9.3.5
+
+tool: generate_checklist
+args: {"rfc":9110,"sections":["9.3.5"]}
+
+--- markdown ---
+# RFC 9110 Implementation Checklist
+
+**HTTP Semantics**
+
+Generated: <generatedAt>
+
+## Recommended Requirements (SHOULD / RECOMMENDED)
+
+- [ ] **SHOULD** If a DELETE method is successfully applied, the origin server SHOULD send a 202 (Accepted) status code if the action will likely succeed but has not yet been enacted, a 204 (No Content) status code if the action has been enacted and no further information is to be supplied, or a 200 (OK) status code if the action has been enacted and the response message includes a representation describing the status. (§9.3.5)
+- [ ] **SHOULD NOT** A client SHOULD NOT generate content in a DELETE request unless it is made directly to an origin server that has previously indicated, in or out of band, that such a request has a purpose and will be adequately supported. (§9.3.5)
+- [ ] **SHOULD NOT** An origin server SHOULD NOT rely on private agreements to receive content, since participants in HTTP communication are often unaware of intermediaries along the request chain. (§9.3.5)
+
+--- json ---
+{
+  "rfc": 9110,
+  "role": "both",
+  "stats": {
+    "must": 0,
+    "should": 3,
+    "may": 0,
+    "total": 3
+  },
+  "_source": "xml"
+}

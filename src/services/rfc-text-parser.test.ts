@@ -802,3 +802,142 @@ describe('折り返した本文を節にしない', () => {
     expect(JSON.stringify(parsed.sections[0].content)).toContain('Inverse');
   });
 });
+
+describe('同じ節番号を二度受け付けないこと', () => {
+  it('要件一覧表の脚注を節にしない', () => {
+    // RFC 1123 は要件一覧表の脚注を "1.   Unless there is …" と書く。
+    // これを節として受け付けると直前の節番号が "1" に戻り、
+    // 字下げ見出しの後続判定から見て §6.2 以降が「次に来る番号」でなくなる。
+    const text = [
+      '1.  INTRODUCTION',
+      '',
+      '   This memo is one of a pair.',
+      '',
+      '2.  GENERAL ISSUES',
+      '',
+      '   Text.',
+      '',
+      '1.   Unless there is private agreement between particular resolver and',
+      '     particular server, a resolver MUST expect that.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1123);
+
+    expect(parsed.sections.map((s) => s.number)).toEqual(['1', '2']);
+  });
+
+  it('折り返した本文の行頭の数字を節にしない', () => {
+    // RFC 1305 は "… suggested in Section" のあとに "4 is used, …" と折り返す。
+    const text = [
+      '1.  Introduction',
+      '',
+      '   Text.',
+      '',
+      '4.  Filtering and Selection Algorithms',
+      '',
+      '   Text.',
+      '',
+      'Filter Size (NTP.SHIFT): When the filter algorithm suggested in Section',
+      '4 is used, this is the size of the clock filter (peer.filter) shift',
+      'register, in stages.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1305);
+
+    expect(parsed.sections.map((s) => s.number)).toEqual(['1', '4']);
+  });
+
+  it('擬似コードの中の折り返しを節にしない', () => {
+    // RFC 1305 は "/* test" のあとに "1 */" と折り返す。
+    const text = [
+      '1.  Introduction',
+      '',
+      '   Text.',
+      '',
+      '2.  Procedures',
+      '',
+      '   Text.',
+      '',
+      '        <$Etest1~<<-~( roman {pkt.xmt~!=~peer.org})>;   /* test',
+      '1 */',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1305);
+
+    expect(parsed.sections.map((s) => s.number)).toEqual(['1', '2']);
+  });
+});
+
+describe('題名の中の略語を文の終わりにしないこと', () => {
+  it('出典を書いた字下げ見出しを落とさない', () => {
+    // RFC 1123 §3.2.1 の題名は "Option Negotiation: RFC-854, pp. 2-3"。
+    // "pp." を文の終わりと見ると §3.2.1〜§3.2.8 が丸ごと落ちる。
+    const text = [
+      '3.  REMOTE LOGIN -- TELNET PROTOCOL',
+      '',
+      '   Text.',
+      '',
+      '   3.1  INTRODUCTION',
+      '',
+      '      Text.',
+      '',
+      '   3.2  PROTOCOL WALK-THROUGH',
+      '',
+      '      3.2.1  Option Negotiation: RFC-854, pp. 2-3',
+      '',
+      '         Every Telnet implementation MUST include option negotiation.',
+      '',
+      '      3.2.2  Telnet Go-Ahead Function: RFC-854, p. 5, and RFC-858',
+      '',
+      '         Text.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1123);
+
+    const walk = (list: Section[]): string[] =>
+      list.flatMap((s) => [s.number ?? '', ...walk(s.subsections)]);
+    expect(walk(parsed.sections)).toEqual(['3', '3.1', '3.2', '3.2.1', '3.2.2']);
+  });
+
+  it('句点のあとに文が続く題名は落とす', () => {
+    // RFC 1035 の "…the 26th bit corresponds to TCP port" の折り返し。
+    const text = [
+      '1.  Introduction',
+      '',
+      '   Text about the 26th bit corresponds to TCP port',
+      '25 (SMTP).  If this bit is set, a SMTP server should be listening on TCP',
+      '   port 25.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1035);
+
+    expect(parsed.sections.map((s) => s.number)).toEqual(['1']);
+  });
+});
+
+describe('題名の長さ', () => {
+  it('3 行にわたる長い題名を取る', () => {
+    // RFC 1521 の題名は 133 文字。上限 100 では落ちて metadata.title が空だった。
+    const text = [
+      'Network Working Group                                      N. Borenstein',
+      'Request for Comments: 1521                                      Bellcore',
+      'Category: Standards Track                                       Innosoft',
+      '                                                          September 1993',
+      '',
+      '',
+      '         MIME (Multipurpose Internet Mail Extensions) Part One:',
+      '                Mechanisms for Specifying and Describing',
+      '                 the Format of Internet Message Bodies',
+      '',
+      'Status of this Memo',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1521);
+
+    expect(parsed.metadata.title).toBe(
+      'MIME (Multipurpose Internet Mail Extensions) Part One: Mechanisms for Specifying and Describing the Format of Internet Message Bodies'
+    );
+  });
+});

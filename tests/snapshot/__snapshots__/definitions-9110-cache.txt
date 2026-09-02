@@ -1,0 +1,49 @@
+# definitions-9110-cache
+
+tool: get_definitions
+args: {"rfc":9110,"term":"cache"}
+
+--- json ---
+{
+  "rfc": 9110,
+  "searchTerm": "cache",
+  "count": 7,
+  "definitions": [
+    {
+      "term": "cache",
+      "definition": "A \"cache\" is a local store of previous response messages and the subsystem that controls its message storage, retrieval, and deletion. A cache stores cacheable responses in order to reduce the response time and network bandwidth consumption on future, equivalent requests. Any client or server MAY employ a cache, though a cache cannot be used while acting as a tunnel.",
+      "section": "3.8"
+    },
+    {
+      "term": "cacheable",
+      "definition": "A response is \"cacheable\" if a cache is allowed to store a copy of the response message for use in answering subsequent requests. Even when a response is cacheable, there might be additional constraints placed by the client or by the origin server on when that cached response can be used for a particular request. HTTP requirements for cache behavior and cacheable responses are defined in [CACHING].",
+      "section": "3.8"
+    },
+    {
+      "term": "non-transforming proxy",
+      "definition": "Some intermediaries include features for transforming messages and their content. A proxy might, for example, convert between image formats in order to save cache space or to reduce the amount of traffic on a slow link. However, operational problems might occur when these transformations are applied to content intended for critical applications, such as medical imaging or scientific data analysis, particularly when integrity checks or digital signatures are used to ensure that the content received is identical to the original.",
+      "section": "7.7"
+    },
+    {
+      "term": "Authorization header field",
+      "definition": "A proxy forwarding a request MUST NOT modify any Authorization header fields in that request. See Section 3.5 of [CACHING] for details of and requirements pertaining to handling of the Authorization header field by HTTP caches.",
+      "section": "11.6.2"
+    },
+    {
+      "term": "If-None-Match header field",
+      "definition": "If-None-Match is primarily used in conditional GET requests to enable efficient updates of cached information with a minimum amount of transaction overhead. When a client desires to update one or more stored responses that have entity tags, the client SHOULD generate an If-None-Match header field containing a list of those entity tags when making a GET request; this allows recipient servers to send a 304 (Not Modified) response to indicate when one of those stored responses matches the selected representation.",
+      "section": "13.1.2"
+    },
+    {
+      "term": "Range header field",
+      "definition": "A server MAY ignore the Range header field. However, origin servers and intermediate caches ought to support byte ranges when possible, since they support efficient recovery from partially failed transfers and partial retrieval of large representations.",
+      "section": "14.2"
+    },
+    {
+      "term": "203 Non-Authoritative Information (status code)",
+      "definition": "The 203 (Non-Authoritative Information) status code indicates that the request was successful but the enclosed content has been modified from that of the origin server's 200 (OK) response by a transforming proxy (Section 7.7). This status code allows the proxy to notify recipients when a transformation has been applied, since that knowledge might impact later decisions regarding the content. For example, future cache validation requests for the content might only be applicable along the same request path (through the same proxies).",
+      "section": "15.3.4"
+    }
+  ],
+  "_source": "xml"
+}

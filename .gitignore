@@ -21,7 +21,9 @@ npm-debug.log*
 
 # Test
 coverage/
+tests/audit/.cache/
 
 # Environment
 .env
 .env.local
+_to_delete/

@@ -1,0 +1,137 @@
+# structure-793
+
+tool: get_rfc_structure
+args: {"rfc":793}
+
+--- json ---
+{
+  "metadata": {
+    "title": "TRANSMISSION CONTROL PROTOCOL",
+    "number": 793,
+    "date": "1981-09",
+    "category": "std",
+    "stream": "IETF"
+  },
+  "sections": [
+    {
+      "number": "1",
+      "title": "INTRODUCTION",
+      "subsections": [
+        {
+          "number": "1.1",
+          "title": "Motivation"
+        },
+        {
+          "number": "1.2",
+          "title": "Scope"
+        },
+        {
+          "number": "1.3",
+          "title": "About this Document"
+        },
+        {
+          "number": "1.4",
+          "title": "Interfaces"
+        },
+        {
+          "number": "1.5",
+          "title": "Operation"
+        }
+      ]
+    },
+    {
+      "number": "2",
+      "title": "PHILOSOPHY",
+      "subsections": [
+        {
+          "number": "2.1",
+          "title": "Elements of the Internetwork System"
+        },
+        {
+          "number": "2.2",
+          "title": "Model of Operation"
+        },
+        {
+          "number": "2.3",
+          "title": "The Host Environment"
+        },
+        {
+          "number": "2.4",
+          "title": "Interfaces"
+        },
+        {
+          "number": "2.5",
+          "title": "Relation to Other Protocols"
+        },
+        {
+          "number": "2.6",
+          "title": "Reliable Communication"
+        },
+        {
+          "number": "2.7",
+          "title": "Connection Establishment and Clearing"
+        },
+        {
+          "number": "2.8",
+          "title": "Data Communication"
+        },
+        {
+          "number": "2.9",
+          "title": "Precedence and Security"
+        },
+        {
+          "number": "2.10",
+          "title": "Robustness Principle"
+        }
+      ]
+    },
+    {
+      "number": "3",
+      "title": "FUNCTIONAL SPECIFICATION",
+      "subsections": [
+        {
+          "number": "3.1",
+          "title": "Header Format"
+        },
+        {
+          "number": "3.2",
+          "title": "Terminology"
+        },
+        {
+          "number": "3.3",
+          "title": "Sequence Numbers"
+        },
+        {
+          "number": "3.4",
+          "title": "Establishing a connection"
+        },
+        {
+          "number": "3.5",
+          "title": "Closing a Connection"
+        },
+        {
+          "number": "3.6",
+          "title": "Precedence and Security"
+        },
+        {
+          "number": "3.7",
+          "title": "Data Communication"
+        },
+        {
+          "number": "3.8",
+          "title": "Interfaces"
+        },
+        {
+          "number": "3.9",
+          "title": "Event Processing"
+        }
+      ]
+    }
+  ],
+  "referenceCount": {
+    "normative": 0,
+    "informative": 4
+  },
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Accuracy may be limited."
+}

@@ -270,3 +270,47 @@ describe('空白で桁を揃えた表', () => {
     );
   });
 });
+
+describe('擬似コードを図として扱うこと', () => {
+  it('C 風の注釈を含む行は図とみなす', () => {
+    // RFC 3550 §8.2 は擬似コードの注釈に "/* OPTIONAL error counter step */"
+    // と書く。段落全体を散文とみなすと、1,229 文字の擬似コードが 1 件の
+    // 「要件」になっていた。
+    expect(looksLikeDiagram('              /* OPTIONAL error counter step */')).toBe(true);
+  });
+
+  it('波括弧で終わる行は図とみなす', () => {
+    expect(looksLikeDiagram('          if (source identifier is not the own) {')).toBe(true);
+    expect(looksLikeDiagram('          }')).toBe(true);
+  });
+
+  it('散文は図とみなさない', () => {
+    expect(looksLikeDiagram('The client MUST mask all frames that it sends to the server.')).toBe(
+      false
+    );
+  });
+});
+
+describe('別文書の節の参照', () => {
+  it('読点の無い "[RFC3986] Section 3.4" を外部参照として扱う', () => {
+    // RFC 6749 は "([RFC3986] Section 3.4)" と書く。読点を必須にしていたため
+    // この形が「この RFC の §3.4」になり、`get_related_sections` が実在しない
+    // 節を返していた（RFC 6749 に §3.4 は無い）。
+    const refs = extractCrossReferences(
+      'The endpoint URI MAY include an "application/x-www-form-urlencoded" formatted query component ([RFC3986] Section 3.4), which MUST be retained.'
+    );
+
+    expect(refs).toContainEqual(
+      expect.objectContaining({ type: 'external', target: 'RFC3986', section: '3.4' })
+    );
+    expect(refs.some((ref) => ref.type === 'section')).toBe(false);
+  });
+
+  it('読点のある形も引き続き外部参照として扱う', () => {
+    const refs = extractCrossReferences('as explained in [RFC6691], Section 3.1.');
+
+    expect(refs).toContainEqual(
+      expect.objectContaining({ type: 'external', target: 'RFC6691', section: '3.1' })
+    );
+  });
+});

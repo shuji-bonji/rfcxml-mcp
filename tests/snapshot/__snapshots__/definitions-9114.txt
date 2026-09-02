@@ -1,0 +1,468 @@
+# definitions-9114
+
+tool: get_definitions
+args: {"rfc":9114}
+
+--- json ---
+{
+  "rfc": 9114,
+  "count": 91,
+  "definitions": [
+    {
+      "term": "abort",
+      "definition": "An abrupt termination of a connection or stream, possibly due to an error condition.",
+      "section": "2.2"
+    },
+    {
+      "term": "client",
+      "definition": "The endpoint that initiates an HTTP/3 connection. Clients send HTTP requests and receive HTTP responses.",
+      "section": "2.2"
+    },
+    {
+      "term": "connection",
+      "definition": "A transport-layer connection between two endpoints using QUIC as the transport protocol.",
+      "section": "2.2"
+    },
+    {
+      "term": "connection error",
+      "definition": "An error that affects the entire HTTP/3 connection.",
+      "section": "2.2"
+    },
+    {
+      "term": "endpoint",
+      "definition": "Either the client or server of the connection.",
+      "section": "2.2"
+    },
+    {
+      "term": "frame",
+      "definition": "The smallest unit of communication on a stream in HTTP/3, consisting of a header and a variable-length sequence of bytes structured according to the frame type. Protocol elements called \"frames\" exist in both this document and [QUIC-TRANSPORT]. Where frames from [QUIC-TRANSPORT] are referenced, the frame name will be prefaced with \"QUIC\". For example, \"QUIC CONNECTION_CLOSE frames\". References without this preface refer to frames defined in Section 7.2.",
+      "section": "2.2"
+    },
+    {
+      "term": "HTTP/3 connection",
+      "definition": "A QUIC connection where the negotiated application protocol is HTTP/3.",
+      "section": "2.2"
+    },
+    {
+      "term": "peer",
+      "definition": "An endpoint. When discussing a particular endpoint, \"peer\" refers to the endpoint that is remote to the primary subject of discussion.",
+      "section": "2.2"
+    },
+    {
+      "term": "receiver",
+      "definition": "An endpoint that is receiving frames.",
+      "section": "2.2"
+    },
+    {
+      "term": "sender",
+      "definition": "An endpoint that is transmitting frames.",
+      "section": "2.2"
+    },
+    {
+      "term": "server",
+      "definition": "The endpoint that accepts an HTTP/3 connection. Servers receive HTTP requests and send HTTP responses.",
+      "section": "2.2"
+    },
+    {
+      "term": "stream",
+      "definition": "A bidirectional or unidirectional bytestream provided by the QUIC transport. All streams within an HTTP/3 connection can be considered \"HTTP/3 streams\", but multiple stream types are defined within HTTP/3.",
+      "section": "2.2"
+    },
+    {
+      "term": "stream error",
+      "definition": "An application-level error on the individual stream.",
+      "section": "2.2"
+    },
+    {
+      "term": "malformed",
+      "definition": "A malformed request or response is one that is an otherwise valid sequence of frames but is invalid due to:",
+      "section": "4.1.2"
+    },
+    {
+      "term": ":method",
+      "definition": "Contains the HTTP method (Section 9 of [HTTP])",
+      "section": "4.3.1"
+    },
+    {
+      "term": ":scheme",
+      "definition": "Contains the scheme portion of the target URI (Section 3.1 of [URI]).",
+      "section": "4.3.1"
+    },
+    {
+      "term": ":authority",
+      "definition": "Contains the authority portion of the target URI (Section 3.2 of [URI]). The authority MUST NOT include the deprecated userinfo subcomponent for URIs of scheme \"http\" or \"https\".",
+      "section": "4.3.1"
+    },
+    {
+      "term": ":path",
+      "definition": "Contains the path and query parts of the target URI (the \"path-absolute\" production and optionally a ? character (ASCII 0x3f) followed by the \"query\" production; see Sections 3.3 and 3.4 of [URI].",
+      "section": "4.3.1"
+    },
+    {
+      "term": "request stream",
+      "definition": "All client-initiated bidirectional streams are used for HTTP requests and responses. A bidirectional stream ensures that the response can be readily correlated with the request. These streams are referred to as request streams.",
+      "section": "6.1"
+    },
+    {
+      "term": "control stream",
+      "definition": "A control stream is indicated by a stream type of 0x00. Data on this stream consists of HTTP/3 frames, as defined in Section 7.2.",
+      "section": "6.2.1"
+    },
+    {
+      "term": "push stream",
+      "definition": "A push stream is indicated by a stream type of 0x01, followed by the push ID of the promise that it fulfills, encoded as a variable-length integer. The remaining data on this stream consists of HTTP/3 frames, as defined in Section 7.2, and fulfills a promised server push by zero or more interim HTTP responses followed by a single final HTTP response, as defined in Section 4.1. Server push and push IDs are described in Section 4.6.",
+      "section": "6.2.2"
+    },
+    {
+      "term": "Type",
+      "definition": "A variable-length integer that identifies the frame type.",
+      "section": "7.1"
+    },
+    {
+      "term": "Length",
+      "definition": "A variable-length integer that describes the length in bytes of the Frame Payload.",
+      "section": "7.1"
+    },
+    {
+      "term": "Frame Payload",
+      "definition": "A payload, the semantics of which are determined by the Type field.",
+      "section": "7.1"
+    },
+    {
+      "term": "DATA",
+      "definition": "DATA frames (type=0x00) convey arbitrary, variable-length sequences of bytes associated with HTTP request or response content.",
+      "section": "7.2.1"
+    },
+    {
+      "term": "HEADERS",
+      "definition": "The HEADERS frame (type=0x01) is used to carry an HTTP field section that is encoded using QPACK. See [QPACK] for more details.",
+      "section": "7.2.2"
+    },
+    {
+      "term": "CANCEL_PUSH",
+      "definition": "The CANCEL_PUSH frame (type=0x03) is used to request cancellation of a server push prior to the push stream being received. The CANCEL_PUSH frame identifies a server push by push ID (see Section 4.6), encoded as a variable-length integer.",
+      "section": "7.2.3"
+    },
+    {
+      "term": "SETTINGS",
+      "definition": "The SETTINGS frame (type=0x04) conveys configuration parameters that affect how endpoints communicate, such as preferences and constraints on peer behavior. Individually, a SETTINGS parameter can also be referred to as a \"setting\"; the identifier and value of each setting parameter can be referred to as a \"setting identifier\" and a \"setting value\".",
+      "section": "7.2.4"
+    },
+    {
+      "term": "SETTINGS_MAX_FIELD_SECTION_SIZE (0x06)",
+      "definition": "The default value is unlimited. See Section 4.2.2 for usage.",
+      "section": "7.2.4.1"
+    },
+    {
+      "term": "Push ID",
+      "definition": "A variable-length integer that identifies the server push operation. A push ID is used in push stream headers (Section 4.6) and CANCEL_PUSH frames.",
+      "section": "7.2.5"
+    },
+    {
+      "term": "Encoded Field Section",
+      "definition": "QPACK-encoded request header fields for the promised response. See [QPACK] for more details.",
+      "section": "7.2.5"
+    },
+    {
+      "term": "PUSH_PROMISE",
+      "definition": "The PUSH_PROMISE frame (type=0x05) is used to carry a promised request header section from server to client on a request stream .",
+      "section": "7.2.5"
+    },
+    {
+      "term": "GOAWAY",
+      "definition": "The GOAWAY frame (type=0x07) is used to initiate graceful shutdown of an HTTP/3 connection by either endpoint. GOAWAY allows an endpoint to stop accepting new requests or pushes while still finishing processing of previously received requests and pushes. This enables administrative actions, like server maintenance. GOAWAY by itself does not close a connection.",
+      "section": "7.2.6"
+    },
+    {
+      "term": "MAX_PUSH_ID",
+      "definition": "The MAX_PUSH_ID frame (type=0x0d) is used by clients to control the number of server pushes that the server can initiate. This sets the maximum value for a push ID that the server can use in PUSH_PROMISE and CANCEL_PUSH frames. Consequently, this also limits the number of push streams that the server can initiate in addition to the limit maintained by the QUIC transport.",
+      "section": "7.2.7"
+    },
+    {
+      "term": "H3_NO_ERROR (0x0100)",
+      "definition": "No error. This is used when the connection or stream needs to be closed, but there is no error to signal.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_GENERAL_PROTOCOL_ERROR (0x0101)",
+      "definition": "Peer violated protocol requirements in a way that does not match a more specific error code or endpoint declines to use the more specific error code.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_INTERNAL_ERROR (0x0102)",
+      "definition": "An internal error has occurred in the HTTP stack.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_STREAM_CREATION_ERROR (0x0103)",
+      "definition": "The endpoint detected that its peer created a stream that it will not accept.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_CLOSED_CRITICAL_STREAM (0x0104)",
+      "definition": "A stream required by the HTTP/3 connection was closed or reset.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_FRAME_UNEXPECTED (0x0105)",
+      "definition": "A frame was received that was not permitted in the current state or on the current stream.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_FRAME_ERROR (0x0106)",
+      "definition": "A frame that fails to satisfy layout requirements or with an invalid size was received.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_EXCESSIVE_LOAD (0x0107)",
+      "definition": "The endpoint detected that its peer is exhibiting a behavior that might be generating excessive load.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_ID_ERROR (0x0108)",
+      "definition": "A stream ID or push ID was used incorrectly, such as exceeding a limit, reducing a limit, or being reused.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_SETTINGS_ERROR (0x0109)",
+      "definition": "An endpoint detected an error in the payload of a SETTINGS frame.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_MISSING_SETTINGS (0x010a)",
+      "definition": "No SETTINGS frame was received at the beginning of the control stream.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_REQUEST_REJECTED (0x010b)",
+      "definition": "A server rejected a request without performing any application processing.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_REQUEST_CANCELLED (0x010c)",
+      "definition": "The request or its response (including pushed response) is cancelled.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_REQUEST_INCOMPLETE (0x010d)",
+      "definition": "The client's stream terminated without containing a fully formed request.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_MESSAGE_ERROR (0x010e)",
+      "definition": "An HTTP message was malformed and cannot be processed.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_CONNECT_ERROR (0x010f)",
+      "definition": "The TCP connection established in response to a CONNECT request was reset or abnormally closed.",
+      "section": "8.1"
+    },
+    {
+      "term": "H3_VERSION_FALLBACK (0x0110)",
+      "definition": "The requested operation cannot be served over HTTP/3. The peer should retry over HTTP/1.1.",
+      "section": "8.1"
+    },
+    {
+      "term": "Protocol",
+      "definition": "HTTP/3",
+      "section": "11.1"
+    },
+    {
+      "term": "Identification Sequence",
+      "definition": "0x68 0x33 (\"h3\")",
+      "section": "11.1"
+    },
+    {
+      "term": "Specification",
+      "definition": "This document",
+      "section": "11.1"
+    },
+    {
+      "term": "Frame Type",
+      "definition": "A name or label for the frame type.",
+      "section": "11.2.1"
+    },
+    {
+      "term": "Setting Name",
+      "definition": "A symbolic name for the setting. Specifying a setting name is optional.",
+      "section": "11.2.2"
+    },
+    {
+      "term": "Default",
+      "definition": "The value of the setting unless otherwise indicated. A default SHOULD be the most restrictive possible value.",
+      "section": "11.2.2"
+    },
+    {
+      "term": "Name",
+      "definition": "A name for the error code.",
+      "section": "11.2.3"
+    },
+    {
+      "term": "Description",
+      "definition": "A brief description of the error code semantics.",
+      "section": "11.2.3"
+    },
+    {
+      "term": "Stream Type",
+      "definition": "A name or label for the stream type.",
+      "section": "11.2.4"
+    },
+    {
+      "term": "Sender",
+      "definition": "Which endpoint on an HTTP/3 connection may initiate a stream of this type. Values are \"Client\", \"Server\", or \"Both\".",
+      "section": "11.2.4"
+    },
+    {
+      "term": "DATA (0x00)",
+      "definition": "Padding is not defined in HTTP/3 frames. See Section 7.2.1.",
+      "section": "A.2.5"
+    },
+    {
+      "term": "HEADERS (0x01)",
+      "definition": "The PRIORITY region of HEADERS is not defined in HTTP/3 frames. Padding is not defined in HTTP/3 frames. See Section 7.2.2.",
+      "section": "A.2.5"
+    },
+    {
+      "term": "PRIORITY (0x02)",
+      "definition": "As described in Appendix A.2.1, HTTP/3 does not provide a means of signaling priority.",
+      "section": "A.2.5"
+    },
+    {
+      "term": "RST_STREAM (0x03)",
+      "definition": "RST_STREAM frames do not exist in HTTP/3, since QUIC provides stream lifecycle management. The same code point is used for the CANCEL_PUSH frame (Section 7.2.3).",
+      "section": "A.2.5"
+    },
+    {
+      "term": "SETTINGS (0x04)",
+      "definition": "SETTINGS frames are sent only at the beginning of the connection. See Section 7.2.4 and Appendix A.3.",
+      "section": "A.2.5"
+    },
+    {
+      "term": "PUSH_PROMISE (0x05)",
+      "definition": "The PUSH_PROMISE frame does not reference a stream; instead, the push stream references the PUSH_PROMISE frame using a push ID. See Section 7.2.5.",
+      "section": "A.2.5"
+    },
+    {
+      "term": "PING (0x06)",
+      "definition": "PING frames do not exist in HTTP/3, as QUIC provides equivalent functionality.",
+      "section": "A.2.5"
+    },
+    {
+      "term": "GOAWAY (0x07)",
+      "definition": "GOAWAY does not contain an error code. In the client-to-server direction, it carries a push ID instead of a server-initiated stream ID. See Section 7.2.6.",
+      "section": "A.2.5"
+    },
+    {
+      "term": "WINDOW_UPDATE (0x08)",
+      "definition": "WINDOW_UPDATE frames do not exist in HTTP/3, since QUIC provides flow control.",
+      "section": "A.2.5"
+    },
+    {
+      "term": "CONTINUATION (0x09)",
+      "definition": "CONTINUATION frames do not exist in HTTP/3; instead, larger HEADERS/PUSH_PROMISE frames than HTTP/2 are permitted.",
+      "section": "A.2.5"
+    },
+    {
+      "term": "SETTINGS_HEADER_TABLE_SIZE (0x01)",
+      "definition": "See [QPACK].",
+      "section": "A.3"
+    },
+    {
+      "term": "SETTINGS_ENABLE_PUSH (0x02)",
+      "definition": "This is removed in favor of the MAX_PUSH_ID frame, which provides a more granular control over server push. Specifying a setting with the identifier 0x02 (corresponding to the SETTINGS_ENABLE_PUSH parameter) in the HTTP/3 SETTINGS frame is an error.",
+      "section": "A.3"
+    },
+    {
+      "term": "SETTINGS_MAX_CONCURRENT_STREAMS (0x03)",
+      "definition": "QUIC controls the largest open stream ID as part of its flow-control logic. Specifying a setting with the identifier 0x03 (corresponding to the SETTINGS_MAX_CONCURRENT_STREAMS parameter) in the HTTP/3 SETTINGS frame is an error.",
+      "section": "A.3"
+    },
+    {
+      "term": "SETTINGS_INITIAL_WINDOW_SIZE (0x04)",
+      "definition": "QUIC requires both stream and connection flow-control window sizes to be specified in the initial transport handshake. Specifying a setting with the identifier 0x04 (corresponding to the SETTINGS_INITIAL_WINDOW_SIZE parameter) in the HTTP/3 SETTINGS frame is an error.",
+      "section": "A.3"
+    },
+    {
+      "term": "SETTINGS_MAX_FRAME_SIZE (0x05)",
+      "definition": "This setting has no equivalent in HTTP/3. Specifying a setting with the identifier 0x05 (corresponding to the SETTINGS_MAX_FRAME_SIZE parameter) in the HTTP/3 SETTINGS frame is an error.",
+      "section": "A.3"
+    },
+    {
+      "term": "SETTINGS_MAX_HEADER_LIST_SIZE (0x06)",
+      "definition": "This setting identifier has been renamed SETTINGS_MAX_FIELD_SECTION_SIZE.",
+      "section": "A.3"
+    },
+    {
+      "term": "NO_ERROR (0x00)",
+      "definition": "H3_NO_ERROR in Section 8.1.",
+      "section": "A.4"
+    },
+    {
+      "term": "PROTOCOL_ERROR (0x01)",
+      "definition": "This is mapped to H3_GENERAL_PROTOCOL_ERROR except in cases where more specific error codes have been defined. Such cases include H3_FRAME_UNEXPECTED, H3_MESSAGE_ERROR, and H3_CLOSED_CRITICAL_STREAM defined in Section 8.1.",
+      "section": "A.4"
+    },
+    {
+      "term": "INTERNAL_ERROR (0x02)",
+      "definition": "H3_INTERNAL_ERROR in Section 8.1.",
+      "section": "A.4"
+    },
+    {
+      "term": "FLOW_CONTROL_ERROR (0x03)",
+      "definition": "Not applicable, since QUIC handles flow control.",
+      "section": "A.4"
+    },
+    {
+      "term": "SETTINGS_TIMEOUT (0x04)",
+      "definition": "Not applicable, since no acknowledgment of SETTINGS is defined.",
+      "section": "A.4"
+    },
+    {
+      "term": "STREAM_CLOSED (0x05)",
+      "definition": "Not applicable, since QUIC handles stream management.",
+      "section": "A.4"
+    },
+    {
+      "term": "FRAME_SIZE_ERROR (0x06)",
+      "definition": "H3_FRAME_ERROR error code defined in Section 8.1.",
+      "section": "A.4"
+    },
+    {
+      "term": "REFUSED_STREAM (0x07)",
+      "definition": "H3_REQUEST_REJECTED (in Section 8.1) is used to indicate that a request was not processed. Otherwise, not applicable because QUIC handles stream management.",
+      "section": "A.4"
+    },
+    {
+      "term": "CANCEL (0x08)",
+      "definition": "H3_REQUEST_CANCELLED in Section 8.1.",
+      "section": "A.4"
+    },
+    {
+      "term": "COMPRESSION_ERROR (0x09)",
+      "definition": "Multiple error codes are defined in [QPACK].",
+      "section": "A.4"
+    },
+    {
+      "term": "CONNECT_ERROR (0x0a)",
+      "definition": "H3_CONNECT_ERROR in Section 8.1.",
+      "section": "A.4"
+    },
+    {
+      "term": "ENHANCE_YOUR_CALM (0x0b)",
+      "definition": "H3_EXCESSIVE_LOAD in Section 8.1.",
+      "section": "A.4"
+    },
+    {
+      "term": "INADEQUATE_SECURITY (0x0c)",
+      "definition": "Not applicable, since QUIC is assumed to provide sufficient security on all connections.",
+      "section": "A.4"
+    },
+    {
+      "term": "HTTP_1_1_REQUIRED (0x0d)",
+      "definition": "H3_VERSION_FALLBACK in Section 8.1.",
+      "section": "A.4"
+    }
+  ],
+  "_source": "xml"
+}

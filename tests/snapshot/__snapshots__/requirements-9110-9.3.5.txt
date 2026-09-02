@@ -1,0 +1,54 @@
+# requirements-9110-9.3.5
+
+tool: get_requirements
+args: {"rfc":9110,"section":"9.3.5"}
+
+--- json ---
+{
+  "rfc": 9110,
+  "filter": {
+    "section": "9.3.5",
+    "level": "all"
+  },
+  "stats": {
+    "total": 3,
+    "byLevel": {
+      "SHOULD": 1,
+      "SHOULD NOT": 2
+    }
+  },
+  "requirements": [
+    {
+      "id": "R-9.3.5-1",
+      "level": "SHOULD",
+      "text": "If a DELETE method is successfully applied, the origin server SHOULD send a 202 (Accepted) status code if the action will likely succeed but has not yet been enacted, a 204 (No Content) status code if the action has been enacted and no further information is to be supplied, or a 200 (OK) status code if the action has been enacted and the response message includes a representation describing the status.",
+      "section": "9.3.5",
+      "sectionTitle": "DELETE",
+      "fullContext": "If a DELETE method is successfully applied, the origin server SHOULD send a 202 (Accepted) status code if the action will likely succeed but has not yet been enacted, a 204 (No Content) status code if the action has been enacted and no further information is to be supplied, or a 200 (OK) status code if the action has been enacted and the response message includes a representation describing the status.",
+      "condition": "a DELETE method is successfully applied",
+      "action": "send a 202 (Accepted) status code if the action will likely succeed but has not yet been enacted"
+    },
+    {
+      "id": "R-9.3.5-2",
+      "level": "SHOULD NOT",
+      "text": "A client SHOULD NOT generate content in a DELETE request unless it is made directly to an origin server that has previously indicated, in or out of band, that such a request has a purpose and will be adequately supported.",
+      "section": "9.3.5",
+      "sectionTitle": "DELETE",
+      "fullContext": "Although request message framing is independent of the method used, content received in a DELETE request has no generally defined semantics, cannot alter the meaning or target of the request, and might lead some implementations to reject the request and close the connection because of its potential as a request smuggling attack (Section 11.2 of [HTTP/1.1]). A client SHOULD NOT generate content in a DELETE request unless it is made directly to an origin server that has previously indicated, in or out of band, that such a request has a purpose and will be adequately supported. An origin server SHOULD NOT rely on private agreements to receive content, since participants in HTTP communication are often unaware of intermediaries along the request chain.",
+      "subject": "a client",
+      "condition": "it is made directly to an origin server that has previously indicated",
+      "exception": "it is made directly to an origin server that has previously indicated",
+      "action": "generate content in a DELETE request unless it is made directly to an origin server that has previously indicated"
+    },
+    {
+      "id": "R-9.3.5-3",
+      "level": "SHOULD NOT",
+      "text": "An origin server SHOULD NOT rely on private agreements to receive content, since participants in HTTP communication are often unaware of intermediaries along the request chain.",
+      "section": "9.3.5",
+      "sectionTitle": "DELETE",
+      "fullContext": "Although request message framing is independent of the method used, content received in a DELETE request has no generally defined semantics, cannot alter the meaning or target of the request, and might lead some implementations to reject the request and close the connection because of its potential as a request smuggling attack (Section 11.2 of [HTTP/1.1]). A client SHOULD NOT generate content in a DELETE request unless it is made directly to an origin server that has previously indicated, in or out of band, that such a request has a purpose and will be adequately supported. An origin server SHOULD NOT rely on private agreements to receive content, since participants in HTTP communication are often unaware of intermediaries along the request chain.",
+      "action": "rely on private agreements to receive content"
+    }
+  ],
+  "_source": "xml"
+}

@@ -1,0 +1,338 @@
+# structure-1035
+
+tool: get_rfc_structure
+args: {"rfc":1035}
+
+--- json ---
+{
+  "metadata": {
+    "title": "DOMAIN NAMES - IMPLEMENTATION AND SPECIFICATION",
+    "number": 1035,
+    "date": "1987-11",
+    "category": "std",
+    "stream": "IETF",
+    "abstract": "This RFC is the revised specification of the protocol and format used in the implementation of the Domain Name System.  It obsoletes RFC-883.  This memo documents the details of the domain name client - server communication."
+  },
+  "sections": [
+    {
+      "number": "1",
+      "title": "STATUS OF THIS MEMO"
+    },
+    {
+      "number": "2",
+      "title": "INTRODUCTION",
+      "subsections": [
+        {
+          "number": "2.1",
+          "title": "Overview"
+        },
+        {
+          "number": "2.2",
+          "title": "Common configurations"
+        },
+        {
+          "number": "2.3",
+          "title": "Conventions",
+          "subsections": [
+            {
+              "number": "2.3.1",
+              "title": "Preferred name syntax"
+            },
+            {
+              "number": "2.3.2",
+              "title": "Data Transmission Order"
+            },
+            {
+              "number": "2.3.3",
+              "title": "Character Case"
+            },
+            {
+              "number": "2.3.4",
+              "title": "Size limits"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "3",
+      "title": "DOMAIN NAME SPACE AND RR DEFINITIONS",
+      "subsections": [
+        {
+          "number": "3.1",
+          "title": "Name space definitions"
+        },
+        {
+          "number": "3.2",
+          "title": "RR definitions",
+          "subsections": [
+            {
+              "number": "3.2.1",
+              "title": "Format"
+            },
+            {
+              "number": "3.2.2",
+              "title": "TYPE values"
+            },
+            {
+              "number": "3.2.3",
+              "title": "QTYPE values"
+            },
+            {
+              "number": "3.2.4",
+              "title": "CLASS values"
+            },
+            {
+              "number": "3.2.5",
+              "title": "QCLASS values"
+            }
+          ]
+        },
+        {
+          "number": "3.3",
+          "title": "Standard RRs",
+          "subsections": [
+            {
+              "number": "3.3.1",
+              "title": "CNAME RDATA format"
+            },
+            {
+              "number": "3.3.2",
+              "title": "HINFO RDATA format"
+            },
+            {
+              "number": "3.3.3",
+              "title": "MB RDATA format (EXPERIMENTAL)"
+            },
+            {
+              "number": "3.3.4",
+              "title": "MD RDATA format (Obsolete)"
+            },
+            {
+              "number": "3.3.5",
+              "title": "MF RDATA format (Obsolete)"
+            },
+            {
+              "number": "3.3.6",
+              "title": "MG RDATA format (EXPERIMENTAL)"
+            },
+            {
+              "number": "3.3.7",
+              "title": "MINFO RDATA format (EXPERIMENTAL)"
+            },
+            {
+              "number": "3.3.8",
+              "title": "MR RDATA format (EXPERIMENTAL)"
+            },
+            {
+              "number": "3.3.9",
+              "title": "MX RDATA format"
+            },
+            {
+              "number": "3.3.10",
+              "title": "NULL RDATA format (EXPERIMENTAL)"
+            },
+            {
+              "number": "3.3.11",
+              "title": "NS RDATA format"
+            },
+            {
+              "number": "3.3.12",
+              "title": "PTR RDATA format"
+            },
+            {
+              "number": "3.3.13",
+              "title": "SOA RDATA format"
+            },
+            {
+              "number": "3.3.14",
+              "title": "TXT RDATA format"
+            }
+          ]
+        },
+        {
+          "number": "3.4",
+          "title": "Internet specific RRs",
+          "subsections": [
+            {
+              "number": "3.4.1",
+              "title": "A RDATA format"
+            },
+            {
+              "number": "3.4.2",
+              "title": "WKS RDATA format"
+            }
+          ]
+        },
+        {
+          "number": "3.5",
+          "title": "IN-ADDR.ARPA domain"
+        },
+        {
+          "number": "3.6",
+          "title": "Defining new types, classes, and special namespaces"
+        }
+      ]
+    },
+    {
+      "number": "4",
+      "title": "MESSAGES",
+      "subsections": [
+        {
+          "number": "4.1",
+          "title": "Format",
+          "subsections": [
+            {
+              "number": "4.1.1",
+              "title": "Header section format"
+            },
+            {
+              "number": "4.1.2",
+              "title": "Question section format"
+            },
+            {
+              "number": "4.1.3",
+              "title": "Resource record format"
+            },
+            {
+              "number": "4.1.4",
+              "title": "Message compression"
+            }
+          ]
+        },
+        {
+          "number": "4.2",
+          "title": "Transport",
+          "subsections": [
+            {
+              "number": "4.2.1",
+              "title": "UDP usage"
+            },
+            {
+              "number": "4.2.2",
+              "title": "TCP usage"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "5",
+      "title": "MASTER FILES",
+      "subsections": [
+        {
+          "number": "5.1",
+          "title": "Format"
+        },
+        {
+          "number": "5.2",
+          "title": "Use of master files to define zones"
+        },
+        {
+          "number": "5.3",
+          "title": "Master file example"
+        }
+      ]
+    },
+    {
+      "number": "6",
+      "title": "NAME SERVER IMPLEMENTATION",
+      "subsections": [
+        {
+          "number": "6.1",
+          "title": "Architecture",
+          "subsections": [
+            {
+              "number": "6.1.1",
+              "title": "Control"
+            },
+            {
+              "number": "6.1.2",
+              "title": "Database"
+            },
+            {
+              "number": "6.1.3",
+              "title": "Time"
+            }
+          ]
+        },
+        {
+          "number": "6.2",
+          "title": "Standard query processing"
+        },
+        {
+          "number": "6.3",
+          "title": "Zone refresh and reload processing"
+        },
+        {
+          "number": "6.4",
+          "title": "Inverse queries (Optional)",
+          "subsections": [
+            {
+              "number": "6.4.1",
+              "title": "The contents of inverse queries and responses"
+            },
+            {
+              "number": "6.4.2",
+              "title": "Inverse query and response example"
+            },
+            {
+              "number": "6.4.3",
+              "title": "Inverse query processing"
+            }
+          ]
+        },
+        {
+          "number": "6.5",
+          "title": "Completion queries and responses"
+        }
+      ]
+    },
+    {
+      "number": "7",
+      "title": "RESOLVER IMPLEMENTATION",
+      "subsections": [
+        {
+          "number": "7.1",
+          "title": "Transforming a user request into a query"
+        },
+        {
+          "number": "7.2",
+          "title": "Sending the queries"
+        },
+        {
+          "number": "7.3",
+          "title": "Processing responses"
+        },
+        {
+          "number": "7.4",
+          "title": "Using the cache"
+        }
+      ]
+    },
+    {
+      "number": "8",
+      "title": "MAIL SUPPORT",
+      "subsections": [
+        {
+          "number": "8.1",
+          "title": "Mail exchange binding"
+        },
+        {
+          "number": "8.2",
+          "title": "Mailbox binding (Experimental)"
+        }
+      ]
+    },
+    {
+      "number": "9",
+      "title": "REFERENCES and BIBLIOGRAPHY"
+    }
+  ],
+  "referenceCount": {
+    "normative": 0,
+    "informative": 0
+  },
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Accuracy may be limited."
+}

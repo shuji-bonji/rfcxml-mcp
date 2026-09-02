@@ -31,6 +31,7 @@ const metadataCache = new LRUCache<number, RFCMetadata>(CACHE_CONFIG.metadata);
  * tests when changing the env var mid-run.
  */
 let diskCacheInstance: DiskCache | null | undefined;
+let textDiskCacheInstance: DiskCache | null | undefined;
 
 function getDiskCache(): DiskCache | null {
   if (diskCacheInstance === undefined) {
@@ -40,12 +41,27 @@ function getDiskCache(): DiskCache | null {
 }
 
 /**
+ * テキストのディスクキャッシュ。
+ *
+ * RFCXML が無い RFC（RFC 8650 より前のほとんど）はテキストで読む。v0.6.14 まで
+ * テキストはメモリの LRU にしか入らず、MCP サーバを再起動するたびに取り直して
+ * いた。RFC 1122 の本文は 200 KB あり、`rfcxml-prefetch` を通しても効かなかった。
+ */
+function getTextDiskCache(): DiskCache | null {
+  if (textDiskCacheInstance === undefined) {
+    textDiskCacheInstance = DiskCache.fromEnv('text');
+  }
+  return textDiskCacheInstance;
+}
+
+/**
  * Reset the lazily-initialized disk cache. Tests use this to re-read the
  * `RFCXML_CACHE_DIR` env var after mutating it. Not exposed in the MCP tool
  * surface.
  */
 export function resetDiskCacheForTesting(): void {
   diskCacheInstance = undefined;
+  textDiskCacheInstance = undefined;
 }
 
 // Person info is shared across many RFCs (a single author appears in many RFCs),
@@ -231,6 +247,16 @@ export async function fetchRFCText(rfcNumber: number): Promise<string> {
     return cached;
   }
 
+  const disk = getTextDiskCache();
+  if (disk) {
+    const fromDisk = await disk.get(rfcNumber);
+    if (fromDisk) {
+      textCache.set(rfcNumber, fromDisk);
+      logger.info(`RFC ${rfcNumber}`, `Text loaded from disk cache (${disk.dir})`);
+      return fromDisk;
+    }
+  }
+
   // Build source list
   const sources = Object.entries(RFC_TEXT_SOURCES).map(([name, urlFn]) => ({
     name,
@@ -245,6 +271,7 @@ export async function fetchRFCText(rfcNumber: number): Promise<string> {
     });
 
     textCache.set(rfcNumber, text);
+    if (disk) await disk.set(rfcNumber, text);
     logger.info(`RFC ${rfcNumber}`, `Text fetched from ${source}`);
     return text;
   } catch (error) {

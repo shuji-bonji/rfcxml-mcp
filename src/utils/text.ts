@@ -226,6 +226,8 @@ const DIAGRAM_PATTERNS: RegExp[] = [
   /\|[ \t]{2,}/, // 図の縦罫（"|   F   |"）
   /^[ \t]*\|.*\|[ \t]*$/m, // 罫線で囲んだ行（"|F|R|R|R| opcode|M| Payload len |"）
   /\S {3,}\S[^\n]* {3,}\S/, // 空白で桁を揃えた表の行（"Message   SHOULD   SHOULD   SHOULD"）
+  /\/\*|\*\//, // 擬似コードの注釈（"/* OPTIONAL error counter step */"）
+  /[{}][ \t]*$|^[ \t]*[{}]/m, // 擬似コードの波括弧
 ];
 
 /**

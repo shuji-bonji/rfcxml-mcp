@@ -158,7 +158,17 @@ export function extractRequirementsFromSections(
                 continue;
               }
 
-              const itemText = foldWhitespace(stripListMarker(item.content));
+              // 箇条書きの項目も、文の単位で切り出す。
+              //
+              // 箇条書きの項目は 1 文であることが多く、v0.6.14 まではその前提で
+              // 項目の全文を要件文にしていた。RFCXML の `<dl>` は 1 項目が段落に
+              // なる。RFC 9113 §8.3.1 の `":authority"` の項目は 2,150 文字の
+              // 段落で、その中に MUST・MUST NOT・SHOULD・MAY が入っているため、
+              // 同じ 2,150 文字が 4 件の要件として並んでいた。
+              const itemContext = foldWhitespace(stripListMarker(item.content));
+              const itemText = foldWhitespace(
+                stripListMarker(extractSentence(item.content, marker.position))
+              );
               if (isDuplicate(sectionId, marker.level, itemText)) {
                 continue;
               }
@@ -173,7 +183,7 @@ export function extractRequirementsFromSections(
                 text: itemText,
                 section: sectionId,
                 sectionTitle: section.title,
-                fullContext: itemText,
+                fullContext: itemContext,
                 ...components,
               });
             }

@@ -569,3 +569,65 @@ describe('図・表の行には構成要素を付けない', () => {
     expect(result[0].action).toBe('mask all frames that it sends to the server');
   });
 });
+
+describe('箇条書きの項目を文の単位で切り出すこと', () => {
+  /** 段落 1 つを持つ `<dl>` の項目を組み立てる。 */
+  const sectionWithListItem = (content: string, level: string) => [
+    {
+      number: '8.3.1',
+      title: 'Request Pseudo-Header Fields',
+      content: [
+        {
+          type: 'list',
+          style: 'symbols',
+          items: [
+            {
+              content,
+              requirements: [{ level, position: content.indexOf(level) }],
+            },
+          ],
+        },
+      ],
+      subsections: [],
+    },
+  ];
+
+  it('段落の項目からは、キーワードのある文だけを取る', () => {
+    // RFC 9113 §8.3.1 の `":authority"` の項目は 2,150 文字の段落で、
+    // MUST・MUST NOT・SHOULD・MAY が入っている。v0.6.14 まではその 2,150 文字が
+    // 4 件の要件として並び、`generate_checklist` の 1 行が 2,178 文字あった。
+    const content = [
+      'The ":authority" pseudo-header field conveys the authority portion of the target URI.',
+      'The recipient of an HTTP/2 request MUST NOT use the Host header field to determine the target URI if ":authority" is present.',
+      'A server SHOULD treat a request as malformed if it contains a Host header field that differs.',
+    ].join(' ');
+
+    const result = extractRequirementsFromSections(
+      sectionWithListItem(content, 'MUST NOT') as never,
+      undefined,
+      { parseComponents: true }
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe(
+      'The recipient of an HTTP/2 request MUST NOT use the Host header field to determine the target URI if ":authority" is present.'
+    );
+    // 元の段落は fullContext に残す
+    expect(result[0].fullContext).toBe(content);
+  });
+
+  it('1 文の項目はそのまま取る', () => {
+    // 箇条書きの項目は 1 文であることが多い。文末記号が無くても切らない。
+    const content =
+      'a 202 (Accepted) status code if the action MAY succeed but has not yet been enacted';
+
+    const result = extractRequirementsFromSections(
+      sectionWithListItem(content, 'MAY') as never,
+      undefined,
+      { parseComponents: true }
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe(content);
+  });
+});

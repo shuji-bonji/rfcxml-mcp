@@ -8,6 +8,7 @@
  *
  * File layout (under `dir`):
  *   ./rfc{N}.xml   — raw RFCXML body, UTF-8
+ *   ./rfc{N}.txt   — raw RFC text body, UTF-8（`kind: 'text'` のとき）
  *
  * Intentionally minimal: no metadata, no eviction, no checksums. We trust the
  * filesystem and the source URL. If staleness becomes a concern, the operator
@@ -22,26 +23,34 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { logger } from './logger.js';
 
+/** 取り出す本文の種類。ファイルの拡張子と、`fromEnv` が使う下位ディレクトリを決める。 */
+export type CacheKind = 'xml' | 'text';
+
+const EXTENSION: Record<CacheKind, string> = { xml: '.xml', text: '.txt' };
+
 export class DiskCache {
   /**
    * @param dir Absolute or relative directory path. Created lazily on first
    * `set` — readers tolerate non-existent dirs by returning null.
+   * @param kind 本文の種類。省略すると `xml`。
    */
-  constructor(public readonly dir: string) {}
+  constructor(
+    public readonly dir: string,
+    public readonly kind: CacheKind = 'xml'
+  ) {}
 
   /**
    * Construct a DiskCache from the `RFCXML_CACHE_DIR` environment variable.
    * Returns null when the var is unset/empty so the caller can keep the
    * disk-cache code path optional without conditionals at every call site.
    *
-   * The cache is rooted at `<RFCXML_CACHE_DIR>/xml/` to leave room for
-   * sibling subdirectories (e.g., text, metadata) in the future without
-   * mixing files.
+   * The cache is rooted at `<RFCXML_CACHE_DIR>/<kind>/` so that XML と
+   * テキストが混ざらない。
    */
-  static fromEnv(): DiskCache | null {
+  static fromEnv(kind: CacheKind = 'xml'): DiskCache | null {
     const raw = process.env.RFCXML_CACHE_DIR?.trim();
     if (!raw) return null;
-    return new DiskCache(path.join(raw, 'xml'));
+    return new DiskCache(path.join(raw, kind), kind);
   }
 
   /**
@@ -49,7 +58,7 @@ export class DiskCache {
    * and tests can sanity-check.
    */
   filepath(rfcNumber: number): string {
-    return path.join(this.dir, `rfc${rfcNumber}.xml`);
+    return path.join(this.dir, `rfc${rfcNumber}${EXTENSION[this.kind]}`);
   }
 
   async has(rfcNumber: number): Promise<boolean> {
@@ -86,10 +95,10 @@ export class DiskCache {
    * and a write failure (e.g., disk full, permission denied) must not break
    * the runtime fetch path.
    */
-  async set(rfcNumber: number, xml: string): Promise<void> {
+  async set(rfcNumber: number, body: string): Promise<void> {
     try {
       await fs.mkdir(this.dir, { recursive: true });
-      await fs.writeFile(this.filepath(rfcNumber), xml, 'utf-8');
+      await fs.writeFile(this.filepath(rfcNumber), body, 'utf-8');
     } catch (error) {
       logger.warn(
         `DiskCache`,

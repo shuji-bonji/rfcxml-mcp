@@ -1,0 +1,230 @@
+# validate-6455-violation
+
+tool: validate_statement
+args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
+
+--- json ---
+{
+  "rfc": 6455,
+  "statement": "The client sends unmasked frames to the server.",
+  "analysis": {
+    "detectedLevel": null,
+    "detectedSubject": "client"
+  },
+  "isValid": false,
+  "matchingRequirements": [
+    {
+      "id": "R-5.1-79",
+      "level": "MUST",
+      "text": "To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details).",
+      "section": "5.1",
+      "sectionTitle": "Overview",
+      "fullContext": "In the WebSocket Protocol, data is transmitted using a sequence of frames. To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details). (Note that masking is done whether or not the WebSocket Protocol is running over TLS.) The server MUST close the connection upon receiving a frame that is not masked. In this case, a server MAY send a Close frame with a status code of 1002 (protocol error) as defined in Section 7.4.1. A server MUST NOT mask any frames that it sends to the client. A client MUST close a connection if it detects a masked frame. In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1. (These rules might be relaxed in a future specification.) The base framing protocol defines a frame type with an opcode, a payload length, and designated locations for \"Extension data\" and \"Application data\", which together define the \"Payload data\". Certain bits and opcodes are reserved for future expansion of the protocol.",
+      "action": "mask all frames that it sends to the server (see Section 5.3 for further details)",
+      "_matchScore": 13,
+      "_matchedKeywords": [
+        "client",
+        "sends",
+        "frames",
+        "server"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-5.1-83",
+      "level": "MUST",
+      "text": "A client MUST close a connection if it detects a masked frame.",
+      "section": "5.1",
+      "sectionTitle": "Overview",
+      "fullContext": "In the WebSocket Protocol, data is transmitted using a sequence of frames. To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details). (Note that masking is done whether or not the WebSocket Protocol is running over TLS.) The server MUST close the connection upon receiving a frame that is not masked. In this case, a server MAY send a Close frame with a status code of 1002 (protocol error) as defined in Section 7.4.1. A server MUST NOT mask any frames that it sends to the client. A client MUST close a connection if it detects a masked frame. In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1. (These rules might be relaxed in a future specification.) The base framing protocol defines a frame type with an opcode, a payload length, and designated locations for \"Extension data\" and \"Application data\", which together define the \"Payload data\". Certain bits and opcodes are reserved for future expansion of the protocol.",
+      "subject": "a client",
+      "condition": "it detects a masked frame",
+      "action": "close a connection if it detects a masked frame",
+      "_matchScore": 13,
+      "_matchedKeywords": [
+        "client",
+        "sends",
+        "frames",
+        "server"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-10.7-198",
+      "level": "MUST",
+      "text": "Incoming data MUST always be validated by both clients and servers.",
+      "section": "10.7",
+      "sectionTitle": "Handling of Invalid Data",
+      "fullContext": "Incoming data MUST always be validated by both clients and servers. If, at any time, an endpoint is faced with data that it does not understand or that violates some criteria by which the endpoint determines safety of input, or when the endpoint sees an opening handshake that does not correspond to the values it is expecting (e.g., incorrect path or origin in the client request), the endpoint MAY drop the TCP connection. If the invalid data was received after a successful WebSocket handshake, the endpoint SHOULD send a Close frame with an appropriate status code (Section 7.4) before proceeding to _Close the WebSocket Connection_. Use of a Close frame with an appropriate status code can help in diagnosing the problem. If the invalid data is sent during the WebSocket handshake, the server SHOULD return an appropriate HTTP [RFC2616] status code.",
+      "subject": "incoming data",
+      "action": "always be validated by both clients and servers",
+      "_matchScore": 13,
+      "_matchedKeywords": [
+        "client",
+        "sends",
+        "frames",
+        "server"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-4.1-20",
+      "level": "MUST",
+      "text": "When the client is to _Establish a WebSocket Connection_ given a set of (/host/, /port/, /resource name/, and /secure/ flag), along with a list of /protocols/ and /extensions/ to be used, and an /origin/ in the case of web browsers, it MUST open a connection, send an opening handshake, and read the server's handshake in response.",
+      "section": "4.1",
+      "sectionTitle": "Client Requirements",
+      "fullContext": "When the client is to _Establish a WebSocket Connection_ given a set of (/host/, /port/, /resource name/, and /secure/ flag), along with a list of /protocols/ and /extensions/ to be used, and an /origin/ in the case of web browsers, it MUST open a connection, send an opening handshake, and read the server's handshake in response. The exact requirements of how the connection should be opened, what should be sent in the opening handshake, and how the server's response should be interpreted are as follows in this section. In the following text, we will use terms from Section 3, such as \"/host/\" and \"/secure/ flag\" as defined in that section.",
+      "condition": "the client is to _Establish a WebSocket Connection_ given a set of (/host/, /port/, /resource name/, and /secure/ flag), along with a list of /protocols/ and /extensions/ to be used, and an /origin/ in the case of web browsers",
+      "action": "open a connection, send an opening handshake, and read the server's handshake in response",
+      "_matchScore": 12,
+      "_matchedKeywords": [
+        "client",
+        "sends",
+        "server"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-4.1-32",
+      "level": "MUST",
+      "text": "If /secure/ is true, the client MUST perform a TLS handshake over the connection after opening the connection and before sending the handshake data [RFC2818].",
+      "section": "4.1",
+      "sectionTitle": "Client Requirements",
+      "fullContext": "If /secure/ is true, the client MUST perform a TLS handshake over the connection after opening the connection and before sending the handshake data [RFC2818]. If this fails (e.g., the server's certificate could not be verified), then the client MUST _Fail the WebSocket Connection_ and abort the connection. Otherwise, all further communication on this channel MUST run through the encrypted tunnel [RFC5246].",
+      "condition": "/secure/ is true",
+      "action": "perform a TLS handshake over the connection after opening the connection and before sending the handshake data [RFC2818]",
+      "_matchScore": 12,
+      "_matchedKeywords": [
+        "client",
+        "sends",
+        "server"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-4.1-33",
+      "level": "MUST",
+      "text": "If this fails (e.g., the server's certificate could not be verified), then the client MUST _Fail the WebSocket Connection_ and abort the connection.",
+      "section": "4.1",
+      "sectionTitle": "Client Requirements",
+      "fullContext": "If /secure/ is true, the client MUST perform a TLS handshake over the connection after opening the connection and before sending the handshake data [RFC2818]. If this fails (e.g., the server's certificate could not be verified), then the client MUST _Fail the WebSocket Connection_ and abort the connection. Otherwise, all further communication on this channel MUST run through the encrypted tunnel [RFC5246].",
+      "condition": "this fails (e.g., the server's certificate could not be verified)",
+      "action": "_Fail the WebSocket Connection_ and abort the connection",
+      "_matchScore": 12,
+      "_matchedKeywords": [
+        "client",
+        "sends",
+        "server"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-4.1-54",
+      "level": "MUST",
+      "text": "Once the client's opening handshake has been sent, the client MUST wait for a response from the server before sending any further data.",
+      "section": "4.1",
+      "sectionTitle": "Client Requirements",
+      "fullContext": "Once the client's opening handshake has been sent, the client MUST wait for a response from the server before sending any further data. The client MUST validate the server's response as follows:",
+      "action": "wait for a response from the server before sending any further data",
+      "_matchScore": 12,
+      "_matchedKeywords": [
+        "client",
+        "sends",
+        "server"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-4.1-55",
+      "level": "MUST",
+      "text": "The client MUST validate the server's response as follows:",
+      "section": "4.1",
+      "sectionTitle": "Client Requirements",
+      "fullContext": "Once the client's opening handshake has been sent, the client MUST wait for a response from the server before sending any further data. The client MUST validate the server's response as follows:",
+      "subject": "client",
+      "action": "validate the server's response as follows:",
+      "_matchScore": 12,
+      "_matchedKeywords": [
+        "client",
+        "sends",
+        "server"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-4.2.2-65",
+      "level": "MUST",
+      "text": "When a client establishes a WebSocket connection to a server, the server MUST complete the following steps to accept the connection and send the server's opening handshake.",
+      "section": "4.2.2",
+      "sectionTitle": "Sending the Server's Opening Handshake",
+      "fullContext": "When a client establishes a WebSocket connection to a server, the server MUST complete the following steps to accept the connection and send the server's opening handshake.",
+      "condition": "a client establishes a WebSocket connection to a server",
+      "action": "complete the following steps to accept the connection and send the server's opening handshake",
+      "_matchScore": 12,
+      "_matchedKeywords": [
+        "client",
+        "sends",
+        "server"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-5.1-85",
+      "level": "MAY",
+      "text": "A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1).",
+      "section": "5.1",
+      "sectionTitle": "Overview",
+      "fullContext": "A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1).",
+      "action": "be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1)",
+      "_matchScore": 12,
+      "_matchedKeywords": [
+        "client",
+        "frames",
+        "server"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    }
+  ],
+  "conflicts": [
+    {
+      "requirement": {
+        "id": "R-5.1-79",
+        "level": "MUST",
+        "text": "To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details).",
+        "section": "5.1",
+        "sectionTitle": "Overview",
+        "fullContext": "In the WebSocket Protocol, data is transmitted using a sequence of frames. To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details). (Note that masking is done whether or not the WebSocket Protocol is running over TLS.) The server MUST close the connection upon receiving a frame that is not masked. In this case, a server MAY send a Close frame with a status code of 1002 (protocol error) as defined in Section 7.4.1. A server MUST NOT mask any frames that it sends to the client. A client MUST close a connection if it detects a masked frame. In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1. (These rules might be relaxed in a future specification.) The base framing protocol defines a frame type with an opcode, a payload length, and designated locations for \"Extension data\" and \"Application data\", which together define the \"Payload data\". Certain bits and opcodes are reserved for future expansion of the protocol.",
+        "action": "mask all frames that it sends to the server (see Section 5.3 for further details)"
+      },
+      "reason": "Statement says \"unmask\" while the \"MUST\" requirement requires \"mask\": \"mask all frames that it sends to the server (see Section 5.3 for further details)\""
+    },
+    {
+      "requirement": {
+        "id": "R-6.1-138",
+        "level": "MUST",
+        "text": "If the data is being sent by the client, the frame(s) MUST be masked as defined in Section 5.3.",
+        "section": "6.1",
+        "sectionTitle": "Sending Data",
+        "fullContext": "If the data is being sent by the client, the frame(s) MUST be masked as defined in Section 5.3.",
+        "condition": "the data is being sent by the client",
+        "action": "be masked as defined in Section 5.3"
+      },
+      "reason": "Statement says \"unmask\" while the \"MUST\" requirement requires \"mask\": \"be masked as defined in Section 5.3\""
+    }
+  ],
+  "suggestions": [
+    "Potential conflicts detected. Review the requirement levels (MUST/SHOULD/MAY) carefully."
+  ],
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Validation accuracy may be limited."
+}

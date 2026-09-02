@@ -50,17 +50,45 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
+npm run audit         # 実物の RFC 49 本に不変条件 23 種を当てる
+npm run snapshot      # 代表的な出力 14 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
 npm start             # MCP サーバー起動
-npm run prefetch      # RFCXML をディスクキャッシュに事前充填
+npm run prefetch      # RFC 本文をディスクキャッシュに事前充填
 ```
 
 `DEBUG=1 npm start` で詳細ログ出力。
 
+### 公開前に通すもの
+
+v0.6.0 から v0.6.13 まで、13 件の不具合はすべて**公開したあとの試用**で見つかった。
+どれも公開は必要なかった。手元で同じ操作をすれば同じものが出た。
+
+publish の前に、次を順に通す。
+
+| 手順 | 見るもの |
+|---|---|
+| `npm test` | 書いた条件の取りこぼし（367 件） |
+| `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 49 本 × 23 種） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 14 本） |
+| `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
+
+`audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
+`rfcxml-mcp-dev` は `dist/index.js` を直接指すローカルの MCP 登録である。
+`npm run build` のあと Claude Desktop を再起動すると、その版が試用できる。
+
 ### ディスクキャッシュ（Phase 3）
 
-`RFCXML_CACHE_DIR` 環境変数を設定すると、`fetchRFCXML` が永続キャッシュを利用する。
+`RFCXML_CACHE_DIR` 環境変数を設定すると、`fetchRFCXML` と `fetchRFCText` が
+永続キャッシュを利用する。RFCXML は `<dir>/xml/rfc{N}.xml`、テキストは
+`<dir>/text/rfc{N}.txt` に置く。
+
+RFCXML が公開されているのは RFC 8650 以降だけで、それより前はテキストで読む。
+v0.6.14 まではテキストがメモリの LRU にしか入らず、MCP サーバを再起動するたびに
+取り直していた（RFC 1122 の本文は 200 KB ある）。`rfcxml-prefetch` も
+RFCXML が無い RFC を「失敗」として飛ばしていた。
 
 ```bash
 # 事前充填
@@ -369,6 +397,44 @@ How to apply: 新しい抽出で「最初のピリオドまで」を書きたく
 "Section 3.4 of RFC 1122" や "RFC 6691, Section 3.1" という平文の形になる。
 `createExternalSectionRegexes` は角括弧の形（`[HTTP/1.1]`）と RFC 番号の形の
 両方を持つ。片方だけだと、もう一方が素通りしてこの RFC の節として解決される。
+
+読点の有無も同じである。RFC 6749 は `([RFC3986] Section 3.4)` と読点なしで書く。
+読点を必須にしていたため、この形が「RFC 6749 の §3.4」になり、
+`get_related_sections` が実在しない節を返していた（RFC 6749 に §3.4 は無い）。
+
+### 節番号は一度しか使われない
+
+`SECTION_HEADER_PATTERN` は「数字 + 空白 + 何か」に当たるので、本文の中の
+次の行も節見出しに見える。
+
+| RFC | 行 | 実体 |
+|---|---|---|
+| 1123 | `1.   Unless there is private agreement between …` | 要件一覧表の脚注 |
+| 1305 | `4 is used, this is the size of the clock filter …` | `Section` から折り返した本文 |
+| 1305 | 注釈 `/* test` の折り返しで閉じ記号だけが残った行 | C の注釈 |
+
+どれも、その番号の節がすでに出たあとに現れる。`acceptsSectionNumber` が
+「すでに出した番号」と「1 段目が最大より小さい番号」を落とす。
+
+Why: 受け入れると直前の節番号が戻り、`isSuccessorSectionNumber` から見て
+次の見出しが「次に来る番号」でなくなる。RFC 1123 では脚注の `1.` のせいで
+§6.2 以降の 8 節が丸ごと落ち、その節の要件が §6.1.5 に付いていた。
+
+### 題名の中の略語は文の終わりではない
+
+節見出しの判定は「題名の中に句点 + 空白 + 語があれば本文」である。ただし
+RFC 1123 は出典を題名に書く（`3.2.1  Option Negotiation: RFC-854, pp. 2-3`）。
+`pp.` を文の終わりと見ると §3.2.1 から §3.2.8 が丸ごと落ちる。
+`containsSentenceBreak` が `TITLE_ABBREVIATION` を除いてから判定する。
+
+### 箇条書きの項目も文の単位で切り出す
+
+箇条書きの項目は 1 文であることが多いが、RFCXML の `<dl>` は 1 項目が段落になる。
+RFC 9113 §8.3.1 の `":authority"` の項目は 2,150 文字の段落で、その中に
+MUST・MUST NOT・SHOULD・MAY が入っている。項目の全文を要件文にしていたため、
+同じ 2,150 文字が 4 件の要件として並んでいた。
+
+テキストブロックと同じく `extractSentence` を通す。元の段落は `fullContext` に残す。
 
 ### 公開日は本文から取る
 

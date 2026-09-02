@@ -1,0 +1,19 @@
+# related-6749-3.1
+
+tool: get_related_sections
+args: {"rfc":6749,"section":"3.1"}
+
+--- json ---
+{
+  "rfc": 6749,
+  "section": "3.1",
+  "title": "Authorization Endpoint",
+  "relatedSections": [
+    {
+      "number": "1.6",
+      "title": "TLS Version"
+    }
+  ],
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Related section accuracy may be limited."
+}
