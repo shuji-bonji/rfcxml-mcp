@@ -1070,6 +1070,174 @@ async function testInlineElements(client) {
   }
 }
 
+/**
+ * 21. 否定の要件に反する主張（v0.6.7）
+ *
+ * v0.6.6 では RFC 9114 §6.2.3 の `MUST NOT` に正面から反する主張が
+ * `isValid: true` になり、その要件は順位 8 位に落ちていた（主語が複数形のため）。
+ */
+async function testProhibitionViolation(client) {
+  const toolName = 'validate_statement';
+
+  try {
+    const res = await callTool(client, 'validate_statement', {
+      rfc: 9114,
+      statement:
+        'An endpoint treats a reserved stream type as having a defined meaning upon receipt.',
+    });
+    const top = (res.matchingRequirements || [])[0];
+
+    logResult(
+      toolName,
+      'a statement that does what MUST NOT forbids is a conflict',
+      res.isValid === false && (res.conflicts || []).length > 0 ? 'PASS' : 'FAIL',
+      { note: `isValid=${res.isValid}, conflicts=${(res.conflicts || []).length}` }
+    );
+
+    logResult(
+      toolName,
+      'the requirement on point ranks first despite a plural subject',
+      top?.section === '6.2.3' ? 'PASS' : 'FAIL',
+      { note: `top=${top?.id} (${top?.section}), subjectMatch=${top?._subjectMatch}` }
+    );
+  } catch (e) {
+    logResult(toolName, 'a statement that does what MUST NOT forbids is a conflict', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    const res = await callTool(client, 'validate_statement', {
+      rfc: 9114,
+      statement: 'An endpoint ignores reserved stream types upon receipt.',
+    });
+
+    logResult(
+      toolName,
+      'a compliant statement is not reported as a conflict',
+      (res.conflicts || []).length === 0 ? 'PASS' : 'FAIL',
+      { note: `isValid=${res.isValid}, conflicts=${(res.conflicts || []).length}` }
+    );
+  } catch (e) {
+    logResult(toolName, 'a compliant statement is not reported as a conflict', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    // RFC 6455 §6.2 が求めるのは masking を remove することで、mask することではない。
+    const res = await callTool(client, 'validate_statement', {
+      rfc: 6455,
+      statement: 'The server sends unmasked frames to the client.',
+    });
+    const wrong = (res.conflicts || []).filter((c) => /remove masking/.test(c.reason || ''));
+
+    logResult(
+      toolName,
+      'a verb inside the object is not taken as the required action',
+      wrong.length === 0 ? 'PASS' : 'FAIL',
+      { note: `conflicts=${(res.conflicts || []).length}, removeMasking=${wrong.length}` }
+    );
+  } catch (e) {
+    logResult(toolName, 'a verb inside the object is not taken as the required action', 'FAIL', {
+      error: e.message,
+    });
+  }
+}
+
+// ========================================
+// Source notes and shapes
+// ========================================
+
+/**
+ * 22. 注記と体裁（v0.6.7）
+ */
+async function testNotesAndShapes(client) {
+  try {
+    const res = await callTool(client, 'get_rfc_dependencies', { rfc: 6455 });
+
+    logResult(
+      'dependencies',
+      'no placeholder note when the titles are real',
+      !/placeholders/.test(res._sourceNote || '') ? 'PASS' : 'FAIL',
+      { note: res._sourceNote ?? '(no note)' }
+    );
+  } catch (e) {
+    logResult('dependencies', 'no placeholder note when the titles are real', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    // RFC 2616 は参考文献の欄が 1 つしかない。そこだけ注記が出る。
+    const res = await callTool(client, 'get_rfc_dependencies', { rfc: 2616 });
+
+    logResult(
+      'dependencies',
+      'a single References section is called out',
+      res.normative.length === 0 && /single References section/.test(res._sourceNote || '')
+        ? 'PASS'
+        : 'FAIL',
+      { note: `normative=${res.normative.length}, note=${res._sourceNote ?? '(none)'}` }
+    );
+  } catch (e) {
+    logResult('dependencies', 'a single References section is called out', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    const res = await callTool(client, 'get_definitions', {
+      rfc: 9110,
+      term: 'transforming proxy',
+    });
+    const found = (res.definitions || []).find((d) => d.term === 'transforming proxy');
+
+    logResult(
+      'definitions',
+      'the paragraph that defines the term is returned',
+      /is called a "transforming proxy"/.test(found?.definition || '') ? 'PASS' : 'FAIL',
+      { note: (found?.definition || '(not found)').slice(0, 90) }
+    );
+  } catch (e) {
+    logResult('definitions', 'the paragraph that defines the term is returned', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    const res = await callTool(client, 'get_requirements', { rfc: 6455 });
+    const bullets = (res.requirements || []).filter((r) => /^o\s/.test(r.fullContext || ''));
+
+    logResult(
+      'requirements',
+      'fullContext carries no list marker',
+      bullets.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `bullets=${bullets.length}/${(res.requirements || []).length}`,
+      }
+    );
+  } catch (e) {
+    logResult('requirements', 'fullContext carries no list marker', 'FAIL', { error: e.message });
+  }
+
+  try {
+    const res = await callTool(client, 'get_requirements', { rfc: 6455, section: '5.4' });
+    const series = (res.requirements || []).find((r) => /either text, binary/.test(r.text || ''));
+
+    logResult(
+      'requirements',
+      'a series is not clipped at the first comma',
+      series?.action === 'be either text, binary, or one of the reserved opcodes' ? 'PASS' : 'FAIL',
+      { note: `action="${series?.action ?? '(not found)'}"` }
+    );
+  } catch (e) {
+    logResult('requirements', 'a series is not clipped at the first comma', 'FAIL', {
+      error: e.message,
+    });
+  }
+}
+
 // ========================================
 // Main Execution
 // ========================================
@@ -1166,6 +1334,14 @@ async function main() {
 
     console.log('--- 20. checklist shape ---');
     await testChecklistShape(client);
+    console.log('');
+
+    console.log('--- 21. prohibition violation ---');
+    await testProhibitionViolation(client);
+    console.log('');
+
+    console.log('--- 22. notes and shapes ---');
+    await testNotesAndShapes(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);

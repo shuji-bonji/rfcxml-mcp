@@ -217,3 +217,24 @@ describe('requirementSource', () => {
     );
   });
 });
+
+describe('clipAtClauseEnd の並列', () => {
+  it('3 項目以上の並びでは切らない', () => {
+    expect(clipAtClauseEnd('be either text, binary, or one of the reserved opcodes.')).toBe(
+      'be either text, binary, or one of the reserved opcodes'
+    );
+  });
+
+  it('接続詞の前に並びの目印が無い読点では切る', () => {
+    // 節の連結であって並列ではない
+    expect(
+      clipAtClauseEnd('be delivered in the order sent by the sender, and the receiver checks it.')
+    ).toBe('be delivered in the order sent by the sender');
+  });
+
+  it('括弧の中の読点では切らない（既存の挙動）', () => {
+    expect(clipAtClauseEnd('perform a TLS handshake (e.g., over TCP) before sending.')).toBe(
+      'perform a TLS handshake (e.g., over TCP) before sending'
+    );
+  });
+});

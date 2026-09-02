@@ -207,6 +207,15 @@ ABNF の注釈（`; 1 bit in length, MUST be 0 unless`）は規範的な文が�
 **後付録ごと除外してはならない** — RFC 9114 の Appendix A.2.5 のように本物の定義が
 後付録に置かれる。
 
+### 並列の読点では切らない
+
+`clipAtClauseEnd()` は読点で切るが、"A, B, or C" の読点では切らない。切ると RFC 6455 §5.4 の
+"MUST be either text, binary, or one of the reserved opcodes" の `action` が
+`"be either text"` になる。判定は 2 通りで、読点のあとにもう 1 項目あり、そのあとに接続詞が
+来る形（3 項目以上）はそれだけで並列とみなす。読点の直後がいきなり接続詞の場合は、節の連結
+（"…sent by the sender, and the receiver checks it."）と区別がつかないため、直前に `either`
+などの目印があるか、すでに並列の読点を通っていることを求める。
+
 ### 定義は `<dl>` だけにあるとは限らない
 
 用語を `<dl>` で並べる RFC（RFC 9114 §2.2）と、地の文で定義して定義箇所に
@@ -222,6 +231,10 @@ RFC 9110 の `get_definitions` は §14.6 と §16.3.1 の登録票の項目名�
 `<iref>` と `<t>` の並び順が失われるためである。`stripNonPrinting()` が
 `<iref>` を落とすのはそのあと。
 
+**起点の段落に用語が出てこないときは、同じ節の中を 4 段落先まで見る。** 節の直下に
+`<iref>` を置き、導入の段落を挟んでから定義を書く RFC がある（RFC 9110 §7.7）。
+節をまたいで探してはならない。見つからなければ起点の段落に戻す。
+
 同じ用語が両方にあるときは `<dl>` を採る（用語と定義の対として書かれているため）。
 並びは節番号順（`mergeDefinitions`）。
 
@@ -233,6 +246,10 @@ RFC 9110 の `get_definitions` は §14.6 と §16.3.1 の登録票の項目名�
 - 参考文献に載っていない言及まで参照になっていた（RFC 6455 の "RFC 5741" は
   Status of This Memo の定型文）
 - 題名が取れず `title: "RFC 2119"` という仮置きしか返せなかった
+
+`_sourceNote` は本当に劣化しているときだけ出す。題名は参考文献の欄から取っているので
+「仮置き」ではない。テキスト経路で残る制約は、参考文献の欄が 1 つしかない RFC
+（RFC 2616）ですべて `informative` に入ることだけで、そのときだけ注記する。
 
 `extractTextReferences()` は "14.1 Normative References" / "14.2 Informative References"
 の見出しで欄を切り替え、`   [RFC2119]` で始まる行から項目を取る。ページの区切り
@@ -306,6 +323,22 @@ Datatracker の `document.time` は**レコードの最終更新時刻**であ�
   条件節の否定を要求アクションと取り違えないための不変条件である。
 - `NEGATION_PAIRS` に一般的な動詞（send / receive など）を足すときは `generic: true` を
   付ける。動詞以外に共通する語を 1 つ以上求めるようになり、誤検出を抑えられる。
+- **動詞は要求アクションの主動詞であること**。以前は「先頭から 20 文字以内に現れるか」で
+  見ていたため、RFC 6455 §6.2 の "remove masking for data frames received from a client" が
+  「mask を求めている」と読まれていた。この要求が求めているのは masking を remove する
+  ことである。`headVerbOf()` を使う（受動態の be は飛ばす）。
+- **主語は単数形にそろえて照合する**。`Requirement.subject` は本文からそのまま取るので
+  "endpoints"（複数形）や "an endpoint"（冠詞付き）で入っている。`requirementSubjectOf()`
+  を通すこと。素の `===` で比べると、RFC 9114 §6.2.3 の
+  "Endpoints MUST NOT consider these streams …" が主語不一致となり、順位付けの
+  ボーナスも矛盾検出も効かない。
+- `extractSubject()` の単数形化は**後段**に置く。先に混ぜると別の語を拾う。RFC 6455 §5.1 の
+  "…(such as intercepting proxies), a client MUST mask …" では、"proxies" を先に
+  単数形化すると主語が proxy になり、client の要件が矛盾検出から外れる。
+- `VERB_SYNONYMS`（consider / treat など）は**網羅ではない**。載っていない動詞では
+  `findProhibitionViolation()` が矛盾を検出しない。検出しないことは `isValid: true` の
+  意味（矛盾が見つからなかった）と一致しており、準拠の主張ではない。表を広げるときは、
+  主動詞・否定なし・内容語 3 語以上という 3 条件を緩めないこと。
 
 ### `<references>` の入れ子
 

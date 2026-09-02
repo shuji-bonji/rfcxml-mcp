@@ -136,7 +136,11 @@ export function extractRequirementsFromSections(
               text: sentence,
               section: sectionId,
               sectionTitle: section.title,
-              fullContext: source.prose ? foldWhitespace(block.content) : block.content,
+              // `text` と同じく行頭の箇条書き記号を落とす。同じ段落の同じ書き出しで
+              // 片方だけ "o " が残っていた。
+              fullContext: source.prose
+                ? foldWhitespace(stripListMarker(block.content))
+                : block.content,
               ...components,
             });
           }

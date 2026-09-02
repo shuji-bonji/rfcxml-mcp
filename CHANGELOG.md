@@ -2,6 +2,122 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.7] - 2026-09-02
+
+v0.6.6 の試用で挙がった 5 件を直した。
+
+### Fixed
+
+- **`MUST NOT` に反する主張が `isValid: true` になっていた** (`validate_statement`):
+
+  RFC 9114 §6.2.3 は「Endpoints MUST NOT consider these streams to have any meaning
+  upon receipt.」と書いている。これに正面から反する主張が矛盾なしと返っていた。
+
+  ```
+  statement: "An endpoint treats a reserved stream type as having a defined meaning upon receipt."
+  v0.6.6 → isValid: true, conflicts: []
+  v0.6.7 → isValid: false, conflicts: 1 件（R-6.2.3-154）
+  ```
+
+  原因は 2 つ重なっていた。
+
+  - **主語の単複を別物として扱っていた**。主張の主語は "endpoint"、要件の
+    `subject` は "endpoints" で、`===` で比べていた。順位付けでは主語一致
+    ボーナス (5) が付かず、一致語 6 語のこの要件が一致語 3 語の無関係な要件より
+    下に落ちていた（順位 8 位、スコア 9）。`detectConflicts` は入口で主語一致を
+    求めるため、矛盾の検査自体が行われていなかった。
+    `requirementSubjectOf()` を追加し、"an endpoint" / "endpoints" のどちらからも
+    単数形の主語語を取る。**順位 1 位、スコア 14** になった。
+  - **動詞の入れ替えを見ていなかった**。`NEGATION_PAIRS` は「肯定形と否定形の対」
+    （mask ↔ unmask）しか持たない。consider と treat のように、同じ行為を別の
+    動詞で述べている場合には当たらない。`findProhibitionViolation()` を追加した。
+
+    誤検出を避けるため 3 つとも満たすことを求める。
+
+    1. 主張が否定を含まないこと（含むなら禁止に従っている見込みが高い）
+    2. 禁じられた行為の**主動詞、またはその同義語**が主張に現れること。
+       これが要点である。"A server MUST NOT mask any frames that it sends to the
+       client." に対する「The server sends frames to the client.」は
+       frames / sends / client が重なるが mask が無いので矛盾ではない
+    3. 主動詞以外に、行為の内容語が 3 語以上重なること
+
+    同義語の表（consider / treat / regard など 11 組）は**網羅ではない**。
+    ここに無い動詞では矛盾を検出しない。検出しないことは `isValid: true` の意味
+    （矛盾が見つからなかった）と一致しており、準拠の主張ではない。
+
+- **目的語の中の動詞を要求アクションと取り違えていた**（上記の修正で表面化）:
+  - 要求アクションの動詞を「先頭から 20 文字以内に現れるか」で見ていたため、
+    RFC 6455 §6.2 の "remove masking for data frames received from a client" が
+    「mask を求めている」と読まれ、「The server sends unmasked frames to the
+    client.」と矛盾していた。この要求が求めているのは masking を remove すること
+    である。
+  - 動詞は要求アクションの**主動詞**であることを求める（受動態の be は飛ばす）。
+    `ACTION_VERB_WINDOW` は不要になったので削除した。
+  - 実測: 「The server sends unmasked frames to the client.」の矛盾 1 件 → **0 件**。
+    「A client sends unmasked frames to the server.」は 4 件 → **2 件**（§5.1 の
+    "a client MUST mask all frames" と §6.1 の "the frame(s) MUST be masked"）に
+    絞られた。
+
+- **`get_rfc_dependencies` の `_sourceNote` が事実と食い違っていた**:
+  - テキスト経路では常に「Titles/anchors are placeholders」と注記していたが、
+    v0.6.6 から題名は参考文献の欄から取っている。同じ応答の中に
+    `"title": "The Web Origin Concept"` があるのに「仮置き」と書いていた。
+  - 注記は本当に劣化しているときだけ出す。テキスト経路で残る制約は 1 つで、
+    参考文献の欄が 1 つしかない RFC（RFC 2616）ではすべて `informative` に入る。
+    そのときだけ、その旨を注記する。RFC 6455 では注記が出なくなった。
+
+- **節の直下に置かれた `<iref>` が、定義でない段落を拾っていた** (`get_definitions`):
+  - RFC 9110 §7.7 は `<iref>` を節の直下に置き、導入の段落を 1 つ挟んでから定義を
+    書く。`transforming proxy` の定義が「中間装置には変換機能を持つものがある」に
+    なっていた。
+  - 起点の段落に用語そのものが出てこないときは、**同じ節の中を 4 段落先まで見て、
+    用語を含む最初の段落を採る**。見つからなければ起点に戻す。
+  - 実測（iref 由来の定義のうち、定義本文に用語が出てくるもの）:
+
+    | RFC | v0.6.6 | v0.6.7 |
+    |---|---|---|
+    | 9110 | 154 / 172（89.5%） | **162 / 172（94.2%）** |
+    | 9114 | 13 / 14 | **14 / 14** |
+
+  - `transforming proxy` は「An HTTP-to-HTTP proxy is called a "transforming proxy"
+    if it is designed to modify messages in a semantically meaningful way.」に、
+    `browser` と `target URI` も定義の段落になった。
+
+- **`fullContext` に行頭の黒丸が残っていた**:
+  - `text` からは落としていたが、`fullContext` は `"o Control frames …"` のまま
+    だった。同じ段落の同じ書き出しである。
+  - 実測: RFC 6455 の 213 件中、黒丸で始まる `fullContext` は **0 件**（v0.6.6 は
+    リスト項目由来のものすべて）。
+
+- **`action` が並列の読点で切れていた**:
+  - RFC 6455 §5.4 の "MUST be either text, binary, or one of the reserved opcodes"
+    の `action` が `"be either text"` になっていた。
+  - `clipAtClauseEnd()` は並列の読点で切らない。判定は 2 通りで、読点のあとに
+    もう 1 項目あり、そのあとに接続詞が来る形（3 項目以上の並び）はそれだけで
+    並列とみなす。読点の直後がいきなり接続詞の場合は、節の連結
+    （"…sent by the sender, and the receiver checks it."）と区別がつかないため、
+    直前に `either` などの目印があるか、すでに並列の読点を通っていることを求める。
+  - `action` は `"be either text, binary, or one of the reserved opcodes"` になった。
+
+### Added
+
+- **テストを 285 件から 300 件へ**: 主語の単複（複数形の要件・複数形の主張・
+  単数形を優先すること）、禁じられた行為の検出（動詞の入れ替え・準拠した主張・
+  否定を含む主張・動詞が無い主張）、要求アクションの主動詞、`clipAtClauseEnd` の
+  並列、`fullContext` の黒丸、定義の段落選び（前方探索・見つからないとき・
+  節をまたがないこと）。
+- **E2E テストを 45 件から 54 件へ**: RFC 9114 の禁止違反が `isValid: false` に
+  なり、その要件が 1 位に来ること、準拠した主張が矛盾にならないこと、
+  "remove masking" を mask の要求と読まないこと、RFC 6455 に仮置きの注記が
+  出ないこと、RFC 2616 に単一 References 欄の注記が出ること、
+  `transforming proxy` の定義、`fullContext` の黒丸、並列の `action`。
+
+### Notes
+
+- 主語で照合する仕組みは残っている。要件の主語が `SUBJECT_TERMS`（client /
+  server / endpoint など 12 語）に無いとき（"SETTINGS frames MUST NOT be sent …"）、
+  その要件は矛盾検出の対象外のままである。
+
 ## [0.6.6] - 2026-09-02
 
 v0.6.5 の試用で挙がった 5 件を、指示された順（定義と参照 → 要件文 → チェックリスト →

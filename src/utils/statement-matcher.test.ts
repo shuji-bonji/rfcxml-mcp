@@ -522,3 +522,136 @@ describe('機能語の除外', () => {
     expect(isSubjectTerm('frames')).toBe(false);
   });
 });
+
+describe('主語の単複', () => {
+  // RFC 9114 §6.2.3。主語が複数形で書かれている。
+  const reservedStreams: Requirement[] = [
+    {
+      id: 'R-6.2.3-154',
+      level: 'MUST NOT',
+      text: 'Endpoints MUST NOT consider these streams to have any meaning upon receipt.',
+      section: '6.2.3',
+      sectionTitle: 'Reserved Stream Types',
+      fullContext: 'Endpoints MUST NOT consider these streams to have any meaning upon receipt.',
+      subject: 'endpoints',
+      action: 'consider these streams to have any meaning upon receipt',
+    },
+  ];
+
+  it('複数形の主語を単数形の主張と突き合わせる', () => {
+    const result = scoreRequirementMatch(
+      reservedStreams[0],
+      extractKeywords('An endpoint treats a reserved stream type as having a defined meaning.'),
+      'endpoint',
+      null
+    );
+
+    expect(result.subjectMatch).toBe(true);
+  });
+
+  it('複数形で書かれた主張からも主語を取る', () => {
+    expect(extractSubject('Endpoints treat reserved streams as meaningful.')).toBe('endpoint');
+  });
+
+  it('単数形の主語語を、複数形の別の語より先に採る', () => {
+    // RFC 6455 §5.1。"proxies" を先に単数形化すると、この要件の主語が
+    // client ではなく proxy になり、主語で照合する矛盾検出から外れる。
+    const text =
+      'To avoid confusing network intermediaries (such as intercepting proxies), a client MUST mask all frames that it sends to the server.';
+
+    expect(extractSubject(text)).toBe('client');
+  });
+});
+
+describe('禁じられた行為を述べている主張', () => {
+  const reservedStreams: Requirement[] = [
+    {
+      id: 'R-6.2.3-154',
+      level: 'MUST NOT',
+      text: 'Endpoints MUST NOT consider these streams to have any meaning upon receipt.',
+      section: '6.2.3',
+      sectionTitle: 'Reserved Stream Types',
+      fullContext: 'Endpoints MUST NOT consider these streams to have any meaning upon receipt.',
+      subject: 'endpoints',
+      action: 'consider these streams to have any meaning upon receipt',
+    },
+  ];
+
+  it('動詞が入れ替わっていても矛盾として挙げる', () => {
+    // consider → treat。NEGATION_PAIRS には無い組み合わせ。
+    const conflicts = detectConflicts(
+      'An endpoint treats a reserved stream type as having a defined meaning upon receipt.',
+      reservedStreams
+    );
+
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0].requirement.id).toBe('R-6.2.3-154');
+    expect(conflicts[0].reason).toContain('forbids');
+  });
+
+  it('禁止に従っている主張は挙げない', () => {
+    const conflicts = detectConflicts(
+      'An endpoint ignores reserved stream types upon receipt.',
+      reservedStreams
+    );
+
+    expect(conflicts).toHaveLength(0);
+  });
+
+  it('否定を含む主張は挙げない', () => {
+    const conflicts = detectConflicts(
+      'An endpoint does not treat a reserved stream type as having any meaning upon receipt.',
+      reservedStreams
+    );
+
+    expect(conflicts).toHaveLength(0);
+  });
+
+  it('禁じられた動詞が主張に無ければ挙げない', () => {
+    // "The server sends frames to the client." は frames / sends / client が
+    // 重なるが、禁じられているのは mask することである。
+    const forbidMasking: Requirement[] = [
+      {
+        id: 'R-5.1-82',
+        level: 'MUST NOT',
+        text: 'A server MUST NOT mask any frames that it sends to the client.',
+        section: '5.1',
+        sectionTitle: 'Overview',
+        fullContext: 'A server MUST NOT mask any frames that it sends to the client.',
+        subject: 'a server',
+        action: 'mask any frames that it sends to the client',
+      },
+    ];
+
+    const conflicts = detectConflicts('The server sends frames to the client.', forbidMasking);
+
+    expect(conflicts).toHaveLength(0);
+  });
+});
+
+describe('要求アクションの主動詞', () => {
+  it('目的語の中の動詞を要求アクションと取り違えない', () => {
+    // RFC 6455 §6.2。求めているのは masking を remove することであって、
+    // mask することではない。"sends unmasked frames" と矛盾しない。
+    const removeMasking: Requirement[] = [
+      {
+        id: 'R-6.2-146',
+        level: 'MUST',
+        text: 'A server MUST remove masking for data frames received from a client as described in Section 5.3.',
+        section: '6.2',
+        sectionTitle: 'Receiving Data',
+        fullContext:
+          'A server MUST remove masking for data frames received from a client as described in Section 5.3.',
+        subject: 'a server',
+        action: 'remove masking for data frames received from a client as described in Section 5.3',
+      },
+    ];
+
+    const conflicts = detectConflicts(
+      'The server sends unmasked frames to the client.',
+      removeMasking
+    );
+
+    expect(conflicts).toHaveLength(0);
+  });
+});

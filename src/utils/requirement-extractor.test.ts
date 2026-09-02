@@ -406,3 +406,26 @@ describe('要件文の体裁（テキスト経路）', () => {
     expect(result[0].fullContext).toMatch(/\n/);
   });
 });
+
+describe('fullContext の体裁', () => {
+  it('fullContext からも行頭の黒丸を落とす', () => {
+    const content = 'o  An endpoint MUST be capable of handling control frames.';
+    const result = extractRequirementsFromSections([
+      {
+        number: '5.4',
+        title: 'Fragmentation',
+        content: [
+          {
+            type: 'text',
+            content,
+            requirements: [{ level: 'MUST', position: content.indexOf('MUST') }],
+            crossReferences: [],
+          },
+        ],
+        subsections: [],
+      },
+    ] as never);
+
+    expect(result[0].fullContext).toBe('An endpoint MUST be capable of handling control frames.');
+  });
+});

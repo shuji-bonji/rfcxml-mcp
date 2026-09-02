@@ -268,11 +268,15 @@ export async function handleGetDependencies(args: GetDependenciesArgs): Promise<
           ? 'References could not be extracted from text format and were not available via Datatracker API.'
           : 'No references extracted; the RFC may not have a References section.';
     }
-  } else if (source === 'text') {
-    // Text-parsed refs are usable but lack `<reference>` metadata
-    // (titles/anchors are placeholders).
+  } else if (source === 'text' && normative.length === 0) {
+    // v0.6.6 から、テキスト経路も参考文献の欄から題名とアンカーを取る。
+    // 「題名は仮置き」という注記は事実に反するので出さない。
+    //
+    // 残る制約は 1 つだけである。規範的参照の欄が見つからなかったとき
+    // （RFC 2616 のように参考文献の欄が 1 つしかない RFC）、テキストには
+    // 規範性の印が無いため、すべて informative に入る。そのときだけ注記する。
     sourceNote =
-      'References extracted from text format. Titles/anchors are placeholders; call get_rfc_structure on each target for details.';
+      'This RFC has a single References section in the text, so every reference is reported as informative. The text carries no normative/informative marking.';
   }
 
   const result: DependencyResult = {

@@ -774,3 +774,41 @@ describe('用語と節番号の表記', () => {
     expect(sections).toEqual(['8.8.3.2', 'A.2.5']);
   });
 });
+
+describe('定義の段落を選ぶ', () => {
+  const xml = `<?xml version="1.0"?>
+<rfc number="9110">
+  <middle>
+    <section anchor="message.transformations" pn="section-7.7">
+      <name>Message Transformations</name>
+      <iref primary="true" item="transforming proxy"/>
+      <t pn="section-7.7-1">Some intermediaries include features for transforming messages and their content.</t>
+      <t pn="section-7.7-2">An HTTP-to-HTTP proxy is called a "transforming proxy" if it is designed to modify messages in a semantically meaningful way.</t>
+    </section>
+    <section anchor="opaque" pn="section-9">
+      <name>Opaque</name>
+      <iref primary="true" item="widget"/>
+      <t pn="section-9-1">This section describes something else entirely.</t>
+    </section>
+  </middle>
+</rfc>`;
+
+  it('用語が出てくる段落まで同じ節の中を進む', () => {
+    // iref は節の直下にあり、定義は 2 つめの段落にある。
+    const transforming = parseRFCXML(xml).definitions.find((d) => d.term === 'transforming proxy');
+
+    expect(transforming?.definition).toContain('is called a "transforming proxy"');
+  });
+
+  it('用語を含む段落が無ければ直後の段落に戻す', () => {
+    const widget = parseRFCXML(xml).definitions.find((d) => d.term === 'widget');
+
+    expect(widget?.definition).toBe('This section describes something else entirely.');
+  });
+
+  it('節をまたいで探さない', () => {
+    const widget = parseRFCXML(xml).definitions.find((d) => d.term === 'widget');
+
+    expect(widget?.section).toBe('9');
+  });
+});

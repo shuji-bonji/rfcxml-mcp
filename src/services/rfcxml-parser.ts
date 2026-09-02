@@ -722,7 +722,7 @@ export function extractIrefDefinitions(xml: string): Definition[] {
     const term = attributeOf(attrs, 'item')?.trim();
     if (!term) continue;
 
-    const paragraph = paragraphContaining(xml, paragraphs, m.index, m.index + m[0].length);
+    const paragraph = definingParagraph(xml, paragraphs, m.index, m.index + m[0].length, term);
     if (!paragraph) continue;
 
     const definition = extractProse(stripTags(paragraph.body));
@@ -764,14 +764,36 @@ function attributeOf(attrs: string, name: string): string | undefined {
   return new RegExp(`\\b${name}="([^"]*)"`, 'i').exec(attrs)?.[1];
 }
 
+/** 用語を含む段落を探すときに、同じ節の中で何段落先まで見るか。 */
+const DEFINITION_LOOKAHEAD = 4;
+
 /**
- * `<iref>` を含む段落、無ければ直後の段落を返す。
+ * その用語を定義している段落を返す。
+ *
+ * 起点は `<iref>` を含む段落、`<iref>` が段落の外（節の直下）にあるときは直後の
+ * 段落である。起点に用語そのものが出てこないときは、同じ節の中を数段落先まで見て、
+ * 用語を含む最初の段落を採る。
+ *
+ * 節の直下に `<iref>` を置き、その節の導入を 1 段落挟んでから定義を書く RFC が
+ * あるためである。RFC 9110 §7.7 はその形で、v0.6.6 は導入の段落を返していた。
+ *
+ * ```xml
+ * <section pn="section-7.7"><name>Message Transformations</name>
+ *   <iref primary="true" item="transforming proxy"/>
+ *   <t pn="section-7.7-1">Some intermediaries include features for transforming …</t>
+ *   <t pn="section-7.7-2">An HTTP-to-HTTP proxy is called a "transforming proxy" if …</t>
+ * ```
+ *
+ * 用語を含む段落が見つからないときは起点に戻す。節の題名が用語そのもので、
+ * 本文が代名詞で受けている場合があり、そこで何も返さないより起点の段落を返す方が
+ * 手掛かりになる。
  */
-function paragraphContaining(
+function definingParagraph(
   xml: string,
   paragraphs: Array<{ open: number; contentStart: number; tag: string }>,
   irefStart: number,
-  irefEnd: number
+  irefEnd: number,
+  term: string
 ): { body: string; section: string } | undefined {
   const take = (index: number): { body: string; section: string } | undefined => {
     const p = paragraphs[index];
@@ -783,20 +805,35 @@ function paragraphContaining(
     };
   };
 
-  // 直前の `<t>` が閉じる前に `<iref>` があれば、その段落の中にいる
+  // 起点を決める。直前の `<t>` が閉じる前に `<iref>` があれば、その段落の中にいる。
+  let start = -1;
   let previous = -1;
   for (let i = 0; i < paragraphs.length; i++) {
     if (paragraphs[i].open > irefStart) break;
     previous = i;
   }
-  if (previous >= 0) {
-    const close = xml.indexOf('</t>', paragraphs[previous].contentStart);
-    if (close > irefStart) return take(previous);
+  if (previous >= 0 && xml.indexOf('</t>', paragraphs[previous].contentStart) > irefStart) {
+    start = previous;
+  } else {
+    start = paragraphs.findIndex((p) => p.open >= irefEnd);
+  }
+  if (start < 0) return undefined;
+
+  const first = take(start);
+  if (!first) return undefined;
+
+  const needle = term.toLowerCase();
+  if (extractProse(stripTags(first.body)).toLowerCase().includes(needle)) return first;
+
+  // 起点に用語が出てこない。同じ節の中を数段落先まで見る。
+  for (let i = start + 1; i < Math.min(start + 1 + DEFINITION_LOOKAHEAD, paragraphs.length); i++) {
+    const candidate = take(i);
+    if (!candidate) break;
+    if (candidate.section !== first.section) break;
+    if (extractProse(stripTags(candidate.body)).toLowerCase().includes(needle)) return candidate;
   }
 
-  // 段落の外（節の直下）にある `<iref>`。定義は直後の段落。
-  const next = paragraphs.find((p) => p.open >= irefEnd);
-  return next ? take(paragraphs.indexOf(next)) : undefined;
+  return first;
 }
 
 /**

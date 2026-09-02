@@ -71,15 +71,54 @@ export function extractSentence(text: string, position: number): string {
  * - 括弧の中のカンマでは切らない（"(e.g., ...)" を割らない）
  * - ピリオドは {@link isSentenceEnd} が文末と認めたときだけ切る
  */
+/** 3 語以上の並びを示す語。"either A, B, or C" の either。 */
+const SERIES_MARKERS = /\b(?:either|neither|both|one of|any of|all of)\b/i;
+
+/** 読点の直後に接続詞が来る形。"…, or one of the reserved opcodes" */
+const COORDINATOR_AFTER_COMMA = /^\s*(?:or|and|nor)\s+/i;
+
+/** 読点のあとにもう 1 項目あり、そのあとに接続詞が来る形。"…, binary, or one of …" */
+const SERIES_ITEM_AFTER_COMMA = /^\s*[^,.;]{1,60},\s*(?:or|and|nor)\s+/i;
+
+/**
+ * その読点が並列の区切りか（節の切れ目ではないか）。
+ *
+ * 判定は 2 通り。
+ *
+ * 1. 読点のあとにもう 1 項目あり、そのあとに接続詞が来る（3 項目以上の並び）。
+ *    これは並列の証拠として十分なので、他の条件は要らない。
+ * 2. 読点の直後が接続詞である。これだけでは節の連結
+ *    （"…in the order sent by the sender, and the receiver MUST …"）と
+ *    区別できないため、直前に `either` などの並列の目印があるか、
+ *    すでに並列の読点を通っていることを求める。
+ */
+function isSeriesComma(text: string, index: number, seenSeriesComma: boolean): boolean {
+  const after = text.slice(index + 1);
+
+  if (SERIES_ITEM_AFTER_COMMA.test(after)) return true;
+  if (!COORDINATOR_AFTER_COMMA.test(after)) return false;
+
+  return seenSeriesComma || SERIES_MARKERS.test(text.slice(0, index));
+}
+
 export function clipAtClauseEnd(text: string): string {
   let depth = 0;
+  let seenSeriesComma = false;
 
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     if (char === '(' || char === '[') depth++;
     else if (char === ')' || char === ']') depth = Math.max(0, depth - 1);
-    else if (char === ',' && depth === 0) return text.slice(0, i).trim();
-    else if (isSentenceEnd(text, i)) return text.slice(0, i).trim();
+    else if (char === ',' && depth === 0) {
+      // 並列（"A, B, or C"）の読点では切らない。切ると RFC 6455 §5.4 の
+      // "MUST be either text, binary, or one of the reserved opcodes" の
+      // action が "be either text" になる。
+      if (isSeriesComma(text, i, seenSeriesComma)) {
+        seenSeriesComma = true;
+        continue;
+      }
+      return text.slice(0, i).trim();
+    } else if (isSentenceEnd(text, i)) return text.slice(0, i).trim();
   }
 
   return text.trim();

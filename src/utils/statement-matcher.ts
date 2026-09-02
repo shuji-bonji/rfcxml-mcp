@@ -47,11 +47,6 @@ export const MATCHING_LIMITS = {
    */
   MIN_SCORE_FOR_VERDICT: 7,
   /**
-   * 要求アクションの主動詞とみなす、アクション文字列先頭からの文字数。
-   * これを超えて現れる動詞は付随的な言及として扱う。
-   */
-  ACTION_VERB_WINDOW: 20,
-  /**
    * 判定（isValid）を下すために最上位マッチに要求する、主語以外の一致語数。
    *
    * 主語だけが一致した状態（"The client" とだけ書いた主張）でもスコアは
@@ -59,6 +54,11 @@ export const MATCHING_LIMITS = {
    * 主語は「誰の話か」しか示さないので、何を論じているかを示す語を別に求める。
    */
   MIN_CONTENT_KEYWORDS_FOR_VERDICT: 2,
+  /**
+   * 「禁じられた行為を文が述べている」と判定するために求める、主動詞以外の
+   * 内容語の重なり。動詞だけが一致した当たりを落とす。
+   */
+  MIN_SHARED_TERMS_FOR_PROHIBITION: 3,
 } as const;
 
 /**
@@ -380,21 +380,76 @@ function requirementTextHasKeyword(requirementText: string, keyword: string): bo
  * 判定に必要な「主語以外の一致語」を数えるために公開している。
  */
 export function isSubjectTerm(word: string): boolean {
-  return SUBJECT_TERMS.has(word.toLowerCase());
+  return SUBJECT_TERMS.has(singular(word.toLowerCase()));
+}
+
+/**
+ * 複数形を単数形にそろえる。
+ *
+ * `SUBJECT_TERMS` は単数形で持っているため、そろえないと RFC 本文の
+ * "Endpoints MUST NOT …" が主語として認識されない。
+ */
+export function singular(word: string): string {
+  if (word.endsWith('ies') && word.length > 4) return `${word.slice(0, -3)}y`;
+  if (/(?:ss|sh|ch|x|s)es$/.test(word)) return word.slice(0, -2);
+  if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3) return word.slice(0, -1);
+  return word;
 }
 
 /**
  * Extract subject from text
+ *
+ * 2 段構えで探す。まず単数形そのままの語を左から探し、見つからないときだけ
+ * 複数形を単数形に直して探す。
+ *
+ * 順序を分けるのは、単数形化を無条件に混ぜると別の語を先に拾うためである。
+ * RFC 6455 §5.1 の
+ * "To avoid confusing network intermediaries (such as intercepting proxies) …
+ *  a client MUST mask all frames that it sends to the server"
+ * では、"proxies" を単数形に直すと "proxy" が "client" より先に当たり、
+ * この要件の主語が proxy になる。主語で照合している矛盾検出から
+ * 「クライアントはマスクする」という要件が外れてしまう。
  */
 export function extractSubject(text: string): string | null {
-  const words = text.toLowerCase().split(/\s+/);
+  const words = text
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.replace(/[^a-z]/g, ''));
+
   for (const word of words) {
-    const cleaned = word.replace(/[^a-z]/g, '');
-    if (SUBJECT_TERMS.has(cleaned)) {
-      return cleaned;
+    if (SUBJECT_TERMS.has(word)) return word;
+  }
+
+  for (const word of words) {
+    const cleaned = singular(word);
+    if (SUBJECT_TERMS.has(cleaned)) return cleaned;
+  }
+
+  return null;
+}
+
+/**
+ * 要件の主語を、`extractSubject` と同じ形（単数形の主語語）にそろえて返す。
+ *
+ * `Requirement.subject` は本文からそのまま取るため、"endpoints"（複数形）や
+ * "an endpoint"（冠詞付き）の形で入っている。v0.6.6 まではこれを
+ * `statementSubject` と `===` で比べていた。RFC 9114 §6.2.3 の
+ * "Endpoints MUST NOT consider these streams to have any meaning upon receipt."
+ * は、主語が "endpoints" であるために「主語が一致しない」と扱われ、
+ *
+ * - 順位付けで主語一致ボーナス (5) が付かず、一致語 6 語ありながら
+ *   一致語 3 語の無関係な要件より下に落ちた
+ * - `detectConflicts` の入口で弾かれ、矛盾の検査自体が行われなかった
+ */
+export function requirementSubjectOf(requirement: Requirement): string | null {
+  const raw = requirement.subject?.toLowerCase();
+  if (raw) {
+    for (const word of raw.split(/[^a-z]+/)) {
+      const cleaned = singular(word);
+      if (SUBJECT_TERMS.has(cleaned)) return cleaned;
     }
   }
-  return null;
+  return extractSubject(requirement.text);
 }
 
 /**
@@ -419,7 +474,7 @@ export function scoreRequirementMatch(
   }
 
   // Bonus for subject match
-  const reqSubject = requirement.subject?.toLowerCase() || extractSubject(requirement.text);
+  const reqSubject = requirementSubjectOf(requirement);
   const subjectMatch = statementSubject !== null && reqSubject === statementSubject;
   if (subjectMatch) {
     score += MATCHING_WEIGHTS.SUBJECT_MATCH_BONUS;
@@ -608,9 +663,14 @@ export function findActionContradiction(
   const statementLower = statement.toLowerCase();
   const actionLower = requiredAction.toLowerCase();
 
+  const headVerb = headVerbOf(actionLower);
+
   for (const pair of NEGATION_PAIRS) {
-    const verbIndex = actionLower.indexOf(pair.positive);
-    if (verbIndex === -1 || verbIndex > MATCHING_LIMITS.ACTION_VERB_WINDOW) continue;
+    // 動詞は要求アクションの主動詞であること。文字数の窓で見ると、
+    // RFC 6455 §6.2 の "remove masking for data frames received from a client" が
+    // 「mask を求めている」と読まれ、「サーバはマスクなしのフレームを送る」と
+    // 矛盾することになる。この要求が求めているのは masking を remove することである。
+    if (!headVerb || !headVerb.startsWith(pair.positive)) continue;
 
     // 要求側が否定形（"MUST ... not mask ..."）ならこの枝では扱わない
     if (hasNegativeAction(actionLower, pair)) continue;
@@ -625,6 +685,155 @@ export function findActionContradiction(
   }
 
   return null;
+}
+
+/**
+ * 否定の要件（`MUST NOT` など）。
+ */
+const NEGATIVE_LEVELS = new Set<RequirementLevel>([
+  'MUST NOT',
+  'SHALL NOT',
+  'SHOULD NOT',
+  'NOT RECOMMENDED',
+]);
+
+/**
+ * 禁じられた行為の主動詞について、RFC の散文で入れ替わる書き方。
+ *
+ * `NEGATION_PAIRS` は「肯定形と否定形の対」（mask ↔ unmask）を持つが、
+ * 主張と要件が別の動詞で同じ行為を述べている場合には当たらない。RFC 9114 §6.2.3 の
+ * "Endpoints MUST NOT consider these streams to have any meaning upon receipt." に対し
+ * 「An endpoint treats a reserved stream type as having a defined meaning upon receipt.」
+ * は、consider と treat が入れ替わっているだけで同じ行為である。
+ *
+ * **網羅ではない。** ここに無い動詞では矛盾を検出しない。検出しないことは
+ * `isValid: true` の意味（矛盾が見つからなかった）と一致しており、
+ * 準拠していることの主張ではない。
+ */
+const VERB_SYNONYMS: string[][] = [
+  ['consider', 'treat', 'regard', 'interpret', 'deem', 'assume'],
+  ['send', 'sent', 'transmit', 'emit', 'forward'],
+  ['accept', 'allow', 'permit'],
+  ['reject', 'refuse', 'deny', 'discard', 'drop'],
+  ['change', 'modify', 'alter', 'rewrite', 'transform'],
+  ['include', 'contain', 'carry', 'insert'],
+  ['use', 'employ', 'apply'],
+  ['close', 'terminate', 'abort'],
+  ['ignore', 'disregard', 'skip'],
+  ['fragment', 'split'],
+  ['mask', 'obscure'],
+];
+
+/**
+ * 文が否定を含むか。
+ *
+ * 否定を含む主張は、禁止に従っていることを述べている見込みが高いので、
+ * 「禁止された行為をしている」検査の対象から外す。
+ */
+function hasNegation(text: string): boolean {
+  return /\b(?:not|never|cannot|without|refrain|neither|nor)\b|n't\b/.test(text.toLowerCase());
+}
+
+/**
+ * 禁じられた行為の主動詞を取り出す。
+ *
+ * `Requirement.action` はキーワードの直後から始まるので、先頭が主動詞になる。
+ * "be fragmented" のように受動態のときは be を飛ばす。
+ */
+function headVerbOf(action: string): string | null {
+  const words = action
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter(Boolean);
+
+  for (const word of words) {
+    if (word === 'be' || word === 'been' || word === 'being') continue;
+    return word;
+  }
+
+  return null;
+}
+
+/**
+ * その動詞（または同義の動詞）が文に現れるか。
+ *
+ * 語頭で境界を取る。素の部分文字列比較にすると "unmasked" が "mask" に当たり、
+ * 「サーバがマスクなしのフレームを送る」を「マスクしている」と読んでしまう。
+ * 語尾は縛らないので、masks / masked / masking は当たる。
+ *
+ * `NEGATION_PAIRS` に否定形を持つ動詞（mask ↔ unmask）については、文に否定形が
+ * 現れていればその動詞を行っていない。
+ */
+function statementHasVerb(statement: string, verb: string): string | null {
+  const group = VERB_SYNONYMS.find((synonyms) => synonyms.includes(verb)) ?? [verb];
+
+  for (const synonym of group) {
+    const pair = NEGATION_PAIRS.find((candidate) => candidate.positive === synonym);
+    if (pair && hasNegativeAction(statement, pair)) continue;
+
+    if (new RegExp(`\\b${synonym}`).test(statement)) return synonym;
+  }
+
+  return null;
+}
+
+/**
+ * その語（または語幹）が文に語として現れるか。
+ *
+ * `requirementTextHasKeyword` と同じ語形の吸収を行いつつ、語頭で境界を取る。
+ */
+function statementHasTerm(statement: string, term: string): boolean {
+  return keywordVariants(term).some((variant) => new RegExp(`\\b${variant}`).test(statement));
+}
+
+/**
+ * 禁じられた行為を、文が肯定形で述べているか。
+ *
+ * v0.6.6 まで、RFC 9114 §6.2.3 の `MUST NOT` に正面から反する文が
+ * `isValid: true`（矛盾なし）になっていた。`NEGATION_PAIRS` に載っていない
+ * 動詞の入れ替え（consider → treat）を見ていなかったためである。
+ *
+ * 誤検出を避けるため、3 つとも満たすことを求める。
+ *
+ * 1. 文が否定を含まないこと。含むなら禁止に従っている見込みが高い。
+ * 2. 禁じられた行為の主動詞、またはその同義語が文に現れること。
+ *    これが要点である。"A server MUST NOT mask any frames that it sends to
+ *    the client." に対する「The server sends frames to the client.」は、
+ *    frames / sends / client が重なるが mask が無いので矛盾ではない。
+ * 3. 主動詞以外に、行為の内容語が 2 語以上重なること。動詞だけの一致では
+ *    別の事柄を論じている見込みがある。
+ *
+ * 主語の一致は呼び出し側（`detectConflicts`）が先に確かめている。
+ */
+export function findProhibitionViolation(
+  statement: string,
+  forbiddenAction: string
+): { verb: string; sharedTerms: string[] } | null {
+  const statementLower = statement.toLowerCase();
+  if (hasNegation(statementLower)) return null;
+
+  const verb = headVerbOf(forbiddenAction);
+  if (!verb) return null;
+
+  const matchedVerb = statementHasVerb(statementLower, verb);
+  if (!matchedVerb) return null;
+
+  const sharedTerms: string[] = [];
+  const seen = new Set<string>();
+
+  for (const word of forbiddenAction.toLowerCase().split(/[^a-z0-9]+/)) {
+    if (!word || word === verb) continue;
+    if (word.length < MATCHING_LIMITS.MIN_KEYWORD_LENGTH) continue;
+    if (STOP_WORDS.has(word)) continue;
+    if (seen.has(word)) continue;
+    seen.add(word);
+
+    if (statementHasTerm(statementLower, word)) sharedTerms.push(word);
+  }
+
+  if (sharedTerms.length < MATCHING_LIMITS.MIN_SHARED_TERMS_FOR_PROHIBITION) return null;
+
+  return { verb: matchedVerb, sharedTerms };
 }
 
 /**
@@ -659,7 +868,7 @@ export function detectConflicts(statement: string, requirements: Requirement[]):
   const statementLower = statement.toLowerCase();
 
   for (const req of requirements) {
-    const reqSubject = req.subject?.toLowerCase() || extractSubject(req.text);
+    const reqSubject = requirementSubjectOf(req);
 
     // Only check requirements with matching subject
     if (reqSubject !== statementSubject) continue;
@@ -711,21 +920,20 @@ export function detectConflicts(statement: string, requirements: Requirement[]):
     }
 
     // For MUST NOT requirements: check if statement does the forbidden action
-    if (reqLevel === 'MUST NOT' || reqLevel === 'SHALL NOT') {
+    if (NEGATIVE_LEVELS.has(reqLevel)) {
       // Extract the forbidden action (after MUST NOT)
-      const forbiddenAction = (reqAction ?? '').replace(/must not|shall not/gi, '').trim();
+      const forbiddenAction = (reqAction ?? '')
+        .replace(/must not|shall not|should not|not recommended/gi, '')
+        .trim();
+      let pairConflict = false;
 
       // Find the PRIMARY forbidden action (the verb that appears first)
       // Only check that specific pair to avoid false positives
-      for (const pair of NEGATION_PAIRS) {
-        // Check if this pair's positive verb is the primary forbidden action
-        // by checking if it appears early in the forbidden action text
-        const forbiddenLower = forbiddenAction.toLowerCase();
-        const verbIndex = forbiddenLower.indexOf(pair.positive);
+      const forbiddenHeadVerb = headVerbOf(forbiddenAction.toLowerCase());
 
-        // Only consider this pair if the positive verb appears near the start
-        // (to identify the primary forbidden action, not incidental mentions)
-        if (verbIndex === -1 || verbIndex > MATCHING_LIMITS.ACTION_VERB_WINDOW) continue;
+      for (const pair of NEGATION_PAIRS) {
+        // 禁じられているのはこの動詞であること（付随的な言及ではない）
+        if (!forbiddenHeadVerb || !forbiddenHeadVerb.startsWith(pair.positive)) continue;
 
         const statementDoesPositive = hasPositiveAction(statementLower, pair);
 
@@ -741,7 +949,22 @@ export function detectConflicts(statement: string, requirements: Requirement[]):
             statementLevel,
             requirementLevel: reqLevel,
           });
+          pairConflict = true;
           break;
+        }
+      }
+
+      // 動詞の入れ替え（consider → treat）で述べられた違反を拾う。
+      // `NEGATION_PAIRS` は肯定形と否定形の対しか見ないため、ここで漏れていた。
+      if (!pairConflict && forbiddenAction) {
+        const violation = findProhibitionViolation(statementLower, forbiddenAction);
+        if (violation) {
+          conflicts.push({
+            requirement: req,
+            reason: `Statement does what "${reqLevel}" forbids ("${violation.verb}", shared: ${violation.sharedTerms.join(', ')}): "${forbiddenAction}"`,
+            statementLevel,
+            requirementLevel: reqLevel,
+          });
         }
       }
     }
