@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.10] - 2026-09-02
+
+v0.6.9 の試用で見つけた、v0.6.9 自身が入れた不具合を直した。
+
+### Fixed
+
+- **箇条書きを繋ぐときに句読点が壊れていた**:
+  - v0.6.9 は「文 + 箇条書き」を繋ぐとき、項目を一律に `"; "` で繋ぎ、末尾に `"."` を
+    足していた。RFC の項目は自分で区切りを持っていることが多い。
+
+    ```
+    *  a 202 (Accepted) status code if the action will likely succeed but has not yet been enacted,
+    *  a 204 (No Content) status code if ... is to be supplied, or
+    *  a 200 (OK) status code if ... describing the status.
+    ```
+
+    結果は `enacted,; a 204 ... supplied, or; a 200 ... status..` になっていた。
+    `generate_checklist` の Markdown にもそのまま出ていた。
+  - 項目が区切り（`,` `;` `:` や末尾の `or` / `and`）を持っていれば空白だけで繋ぎ、
+    持っていなければ `"; "` を入れる。文末記号で終わっていなければ最後に `"."` を足す。
+  - RFC 9110 §9.3.5 は公開版と同じ読みになった。
+
+    > If a DELETE method is successfully applied, the origin server SHOULD send
+    > a 202 (Accepted) status code if the action will likely succeed but has not yet
+    > been enacted, a 204 (No Content) status code if the action has been enacted and
+    > no further information is to be supplied, or a 200 (OK) status code if the action
+    > has been enacted and the response message includes a representation describing
+    > the status.
+
+  - 実測（RFC 18 本・要件 3,946 件のうち、区切りが壊れたもの）: **2 件 → 0 件**。
+    RFC 9110 §9.3.5 と RFC 9112 §9.8。
+
+### Added
+
+- **テストを 331 件から 334 件へ**: 項目が区切りを持つとき・持たないとき・文末記号を
+  二重に付けないこと。
+- **E2E テストを 63 件から 65 件へ**: RFC 9110 §9.3.5 と RFC 9112 §9.8 の要件文に
+  壊れた区切りが無いこと。
+
+### Notes
+
+- 試用で挙がった他の 2 つは不具合ではなかった。
+  - RFC 7230 §2.7.1 `http URI Scheme` のように小文字で始まる節の題名。RFC の題名
+    そのままであり、v0.6.9 で拾えるようになった節である。
+  - RFC 9114 §11.2.1 の `0x21, 0x40, ..., through` に含まれる `...`。原文の省略記号。
+
 ## [0.6.9] - 2026-09-02
 
 矛盾検出の続きに加えて、**全ツールの出力に不変条件を当てる監査**を RFC 18 本

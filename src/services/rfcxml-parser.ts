@@ -448,6 +448,33 @@ function orderedElements(section: XmlNode): OrderedElement[] | null {
  * `<t>An example is</t>` のような表示例の見出しは文末記号が無いのが普通で、
  * 繋ぐと要件文の頭に "An example is Date: Tue, 15 Nov 1994 08:12:31 GMT" が付く。
  */
+/**
+ * 箇条書きの項目を 1 文に繋ぐ。
+ *
+ * RFC の項目は自分で区切りを持っていることが多い。RFC 9110 §9.3.5 は
+ *
+ * ```
+ * *  a 202 (Accepted) status code if the action will likely succeed but has not yet been enacted,
+ * *  a 204 (No Content) status code if ... is to be supplied, or
+ * *  a 200 (OK) status code if ... describing the status.
+ * ```
+ *
+ * と書く。一律に "; " で繋ぐと `enacted,; a 204` `supplied, or; a 200` になり、
+ * 末尾に "." を足すと `status..` になる。
+ *
+ * 項目が区切りを持っていれば空白だけで繋ぎ、持っていなければ "; " を入れる。
+ * 文末記号で終わっていなければ最後に "." を足す。
+ */
+function joinListItems(items: string[]): string {
+  const joined = items.reduce((accumulated, item) => {
+    if (!accumulated) return item;
+    const carriesSeparator = /[,;:]$/.test(accumulated) || /\b(?:or|and|nor)$/i.test(accumulated);
+    return `${accumulated}${carriesSeparator ? ' ' : '; '}${item}`;
+  }, '');
+
+  return /[.!?]$/.test(joined) ? joined : `${joined}.`;
+}
+
 function mergeContinuations(elements: OrderedElement[]): OrderedElement[] {
   const merged: OrderedElement[] = [];
   const consumed = new Set<number>();
@@ -473,7 +500,7 @@ function mergeContinuations(elements: OrderedElement[]): OrderedElement[] {
       if (next.kind === 'list') {
         const items = (next.items ?? []).filter((item) => item.length > 0);
         if (items.length === 0) break;
-        text = `${text} ${items.join('; ').replace(/[;,]?\s*$/, '')}.`;
+        text = `${text} ${joinListItems(items)}`;
         consumed.add(i + step);
         break;
       }

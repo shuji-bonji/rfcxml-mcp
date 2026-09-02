@@ -900,3 +900,48 @@ describe('中身の無い定義', () => {
     expect(terms).toContain('Encoding considerations');
   });
 });
+
+describe('箇条書きの繋ぎ方', () => {
+  const build = (items: string[]) => `<?xml version="1.0"?>
+<rfc number="9110">
+  <middle>
+    <section anchor="delete" pn="section-9.3.5">
+      <name>DELETE</name>
+      <t pn="section-9.3.5-4">The origin server <bcp14>SHOULD</bcp14> send</t>
+      <ul pn="section-9.3.5-5">
+${items.map((item, index) => `        <li pn="section-9.3.5-5.${index + 1}">${item}</li>`).join('\n')}
+      </ul>
+    </section>
+  </middle>
+</rfc>`;
+
+  it('項目が区切りを持っていれば空白だけで繋ぐ', () => {
+    // RFC 9110 §9.3.5 の項目は "…enacted," "…supplied, or" "…status." と自分で区切る。
+    const xml = build([
+      'a 202 (Accepted) status code if it will likely succeed,',
+      'a 204 (No Content) status code if no information is supplied, or',
+      'a 200 (OK) status code if the response includes a representation.',
+    ]);
+    const [requirement] = extractRequirements(parseRFCXML(xml).sections, { section: '9.3.5' });
+
+    expect(requirement.text).toBe(
+      'The origin server SHOULD send a 202 (Accepted) status code if it will likely succeed, a 204 (No Content) status code if no information is supplied, or a 200 (OK) status code if the response includes a representation.'
+    );
+  });
+
+  it('項目が区切りを持たなければ "; " を入れて文末に "." を足す', () => {
+    const xml = build(['the first condition', 'the second condition']);
+    const [requirement] = extractRequirements(parseRFCXML(xml).sections, { section: '9.3.5' });
+
+    expect(requirement.text).toBe(
+      'The origin server SHOULD send the first condition; the second condition.'
+    );
+  });
+
+  it('文末記号を二重に付けない', () => {
+    const xml = build(['the only condition.']);
+    const [requirement] = extractRequirements(parseRFCXML(xml).sections, { section: '9.3.5' });
+
+    expect(requirement.text).not.toContain('..');
+  });
+});

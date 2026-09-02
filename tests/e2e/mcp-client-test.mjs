@@ -1438,6 +1438,50 @@ async function testCompleteSentences(client) {
 }
 
 /**
+ * 29. 箇条書きの繋ぎ方（v0.6.10）
+ *
+ * v0.6.9 は一律に "; " で繋ぎ末尾に "." を足していたため、項目が自分で区切りを
+ * 持つ RFC 9110 §9.3.5 が "enacted,; a 204 … supplied, or; a 200 … status.." に
+ * なっていた。
+ */
+async function testListJoin(client) {
+  const toolName = 'get_requirements';
+
+  for (const { rfc, section } of [
+    { rfc: 9110, section: '9.3.5' },
+    { rfc: 9112, section: '9.8' },
+  ]) {
+    try {
+      const res = await callTool(client, 'get_requirements', { rfc, section });
+      const broken = (res.requirements || []).filter((r) =>
+        /[,;]\s*;|\bor;|\band;|[a-z]\.\./.test(r.text || '')
+      );
+
+      logResult(
+        toolName,
+        `RFC ${rfc} S${section}: list items are joined with the RFC's own punctuation`,
+        broken.length === 0 ? 'PASS' : 'FAIL',
+        {
+          note:
+            broken.length === 0
+              ? `${(res.requirements || []).length} requirements, 0 broken`
+              : broken[0].text.slice(0, 120),
+        }
+      );
+    } catch (e) {
+      logResult(
+        toolName,
+        `RFC ${rfc} S${section}: list items are joined with the RFC's own punctuation`,
+        'FAIL',
+        {
+          error: e.message,
+        }
+      );
+    }
+  }
+}
+
+/**
  * 28. 中身の無い定義（v0.6.9）
  */
 async function testEmptyDefinitions(client) {
@@ -1590,6 +1634,10 @@ async function main() {
 
     console.log('--- 28. empty definitions ---');
     await testEmptyDefinitions(client);
+    console.log('');
+
+    console.log('--- 29. list join ---');
+    await testListJoin(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);
