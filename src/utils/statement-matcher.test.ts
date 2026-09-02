@@ -9,6 +9,7 @@ import {
   extractSubject,
   scoreRequirementMatch,
   detectConflicts,
+  identifiersOf,
   matchStatement,
   requiredActionOf,
   isSubjectTerm,
@@ -653,5 +654,117 @@ describe('要求アクションの主動詞', () => {
     );
 
     expect(conflicts).toHaveLength(0);
+  });
+});
+
+describe('同じ事柄についての矛盾か', () => {
+  it('要件に固有の名前があれば、主張にもあることを求める', () => {
+    // "send a MAX_PUSH_ID frame" と「GOAWAY フレームを送る」は、
+    // send と frame が重なるだけで別の行為である。
+    const maxPushId: Requirement[] = [
+      {
+        id: 'R-7.2.7-215',
+        level: 'MUST NOT',
+        text: 'A server MUST NOT send a MAX_PUSH_ID frame.',
+        section: '7.2.7',
+        sectionTitle: 'MAX_PUSH_ID',
+        fullContext: 'A server MUST NOT send a MAX_PUSH_ID frame.',
+        subject: 'a server',
+        action: 'send a MAX_PUSH_ID frame',
+      },
+    ];
+
+    expect(
+      detectConflicts('A server sends a GOAWAY frame to initiate a graceful shutdown.', maxPushId)
+    ).toHaveLength(0);
+
+    expect(
+      detectConflicts('A server sends a MAX_PUSH_ID frame on its control stream.', maxPushId)
+    ).toHaveLength(1);
+  });
+
+  it('限定付きの禁止は、限定語が主張にあるときだけ挙げる', () => {
+    // 禁じているのは「理由なく閉じること」であって、閉じること自体ではない。
+    const arbitrary: Requirement[] = [
+      {
+        id: 'R-7.3-171',
+        level: 'SHOULD NOT',
+        text: 'Clients SHOULD NOT close the WebSocket connection arbitrarily.',
+        section: '7.3',
+        sectionTitle: 'Normal Closure of Connections',
+        fullContext: 'Clients SHOULD NOT close the WebSocket connection arbitrarily.',
+        subject: 'clients',
+        action: 'close the WebSocket connection arbitrarily',
+      },
+    ];
+
+    expect(
+      detectConflicts('The client closes the connection when it detects a masked frame.', arbitrary)
+    ).toHaveLength(0);
+
+    expect(
+      detectConflicts('The client closes the WebSocket connection arbitrarily.', arbitrary)
+    ).toHaveLength(1);
+  });
+
+  it('条件が食い違う要件は挙げない', () => {
+    // 接続を確立する手順の要件と、マスク検出時に閉じる記述は場面が違う。
+    const establish: Requirement[] = [
+      {
+        id: 'R-4.1-20',
+        level: 'MUST',
+        text: "When the client is to establish a WebSocket connection, it MUST open a connection, send an opening handshake, and read the server's handshake in response.",
+        section: '4.1',
+        sectionTitle: 'Client Requirements',
+        fullContext: '',
+        subject: 'client',
+        condition: 'the client is to establish a WebSocket connection',
+        action:
+          "open a connection, send an opening handshake, and read the server's handshake in response",
+      },
+    ];
+
+    expect(
+      detectConflicts('The client closes the connection when it detects a masked frame.', establish)
+    ).toHaveLength(0);
+  });
+
+  it('主張の主動詞がその行為であることを求める', () => {
+    // "removes masking" の主動詞は removes であって mask ではない。
+    const forbidMasking: Requirement[] = [
+      {
+        id: 'R-5.1-82',
+        level: 'MUST NOT',
+        text: 'A server MUST NOT mask any frames that it sends to the client.',
+        section: '5.1',
+        sectionTitle: 'Overview',
+        fullContext: 'A server MUST NOT mask any frames that it sends to the client.',
+        subject: 'a server',
+        action: 'mask any frames that it sends to the client',
+      },
+    ];
+
+    expect(
+      detectConflicts(
+        'The server removes masking for data frames received from a client.',
+        forbidMasking
+      )
+    ).toHaveLength(0);
+
+    expect(
+      detectConflicts('The server masks the frames that it sends to the client.', forbidMasking)
+    ).toHaveLength(1);
+  });
+});
+
+describe('identifiersOf', () => {
+  it('フレーム名やメソッド名を固有の名前として取る', () => {
+    expect(identifiersOf('send a MAX_PUSH_ID frame')).toEqual(['MAX_PUSH_ID']);
+    expect(identifiersOf('send content in a TRACE request')).toEqual(['TRACE']);
+  });
+
+  it('一般的な略語と角括弧の引用は取らない', () => {
+    expect(identifiersOf('run through the encrypted tunnel [RFC5246]')).toEqual([]);
+    expect(identifiersOf('parse an HTTP message over TCP')).toEqual([]);
   });
 });

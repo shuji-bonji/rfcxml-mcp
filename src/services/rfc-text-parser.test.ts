@@ -509,3 +509,32 @@ describe('参考文献の欄から参照を取り出す', () => {
     expect(all.some((r) => r.rfcNumber === 5741)).toBe(false);
   });
 });
+
+describe('引用符を使わない参考文献', () => {
+  const text = [
+    '17.  References',
+    '',
+    '   [20] Sollins, K. and L. Masinter, "Functional Requirements for',
+    '        Uniform Resource Names", RFC 1737, December 1994.',
+    '',
+    '   [21] US-ASCII. Coded Character Set - 7-Bit American Standard Code for',
+    '        Information Interchange. Standard ANSI X3.4-1986, ANSI, 1986.',
+    '',
+  ].join('\n');
+
+  it('ピリオド区切りの最も長い部分を題名にする', () => {
+    const refs = parseRFCText(text, 2616).references.informative;
+    const ansi = refs.find((r) => r.anchor === '21');
+
+    expect(ansi?.title).toBe(
+      'Coded Character Set - 7-Bit American Standard Code for Information Interchange'
+    );
+  });
+
+  it('引用符がある項目はそちらを優先する', () => {
+    const refs = parseRFCText(text, 2616).references.informative;
+    const urn = refs.find((r) => r.anchor === '20');
+
+    expect(urn?.title).toBe('Functional Requirements for Uniform Resource Names');
+  });
+});

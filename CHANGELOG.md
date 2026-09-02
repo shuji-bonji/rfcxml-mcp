@@ -2,6 +2,98 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.8] - 2026-09-02
+
+v0.6.7 の試用で、**準拠した記述に矛盾が出る件数が増えていた**（18 文中 2 文 →
+5 文）。個別の例外を足すのをやめ、矛盾を報告する前に「同じ事柄についてか」を
+確かめる 1 つの関門を通すようにした。
+
+### 根本原因
+
+`validate_statement` の矛盾検出は、主張と要件の**語の重なり**で判定していた。
+語の重なりは「同じ話題」を示すが、「同じ行為」を示さない。この近似が破れるたびに
+補正の係数を足してきた（`NEGATION_PAIRS` / `generic` / `sharesActionContext` /
+`ACTION_VERB_WINDOW` / `VERB_SYNONYMS` / `MIN_SHARED_TERMS_FOR_PROHIBITION`）。
+係数は互いに独立ではないため、片方を締めると別のところが漏れ、緩めると別のところが
+当たる。v0.6.7 で主語の照合を直した（"a server" → server）ところ、それまで主語不一致で
+検査対象外だった要件が入ってきて、既存の係数の緩さが一度に表面化した。
+
+対処として、係数を足す代わりに `describesSameAct()` を置いた。矛盾と言う前に
+3 つ確かめる。すべての分岐（`MUST` 側の否定一致、`MUST NOT` 側の
+`NEGATION_PAIRS`、v0.6.7 で足した `findProhibitionViolation`）がこれを通る。
+
+1. **要求アクションに固有の名前があれば、主張にもあること**。RFC はフレーム名・
+   メソッド名・エラーコードを全大文字やアンダースコア付きで書く（`MAX_PUSH_ID`
+   `PUSH_PROMISE` `CANCEL_PUSH` `TRACE`）。要件を互いに区別しているのはこの語であって、
+   `frame` や `request` ではない。`HTTP` `TCP` `URI` のような一般的な略語と、
+   角括弧の引用（`[RFC5246]`）は名前として扱わない。
+2. **要求アクションに限定語があれば、主張にもあること**。RFC 6455 §7.3 の
+   "Clients SHOULD NOT close the WebSocket connection **arbitrarily**." が禁じているのは
+   「理由なく閉じること」であって、閉じること自体ではない。
+   `arbitrarily` `unnecessarily` `unless` `except` `other than` など。
+3. **双方に条件節があるなら、内容語が 1 語以上重なること**。RFC 6455 §4.1 の
+   「接続を確立するとき」の要件と、「マスクされたフレームを検出したとき」の記述は
+   場面が違う。片方にしか条件が無い場合は判断材料が無いので通す。
+
+加えて、**主張が禁じられた行為を行っていると言うには、主張の主動詞がその行為で
+あることを求める**（`statementMainVerb()`）。"The server **removes** masking for data
+frames …" の主動詞は removes であって mask ではない。v0.6.7 は要件側に同じ規則を
+入れたが、主張側が抜けていた。
+
+### Fixed
+
+- **準拠した記述への誤検出**:
+
+  | | v0.6.6 | v0.6.7 | v0.6.8 |
+  |---|---|---|---|
+  | 矛盾が出た文 / 18 | 2 | 5 | **0** |
+  | 矛盾の件数 | 2 | 7 | **0** |
+
+  消えた 7 件の内訳。
+
+  | 主張（いずれも RFC に従っている） | 挙がっていた要件 | 外れた条件 |
+  |---|---|---|
+  | The client closes the connection when it detects a masked frame. | R-4.1-20（接続の確立） | 条件が食い違う |
+  | 〃 | R-7.3-171（"close … arbitrarily"） | 限定語が無い |
+  | The server removes masking for data frames received from a client. | R-5.1-82（"MUST NOT mask"） | 主張の主動詞が removes |
+  | A server sends a GOAWAY frame to initiate a graceful shutdown. | R-7.2.7-215（"send a MAX_PUSH_ID frame"） | 固有の名前が無い |
+  | A client sends a MAX_PUSH_ID frame … | R-7.2.3-168 / R-7.2.5-210 | 同上 |
+  | A client sends a request to an origin server. | R-9.3.8-222（"send content in a TRACE request"） | 同上 |
+
+  違反の検出は落ちていない。RFC 9114 §6.2.3 の禁止に反する記述、RFC 6455 §5.1 の
+  `MUST NOT mask` に反する記述、`MUST mask` に反する記述の **3 / 3 を検出**する。
+
+- **引用符を使わない参考文献の題名が取れていなかった** (`get_rfc_dependencies`):
+  - RFC 2616 の `[21]` `[22]` は二重引用符を使わない古い書式で、題名が
+    `"21"` `"22"`（アンカーそのもの）になっていた。
+
+    ```
+    [21] US-ASCII. Coded Character Set - 7-Bit American Standard Code for
+         Information Interchange. Standard ANSI X3.4-1986, ANSI, 1986.
+    ```
+
+  - 引用符が無いときは、ピリオドで区切ったうちの最も長い部分を採る。書誌の構造を
+    解析しているわけではなく、略称や発行年のような短い断片を避けるための規則である。
+  - 実測: RFC 2616 の 49 件中、題名がアンカーのままのもの 2 件 → **0 件**。
+
+### Added
+
+- **テストを 300 件から 308 件へ**: 固有の名前（あるとき／無いとき）、限定付きの禁止
+  （限定語があるとき／無いとき）、条件の食い違い、主張の主動詞、`identifiersOf` が
+  一般的な略語と角括弧の引用を取らないこと、引用符を使わない参考文献の題名。
+- **E2E テストを 54 件から 57 件へ**: 準拠した 6 文（RFC 6455 / 9114 / 9110）に矛盾が
+  出ないこと、違反した 3 文が検出されること、RFC 2616 の全 49 件に題名が付くこと。
+
+### Notes
+
+- `describesSameAct()` は近似であって構文解析ではない。主語・主動詞・固有の名前・
+  条件節という 4 つの手掛かりを見ているだけで、文の構造を取っているわけではない。
+  ここを越える精度が要るなら、両側から述語構造（誰が・何を・どの対象に）を取り出す
+  設計に変える必要がある。
+- RFC 9110 の `non-transforming proxy` は §7.7 の導入段落を返す。この用語は §7.7 の
+  本文に一度も現れず（`<iref>` の属性にしかない）、前方探索が空振りして起点に戻る。
+  定義が付けられない用語であり、v0.6.7 の設計どおりの動作である。
+
 ## [0.6.7] - 2026-09-02
 
 v0.6.6 の試用で挙がった 5 件を直した。

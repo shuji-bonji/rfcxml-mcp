@@ -1238,6 +1238,122 @@ async function testNotesAndShapes(client) {
   }
 }
 
+/**
+ * 23. 準拠した記述に矛盾を出さないこと（v0.6.8）
+ *
+ * v0.6.7 は主語の照合を直したことで矛盾検査に入る要件が増え、準拠した記述にも
+ * 矛盾が出るようになった（18 文中 5 文）。語の重なりは「同じ話題」を示すが
+ * 「同じ行為」を示さない。
+ */
+const COMPLIANT_STATEMENTS = [
+  { rfc: 6455, statement: 'The client closes the connection when it detects a masked frame.' },
+  { rfc: 6455, statement: 'The server removes masking for data frames received from a client.' },
+  { rfc: 6455, statement: 'The client masks all frames that it sends to the server.' },
+  { rfc: 9114, statement: 'A server sends a GOAWAY frame to initiate a graceful shutdown.' },
+  {
+    rfc: 9114,
+    statement: 'A client sends a MAX_PUSH_ID frame to control the number of server pushes.',
+  },
+  { rfc: 9110, statement: 'A client sends a request to an origin server.' },
+];
+
+async function testCompliantStatements(client) {
+  const toolName = 'validate_statement';
+  const noisy = [];
+
+  for (const { rfc, statement } of COMPLIANT_STATEMENTS) {
+    try {
+      const res = await callTool(client, 'validate_statement', { rfc, statement });
+      if ((res.conflicts || []).length > 0) {
+        noisy.push(`RFC ${rfc}: ${(res.conflicts || []).map((c) => c.requirement.id).join(',')}`);
+      }
+    } catch (e) {
+      noisy.push(`RFC ${rfc}: ${e.message}`);
+    }
+  }
+
+  logResult(
+    toolName,
+    'statements that follow the RFC report no conflict',
+    noisy.length === 0 ? 'PASS' : 'FAIL',
+    {
+      note:
+        noisy.length === 0
+          ? `${COMPLIANT_STATEMENTS.length} statements, 0 conflicts`
+          : noisy.join(' | '),
+    }
+  );
+}
+
+/**
+ * 24. 違反はこれまでどおり検出できること（v0.6.8）
+ */
+const VIOLATING_STATEMENTS = [
+  {
+    rfc: 9114,
+    statement:
+      'An endpoint treats a reserved stream type as having a defined meaning upon receipt.',
+    section: '6.2.3',
+  },
+  {
+    rfc: 6455,
+    statement: 'A server masks the frames that it sends to the client.',
+    section: '5.1',
+  },
+  { rfc: 6455, statement: 'A client sends unmasked frames to the server.', section: '5.1' },
+];
+
+async function testViolatingStatements(client) {
+  const toolName = 'validate_statement';
+  const missed = [];
+
+  for (const { rfc, statement, section } of VIOLATING_STATEMENTS) {
+    try {
+      const res = await callTool(client, 'validate_statement', { rfc, statement });
+      const hit = (res.conflicts || []).some((c) => c.requirement.section === section);
+      if (!hit) missed.push(`RFC ${rfc} §${section}`);
+    } catch (e) {
+      missed.push(`RFC ${rfc}: ${e.message}`);
+    }
+  }
+
+  logResult(
+    toolName,
+    'statements that break a requirement are still reported',
+    missed.length === 0 ? 'PASS' : 'FAIL',
+    {
+      note:
+        missed.length === 0
+          ? `${VIOLATING_STATEMENTS.length} statements, all detected`
+          : missed.join(' | '),
+    }
+  );
+}
+
+/**
+ * 25. 引用符を使わない参考文献の題名（v0.6.8）
+ */
+async function testUnquotedReferenceTitles(client) {
+  try {
+    const res = await callTool(client, 'get_rfc_dependencies', { rfc: 2616 });
+    const all = [...(res.normative || []), ...(res.informative || [])];
+    const stubs = all.filter((r) => r.title === r.anchor);
+
+    logResult(
+      'dependencies',
+      'entries without quotes still get a title',
+      stubs.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `total=${all.length}, stubs=${stubs.length}`,
+      }
+    );
+  } catch (e) {
+    logResult('dependencies', 'entries without quotes still get a title', 'FAIL', {
+      error: e.message,
+    });
+  }
+}
+
 // ========================================
 // Main Execution
 // ========================================
@@ -1342,6 +1458,18 @@ async function main() {
 
     console.log('--- 22. notes and shapes ---');
     await testNotesAndShapes(client);
+    console.log('');
+
+    console.log('--- 23. compliant statements ---');
+    await testCompliantStatements(client);
+    console.log('');
+
+    console.log('--- 24. violating statements ---');
+    await testViolatingStatements(client);
+    console.log('');
+
+    console.log('--- 25. unquoted reference titles ---');
+    await testUnquotedReferenceTitles(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);

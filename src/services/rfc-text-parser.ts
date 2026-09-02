@@ -195,7 +195,7 @@ function parseTextReference(
     }
   }
 
-  const title = /"([^"]+)"/.exec(entry)?.[1].trim();
+  const title = /"([^"]+)"/.exec(entry)?.[1].trim() || titleWithoutQuotes(entry);
 
   return {
     anchor,
@@ -203,6 +203,38 @@ function parseTextReference(
     rfcNumber,
     title: title || (rfcNumber ? `RFC ${rfcNumber}` : anchor),
   };
+}
+
+/** 引用符を使わない書式の項目から、題名にあたる部分を取る最大の長さ。 */
+const UNQUOTED_TITLE_MAX_LENGTH = 120;
+
+/**
+ * 二重引用符を使わない古い書式の項目から題名を取る。
+ *
+ * RFC 2616 の `[21]` `[22]` は引用符を使わない。
+ *
+ * ```
+ * [21] US-ASCII. Coded Character Set - 7-Bit American Standard Code for
+ *      Information Interchange. Standard ANSI X3.4-1986, ANSI, 1986.
+ * ```
+ *
+ * ピリオドで区切ったうちの最も長い部分を採る。上の例では
+ * "Coded Character Set - 7-Bit American Standard Code for Information Interchange" になる。
+ * 短すぎる断片（略称や発行年）を避けるためで、書誌の構造を解析しているわけではない。
+ * 何も取れなければ呼び出し側が anchor に戻す。
+ */
+function titleWithoutQuotes(entry: string): string | undefined {
+  const parts = entry
+    .split(/\.\s+/)
+    .map((part) => part.replace(/\.$/, '').trim())
+    .filter((part) => part.length > 0);
+
+  if (parts.length < 2) return undefined;
+
+  const longest = parts.reduce((best, part) => (part.length > best.length ? part : best), '');
+  if (longest.length < 12) return undefined;
+
+  return longest.slice(0, UNQUOTED_TITLE_MAX_LENGTH).trim();
 }
 
 /**

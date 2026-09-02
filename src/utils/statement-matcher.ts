@@ -5,6 +5,7 @@
 
 import type { Requirement, RequirementLevel } from '../types/index.js';
 import { createRequirementRegex } from '../constants.js';
+import { clipAtClauseEnd } from './text.js';
 
 // ========================================
 // Matching Configuration
@@ -687,6 +688,211 @@ export function findActionContradiction(
   return null;
 }
 
+// ========================================
+// 同じ事柄についての矛盾かを確かめる
+// ========================================
+
+/**
+ * 全大文字だが識別子ではない語。プロトコル名や一般的な略語。
+ *
+ * これらを「その要件に固有の名前」として扱うと、ほとんどの要件が
+ * 「文に HTTP が無いから別の事柄」と判定されてしまう。
+ */
+const GENERIC_ACRONYMS = new Set([
+  'HTTP',
+  'HTTPS',
+  'TCP',
+  'UDP',
+  'TLS',
+  'SSL',
+  'QUIC',
+  'URI',
+  'URL',
+  'IRI',
+  'MIME',
+  'ASCII',
+  'UTF',
+  'ABNF',
+  'IANA',
+  'IETF',
+  'RFC',
+  'DNS',
+  'API',
+  'JSON',
+  'XML',
+  'HTML',
+  'SP',
+  'CRLF',
+  'LF',
+  'CR',
+  'OK',
+  'ID',
+  'BCP',
+  'STD',
+  'FIPS',
+  'MUST',
+  'NOT',
+  'SHALL',
+  'SHOULD',
+  'MAY',
+  'REQUIRED',
+  'OPTIONAL',
+  'RECOMMENDED',
+]);
+
+/**
+ * 要求アクションの中の、その要件に固有の名前。
+ *
+ * RFC はフレーム名・メソッド名・エラーコードを全大文字やアンダースコア付きで書く
+ * （`MAX_PUSH_ID` `PUSH_PROMISE` `CANCEL_PUSH` `TRACE` `H3_NO_ERROR`）。
+ * これが要件を互いに区別している語であり、一般名詞（frame / request）ではない。
+ *
+ * 角括弧の引用（`[RFC5246]`）は名前ではないので先に落とす。
+ */
+export function identifiersOf(action: string): string[] {
+  const withoutCitations = action.replace(/\[[^\]]*\]/g, ' ');
+  const found = new Set<string>();
+
+  for (const token of withoutCitations.split(/[^A-Za-z0-9_]+/)) {
+    if (!token) continue;
+    if (token.includes('_')) {
+      found.add(token);
+      continue;
+    }
+    if (token.length >= 3 && token === token.toUpperCase() && /[A-Z]/.test(token)) {
+      if (!GENERIC_ACRONYMS.has(token)) found.add(token);
+    }
+  }
+
+  return [...found];
+}
+
+/**
+ * 禁止や要求を限定している語。
+ *
+ * RFC 6455 §7.3 の "Clients SHOULD NOT close the WebSocket connection arbitrarily."
+ * が禁じているのは「理由なく閉じること」であって、閉じること自体ではない。
+ * 限定語を落として語の重なりだけを見ると、理由を述べて閉じる記述まで違反になる。
+ */
+const QUALIFIER_WORDS = [
+  'arbitrarily',
+  'unnecessarily',
+  'blindly',
+  'silently',
+  'automatically',
+  'solely',
+  'merely',
+  'unless',
+  'except',
+  'other than',
+];
+
+export function qualifiersOf(action: string): string[] {
+  const lower = action.toLowerCase();
+  return QUALIFIER_WORDS.filter((word) => lower.includes(word));
+}
+
+/**
+ * 文の条件節（"when it detects a masked frame"）。
+ * `parseRequirementComponents` が要件から取るものと同じ形にそろえる。
+ */
+export function conditionOf(text: string): string | null {
+  const match = text.match(/\b(if|when|unless|where|in case)\s+(.+)/is);
+  if (!match) return null;
+
+  const condition = clipAtClauseEnd(match[2]);
+  return condition.length > 0 ? condition : null;
+}
+
+/** 2 つの文字列に共通する内容語があるか。 */
+function sharesContentWord(a: string, b: string): boolean {
+  const wordsOf = (text: string): string[] =>
+    text
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length >= MATCHING_LIMITS.MIN_KEYWORD_LENGTH && !STOP_WORDS.has(word));
+
+  const other = wordsOf(b).join(' ');
+  return wordsOf(a).some((word) => requirementTextHasKeyword(other, word));
+}
+
+/**
+ * 主張の主動詞。主語語の次に来る語を採る。
+ *
+ * "The server removes masking for data frames …" の主動詞は removes であって
+ * mask ではない。この区別が無いと、§6.2 が求めている動作（マスクを外す）が
+ * §5.1 の "MUST NOT mask" に反すると判定される。
+ */
+export function statementMainVerb(statement: string, subject: string | null): string | null {
+  if (!subject) return null;
+
+  const words = statement
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.replace(/[^a-z]/g, ''))
+    .filter(Boolean);
+
+  const index = words.findIndex((word) => singular(word) === subject);
+  if (index === -1 || index + 1 >= words.length) return null;
+
+  return words[index + 1];
+}
+
+/** 主張が実際にその動詞の行為を述べているか（主動詞で見る）。 */
+export function statementPerformsVerb(
+  statement: string,
+  subject: string | null,
+  verb: string
+): boolean {
+  const main = statementMainVerb(statement, subject);
+  if (!main) return false;
+
+  const group = VERB_SYNONYMS.find((synonyms) => synonyms.includes(verb)) ?? [verb];
+  return group.some((synonym) => main.startsWith(synonym));
+}
+
+/**
+ * 主張と要求アクションが同じ事柄についてのものか。
+ *
+ * 矛盾検出はこれまで語の重なりだけで判定していた。語の重なりは「同じ話題」を
+ * 示すが、「同じ行為」を示さない。v0.6.7 で主語の照合を直して検査対象が広がった
+ * ところ、準拠した記述 18 文のうち 5 文に矛盾が出るようになった。内訳は
+ *
+ * - `send` のような一般的な動詞で、共通語が frame / request しかないもの
+ *   （"send a MAX_PUSH_ID frame" と「GOAWAY フレームを送る」）
+ * - 限定付きの禁止（"close … arbitrarily"）に、理由を述べた記述が当たるもの
+ * - 適用場面が違うもの（接続を確立する手順の要件と、マスク検出時に閉じる記述）
+ *
+ * どれも「語は重なるが行為が違う」である。ここで 3 つ確かめる。
+ *
+ * 1. 要求アクションに固有の名前があれば、主張にもあること
+ * 2. 要求アクションに限定語があれば、主張にもあること
+ * 3. 双方に条件節があるなら、内容語が 1 語以上重なること
+ *    （片方にしか無い場合は判断材料が無いので通す）
+ */
+export function describesSameAct(
+  statement: string,
+  requirement: Requirement,
+  action: string
+): boolean {
+  const lower = statement.toLowerCase();
+
+  for (const identifier of identifiersOf(action)) {
+    if (!lower.includes(identifier.toLowerCase())) return false;
+  }
+
+  for (const qualifier of qualifiersOf(action)) {
+    if (!lower.includes(qualifier)) return false;
+  }
+
+  const statementCondition = conditionOf(statement);
+  if (requirement.condition && statementCondition) {
+    if (!sharesContentWord(requirement.condition, statementCondition)) return false;
+  }
+
+  return true;
+}
+
 /**
  * 否定の要件（`MUST NOT` など）。
  */
@@ -755,29 +961,6 @@ function headVerbOf(action: string): string | null {
 }
 
 /**
- * その動詞（または同義の動詞）が文に現れるか。
- *
- * 語頭で境界を取る。素の部分文字列比較にすると "unmasked" が "mask" に当たり、
- * 「サーバがマスクなしのフレームを送る」を「マスクしている」と読んでしまう。
- * 語尾は縛らないので、masks / masked / masking は当たる。
- *
- * `NEGATION_PAIRS` に否定形を持つ動詞（mask ↔ unmask）については、文に否定形が
- * 現れていればその動詞を行っていない。
- */
-function statementHasVerb(statement: string, verb: string): string | null {
-  const group = VERB_SYNONYMS.find((synonyms) => synonyms.includes(verb)) ?? [verb];
-
-  for (const synonym of group) {
-    const pair = NEGATION_PAIRS.find((candidate) => candidate.positive === synonym);
-    if (pair && hasNegativeAction(statement, pair)) continue;
-
-    if (new RegExp(`\\b${synonym}`).test(statement)) return synonym;
-  }
-
-  return null;
-}
-
-/**
  * その語（または語幹）が文に語として現れるか。
  *
  * `requirementTextHasKeyword` と同じ語形の吸収を行いつつ、語頭で境界を取る。
@@ -807,7 +990,8 @@ function statementHasTerm(statement: string, term: string): boolean {
  */
 export function findProhibitionViolation(
   statement: string,
-  forbiddenAction: string
+  forbiddenAction: string,
+  subject: string | null
 ): { verb: string; sharedTerms: string[] } | null {
   const statementLower = statement.toLowerCase();
   if (hasNegation(statementLower)) return null;
@@ -815,8 +999,11 @@ export function findProhibitionViolation(
   const verb = headVerbOf(forbiddenAction);
   if (!verb) return null;
 
-  const matchedVerb = statementHasVerb(statementLower, verb);
-  if (!matchedVerb) return null;
+  // 主張の主動詞がその行為であること。文中のどこかに動詞が現れるだけでは、
+  // 別の行為を述べている見込みがある。
+  if (!statementPerformsVerb(statementLower, subject, verb)) return null;
+
+  const matchedVerb = statementMainVerb(statementLower, subject) ?? verb;
 
   const sharedTerms: string[] = [];
   const seen = new Set<string>();
@@ -907,7 +1094,9 @@ export function detectConflicts(statement: string, requirements: Requirement[]):
 
     // For MUST requirements: check if statement contradicts the required action
     if (reqAction && (reqLevel === 'MUST' || reqLevel === 'SHALL' || reqLevel === 'REQUIRED')) {
-      const contradiction = findActionContradiction(statementLower, reqAction, statementKeywords);
+      const contradiction = describesSameAct(statementLower, req, reqAction)
+        ? findActionContradiction(statementLower, reqAction, statementKeywords)
+        : null;
       if (contradiction) {
         conflicts.push({
           requirement: req,
@@ -935,13 +1124,16 @@ export function detectConflicts(statement: string, requirements: Requirement[]):
         // 禁じられているのはこの動詞であること（付随的な言及ではない）
         if (!forbiddenHeadVerb || !forbiddenHeadVerb.startsWith(pair.positive)) continue;
 
-        const statementDoesPositive = hasPositiveAction(statementLower, pair);
+        const statementDoesPositive =
+          hasPositiveAction(statementLower, pair) &&
+          statementPerformsVerb(statementLower, statementSubject, pair.positive);
 
         // 一般的な動詞では、動詞が一致しただけの当たりを落とす（例: "MUST NOT send
         // back a |Sec-WebSocket-Protocol| header field" と「マスクなしのフレームを送る」）
         if (
           statementDoesPositive &&
-          sharesActionContext(statementKeywords, forbiddenAction, pair)
+          sharesActionContext(statementKeywords, forbiddenAction, pair) &&
+          describesSameAct(statementLower, req, forbiddenAction)
         ) {
           conflicts.push({
             requirement: req,
@@ -956,8 +1148,16 @@ export function detectConflicts(statement: string, requirements: Requirement[]):
 
       // 動詞の入れ替え（consider → treat）で述べられた違反を拾う。
       // `NEGATION_PAIRS` は肯定形と否定形の対しか見ないため、ここで漏れていた。
-      if (!pairConflict && forbiddenAction) {
-        const violation = findProhibitionViolation(statementLower, forbiddenAction);
+      if (
+        !pairConflict &&
+        forbiddenAction &&
+        describesSameAct(statementLower, req, forbiddenAction)
+      ) {
+        const violation = findProhibitionViolation(
+          statementLower,
+          forbiddenAction,
+          statementSubject
+        );
         if (violation) {
           conflicts.push({
             requirement: req,
