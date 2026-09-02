@@ -77,13 +77,16 @@ async function testGetRfcStructure(client) {
     const hasSections = res.sections?.length > 0;
     const isXml = res._source === 'xml';
 
-    if (hasMetadata && hasSections && isXml) {
+    // date は公開日（2022-08）。Datatracker の time（レコード更新時刻）ではない。
+    const hasPublicationDate = res.metadata?.date === '2022-08';
+
+    if (hasMetadata && hasSections && isXml && hasPublicationDate) {
       logResult(toolName, 'RFC 9293 (XML)', 'PASS', {
-        note: `${res.sections.length} sections, source=${res._source}`,
+        note: `${res.sections.length} sections, source=${res._source}, date=${res.metadata?.date}`,
       });
     } else {
       logResult(toolName, 'RFC 9293 (XML)', 'FAIL', {
-        note: `metadata=${hasMetadata}, sections=${hasSections}, xml=${isXml}`,
+        note: `metadata=${hasMetadata}, sections=${hasSections}, xml=${isXml}, date=${res.metadata?.date}`,
       });
     }
   } catch (e) {
@@ -259,17 +262,35 @@ async function testGetRfcDependencies(client) {
 async function testGetRelatedSections(client) {
   const toolName = 'get_related_sections';
 
-  // 5-a: XML format (RFC 9293 §3.5)
+  // 5-a: XML format (RFC 9293 §3.7.1)
+  // 返す節はすべてこの RFC に実在し、題名が解決できること。
+  // 以前は xref の anchor をそのまま返していたため title=Unknown が並んでいた。
   try {
-    const res = await callTool(client, toolName, { rfc: 9293, section: '3.5' });
-    const isXml = res._source === 'xml';
-    const hasRelated = res.relatedSections?.length > 0;
+    const res = await callTool(client, toolName, { rfc: 9293, section: '3.7.1' });
+    const related = res.relatedSections || [];
+    const unresolved = related.filter((s) => s.title === 'Unknown');
+    const ok = related.length > 0 && unresolved.length === 0;
 
-    logResult(toolName, 'RFC 9293 §3.5 (XML)', hasRelated ? 'PASS' : 'PARTIAL', {
-      note: `${res.relatedSections?.length || 0} related sections, source=${res._source}`,
+    logResult(toolName, 'RFC 9293 §3.7.1 (XML)', ok ? 'PASS' : 'FAIL', {
+      note: `${related.length} related sections, unresolved=${unresolved.length}, source=${res._source}`,
     });
   } catch (e) {
-    logResult(toolName, 'RFC 9293 §3.5 (XML)', 'FAIL', { error: e.message });
+    logResult(toolName, 'RFC 9293 §3.7.1 (XML)', 'FAIL', { error: e.message });
+  }
+
+  // 5-c: 別文書の節をこの RFC の節として返さないこと
+  // RFC 9110 §9.3.1 は "Section 11.2 of [HTTP/1.1]" を含む。11.2 をこの RFC の
+  // §11.2 (Authentication Parameters) として返してはならない。
+  try {
+    const res = await callTool(client, toolName, { rfc: 9110, section: '9.3.1' });
+    const numbers = (res.relatedSections || []).map((s) => s.number);
+    const ok = !numbers.includes('11.2') && !numbers.includes('1.2.2');
+
+    logResult(toolName, 'RFC 9110 §9.3.1 excludes other documents', ok ? 'PASS' : 'FAIL', {
+      note: `sections=[${numbers.join(', ')}]`,
+    });
+  } catch (e) {
+    logResult(toolName, 'RFC 9110 §9.3.1 excludes other documents', 'FAIL', { error: e.message });
   }
 
   // 5-b: Text format (RFC 6455 §5.5) - expected partial due to structural limitations
@@ -419,6 +440,38 @@ async function testValidateStatement(client) {
     });
   } catch (e) {
     logResult(toolName, 'isValid is null when nothing matches', 'FAIL', { error: e.message });
+  }
+}
+
+// ========================================
+// xref rendering
+// ========================================
+
+/**
+ * 12. xref が本文から落ちていないこと
+ *
+ * RFC 9110 §9.3.1 の "request smuggling attack (Section 11.2 of [HTTP/1.1])" は、
+ * 以前は "request smuggling attack ()." になっていた。
+ */
+async function testXrefRendering(client) {
+  const toolName = 'xref';
+
+  try {
+    const res = await callTool(client, 'get_requirements', { rfc: 9110, section: '9.3.1' });
+    const contexts = (res.requirements || []).map((r) => r.fullContext || '').join('\n');
+    const emptyParens = /\(\s*\)/.test(contexts);
+    const hasRendered = contexts.includes('Section 11.2 of [HTTP/1.1]');
+
+    logResult(
+      toolName,
+      'xref is rendered into the body text',
+      !emptyParens && hasRendered ? 'PASS' : 'FAIL',
+      {
+        note: `emptyParens=${emptyParens}, rendered=${hasRendered}`,
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'xref is rendered into the body text', 'FAIL', { error: e.message });
   }
 }
 
@@ -633,6 +686,10 @@ async function main() {
 
     console.log('--- 11. requirement deduplication ---');
     await testRequirementDeduplication(client);
+    console.log('');
+
+    console.log('--- 12. xref rendering ---');
+    await testXrefRendering(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);

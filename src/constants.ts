@@ -100,6 +100,43 @@ export function createSectionReferenceRegex(): RegExp {
   return /[Ss]ection\s+([\d.]+)/g;
 }
 
+/**
+ * 別文書の節を指す言い回し。
+ *
+ * RFCXML の `<xref target="HTTP11" section="11.2" sectionFormat="..."/>` は、
+ * RFC 本文では次のいずれかの形で印字される。ここに挙げた形は「この RFC の節」
+ * ではないので、`get_related_sections` の対象にしてはならない。
+ *
+ * - `of`     : "Section 11.2 of [HTTP/1.1]"
+ * - `comma`  : "[HTTP/1.1], Section 11.2"
+ * - `parens` : "[HTTP/1.1] (Section 11.2)"
+ *
+ * 取り出す組は「節番号」と「文書ラベル」。
+ */
+export function createExternalSectionRegexes(): Array<{
+  pattern: RegExp;
+  sectionGroup: number;
+  documentGroup: number;
+}> {
+  return [
+    {
+      pattern: /[Ss]ections?\s+([\d.]+?)\.?\s+of\s+\[([^\]]+)\]/g,
+      sectionGroup: 1,
+      documentGroup: 2,
+    },
+    {
+      pattern: /\[([^\]]+)\],\s+[Ss]ections?\s+([\d.]+?)\.?(?=[\s,.;)]|$)/g,
+      sectionGroup: 2,
+      documentGroup: 1,
+    },
+    {
+      pattern: /\[([^\]]+)\]\s+\([Ss]ections?\s+([\d.]+?)\.?\)/g,
+      sectionGroup: 2,
+      documentGroup: 1,
+    },
+  ];
+}
+
 // RFC-related configuration is centralized in config.ts
 // - RFC_CONFIG.xmlAvailableFrom
 // - isRFCXMLLikelyAvailable()

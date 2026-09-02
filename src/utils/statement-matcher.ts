@@ -51,6 +51,14 @@ export const MATCHING_LIMITS = {
    * これを超えて現れる動詞は付随的な言及として扱う。
    */
   ACTION_VERB_WINDOW: 20,
+  /**
+   * 判定（isValid）を下すために最上位マッチに要求する、主語以外の一致語数。
+   *
+   * 主語だけが一致した状態（"The client" とだけ書いた主張）でもスコアは
+   * 主語一致ボーナス 5 + 主語語 3 = 8 になり `MIN_SCORE_FOR_VERDICT` を超える。
+   * 主語は「誰の話か」しか示さないので、何を論じているかを示す語を別に求める。
+   */
+  MIN_CONTENT_KEYWORDS_FOR_VERDICT: 2,
 } as const;
 
 /**
@@ -132,9 +140,117 @@ const TECHNICAL_TERMS = new Set([
 ]);
 
 /**
- * Common words to ignore (low weight)
+ * スコアに数えない語。
+ *
+ * 3 文字以上の機能語（and / for / not など）が抜けていたため、内容の一致が無い
+ * 要件でも機能語だけでスコアが積み上がり、順位が内容ではなく機能語で決まっていた。
+ * BCP 14 キーワード（must / should / may など）もここに入れる。ほぼ全ての要件文に
+ * 現れるうえ、レベルの一致は `LEVEL_MATCH_BONUS` が別に見ているためである。
+ *
+ * `MIN_KEYWORD_LENGTH` により 2 文字以下（a / an / of / to / is など）は
+ * ここに書かなくても除外される。
  */
 const STOP_WORDS = new Set([
+  // 接続詞・前置詞・限定詞
+  'and',
+  'nor',
+  'but',
+  'yet',
+  'for',
+  'per',
+  'via',
+  'out',
+  'off',
+  'all',
+  'any',
+  'few',
+  'both',
+  'many',
+  'every',
+  'else',
+  'onto',
+  'upon',
+  'under',
+  'above',
+  'below',
+  'between',
+  'within',
+  'without',
+  'during',
+  'while',
+  'because',
+  'since',
+  'until',
+  'unless',
+  'though',
+  'although',
+  'however',
+  'therefore',
+  'thus',
+  'here',
+  'how',
+  'why',
+  'who',
+  'whom',
+  'whose',
+  // 代名詞
+  'its',
+  'his',
+  'her',
+  'hers',
+  'our',
+  'ours',
+  'your',
+  'yours',
+  'itself',
+  'themselves',
+  // 助動詞・繋辞
+  'are',
+  'was',
+  'were',
+  'had',
+  'has',
+  'did',
+  'done',
+  'can',
+  'cannot',
+  'might',
+  'ought',
+  'need',
+  // BCP 14 キーワード（レベル一致は LEVEL_MATCH_BONUS が別に見る）
+  'must',
+  'shall',
+  'should',
+  'may',
+  'not',
+  'required',
+  'recommended',
+  'optional',
+  // その他の一般語
+  'new',
+  'non',
+  'one',
+  'two',
+  'use',
+  'uses',
+  'using',
+  'way',
+  'ways',
+  'thing',
+  'things',
+  'part',
+  'parts',
+  'just',
+  'very',
+  'much',
+  'still',
+  'even',
+  'again',
+  'once',
+  'well',
+  'like',
+  // 既存の語
+
   'the',
   'this',
   'that',
@@ -173,8 +289,6 @@ const STOP_WORDS = new Set([
   'being',
   'could',
   'would',
-  'should',
-  'could',
 ]);
 
 /**
@@ -237,6 +351,39 @@ export function extractRequirementLevel(text: string): RequirementLevel | null {
 }
 
 /**
+ * 語形の違いを吸収するための候補を返す。
+ *
+ * 一致は素の部分文字列比較なので、主張が "masks" と書き要件が "mask" と書くと
+ * 一致しない。逆（主張が短く要件が長い）は部分文字列で拾えるため、
+ * ここでは主張側の語尾だけを落とす。
+ *
+ * 落としすぎないよう、残る語幹が 4 文字以上ある場合に限る。
+ */
+function keywordVariants(keyword: string): string[] {
+  for (const suffix of ['ing', 'ed', 'es', 's']) {
+    if (keyword.endsWith(suffix) && keyword.length - suffix.length >= 4) {
+      return [keyword, keyword.slice(0, -suffix.length)];
+    }
+  }
+  return [keyword];
+}
+
+/**
+ * 要件文がその語（または語幹）を含むか。
+ */
+function requirementTextHasKeyword(requirementText: string, keyword: string): boolean {
+  return keywordVariants(keyword).some((variant) => requirementText.includes(variant));
+}
+
+/**
+ * その語が主語語（client / server など）かどうか。
+ * 判定に必要な「主語以外の一致語」を数えるために公開している。
+ */
+export function isSubjectTerm(word: string): boolean {
+  return SUBJECT_TERMS.has(word.toLowerCase());
+}
+
+/**
  * Extract subject from text
  */
 export function extractSubject(text: string): string | null {
@@ -265,7 +412,7 @@ export function scoreRequirementMatch(
 
   // Score based on keyword matches
   for (const [keyword, weight] of statementKeywords) {
-    if (reqText.includes(keyword)) {
+    if (requirementTextHasKeyword(reqText, keyword)) {
       matchedKeywords.push(keyword);
       score += weight;
     }
@@ -424,7 +571,7 @@ function sharesActionContext(
   for (const [keyword] of statementKeywords) {
     // 動詞そのもの（send / sends のような語形違いを含む）は数えない
     if (keyword.startsWith(pair.positive) || pair.positive.startsWith(keyword)) continue;
-    if (action.includes(keyword)) return true;
+    if (requirementTextHasKeyword(action, keyword)) return true;
   }
 
   return false;
@@ -524,7 +671,7 @@ export function detectConflicts(statement: string, requirements: Requirement[]):
         const reqText = req.text.toLowerCase();
         let overlap = 0;
         for (const [keyword] of statementKeywords) {
-          if (reqText.includes(keyword)) overlap++;
+          if (requirementTextHasKeyword(reqText, keyword)) overlap++;
         }
 
         if (

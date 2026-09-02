@@ -147,11 +147,52 @@ RFC 9293 §3.7.1 の MUST-67 のように、BCP 14 キーワードを持たず�
 「セクション + レベル + 要件文」を鍵に重複を排除する。文が同一なら要件としても
 同一なので、最初の 1 件だけを残す。新しい抽出経路を足すときはこの不変条件を壊さないこと。
 
+### インライン要素はパース前に素テキストへ落とす
+
+パーサは `preserveOrder: false` で動く。インライン要素（`<bcp14>` `<xref>` `<tt>` など）は
+本文テキストから**位置ごと**落ちるため、`extractText` の側では直せない。
+`(<xref .../>)` が `()` だけになっていたのがこれである。
+
+対処は `parseRFCXML` の入口で行う。`normalizeBcp14Tags` と `renderXrefTags` が、
+パース前の文字列に対して素テキストへ置き換える。新しいインライン要素で同じ症状が出たら、
+`extractText` ではなくここに足すこと。
+
+`renderXrefTags` の置き換えは RFCXML の `format` / `sectionFormat` と `derivedContent`
+（公開版が持つ印字用文字列）に従う。`bare` は節番号だけ、`of` は
+"Section 11.2 of [HTTP/1.1]"、`counter` は番号だけ、`none` は要素の中身だけ。
+
+検証は「公開版 RFC の .txt に本文段落がそのまま現れるか」で行う。
+v0.6.2 時点で RFC 9293 92.9% / 9110 92.5% / 9114 60.7%。
+9114 が低いのは `<tt>` などが同じ理由で落ちているため。
+
+### 別文書の節と、この RFC の節を混ぜない
+
+`<xref>` を描画すると本文に "Section 11.2 of [HTTP/1.1]" が現れる。これは
+**この RFC の §11.2 ではない**。`extractCrossReferences` は別文書の節を
+`type: 'external'`、この RFC の節を `type: 'section'` に分ける。
+`collectCrossReferences`（`get_related_sections`）は `section` だけを見る。
+
+混ぜると、無関係な節の題名を確信ありげに返す。RFC 9110 §9.3.1 で
+"Section 11.2 of [HTTP/1.1]" を §11.2 "Authentication Parameters" として
+返していたのがそれである。
+
+### 公開日は本文から取る
+
+Datatracker の `document.time` は**レコードの最終更新時刻**であって公開日ではない
+（RFC 9293 は 2026-05-20 を返す。公開は 2022-08）。公開日は RFCXML の `front/date`、
+テキスト経路ではヘッダ行から取る。`RFCMetadata.datatrackerUpdated` が前者の値だが、
+ツールの応答には出さない。
+
 ### `validate_statement` は判定器ではない
 
-- `isValid` は三値（`true` / `false` / `null`）。最上位マッチのスコアが
-  `MATCHING_LIMITS.MIN_SCORE_FOR_VERDICT` に届かなければ `null` を返す。
-  `true` を準拠の証明として扱わないこと。
+- `isValid` は三値（`true` / `false` / `null`）。最上位マッチが
+  `MIN_SCORE_FOR_VERDICT` と `MIN_CONTENT_KEYWORDS_FOR_VERDICT`（主語以外の一致語 2 語）の
+  両方を満たさなければ `null` を返す。主語だけの一致はスコア 8 に達するが、
+  何を論じているかを示していないので判定しない。`true` を準拠の証明として扱わないこと。
+- `STOP_WORDS` には 3 文字以上の機能語と BCP 14 キーワードを入れる。入れ忘れると
+  内容の一致が無い要件でも機能語だけでスコアが積み上がり、順位が内容で決まらなくなる。
+- 語形の違いは `keywordVariants` が吸収する（主張 "masks" と要件 "mask"）。
+  語幹が 4 文字未満になる語尾は落とさない。
 - 矛盾検出は要件文全体ではなく `requiredActionOf()`（キーワードより後ろ）だけを見る。
   条件節の否定を要求アクションと取り違えないための不変条件である。
 - `NEGATION_PAIRS` に一般的な動詞（send / receive など）を足すときは `generic: true` を

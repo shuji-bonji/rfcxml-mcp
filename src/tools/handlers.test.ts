@@ -20,7 +20,7 @@ import { MATCHING_LIMITS } from '../utils/statement-matcher.js';
 // モック用のサンプル XML
 const mockRFCXML = `<?xml version="1.0" encoding="UTF-8"?>
 <rfc number="9999">
-  <front><title>Test RFC for Handlers</title></front>
+  <front><title>Test RFC for Handlers</title><date month="08" year="2022"/></front>
   <middle>
     <section anchor="section-1" pn="section-1">
       <name>Introduction</name>
@@ -135,7 +135,10 @@ describe('handleGetRFCStructure', () => {
     // API 由来のフィールドが追加されている
     expect(result.metadata.category).toBe('std');
     expect(result.metadata.stream).toBe('IETF');
-    expect(result.metadata.date).toBe('2026-04-01T00:00:00Z');
+    // date は本文の front/date（公開日）。Datatracker の time はレコードの
+    // 更新時刻なので採らない。
+    expect(result.metadata.date).toBe('2022-08');
+    expect(result.metadata.date).not.toBe('2026-04-01T00:00:00Z');
     expect(result.metadata.abstract).toBe('From API');
     // includeAuthors を渡していないので authors は不在
     expect(result.metadata.authors).toBeUndefined();
@@ -615,6 +618,13 @@ describe('handleValidateStatement', () => {
     expect(result.matchingRequirements).toHaveLength(0);
     expect(result.isValid).toBeNull();
     expect(result._verdictNote).toContain('not a statement of compliance');
+  });
+
+  it('should return isValid=null when only the subject matches', async () => {
+    // 主語は「誰の話か」しか示さない。何を論じているかを示す語が要る。
+    const result = await handleValidateStatement({ rfc: 9999, statement: 'The client' });
+
+    expect(result.isValid).toBeNull();
   });
 
   it('should return isValid=null when the only matches are weak', async () => {

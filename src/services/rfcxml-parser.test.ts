@@ -377,3 +377,114 @@ describe('parseRFCXML xref extraction', () => {
     }
   });
 });
+
+describe('xref の描画', () => {
+  const build = (body: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<rfc number="9999">
+  <front><title>Xref Rendering</title><date month="08" year="2022"/></front>
+  <middle>
+    <section anchor="section-1"><name>Intro</name>${body}</section>
+  </middle>
+  <back></back>
+</rfc>`;
+
+  const textOf = (xml: string): string => {
+    const block = parseRFCXML(xml).sections[0].content.find((b) => b.type === 'text');
+    return block && block.type === 'text' ? block.content : '';
+  };
+
+  it('自己終了タグが空の括弧にならない', () => {
+    // 以前は preserveOrder:false により xref が本文から位置ごと落ち、
+    // "attack ()." のように括弧だけが残っていた。
+    const xml = build(
+      '<t>a request smuggling attack (<xref target="HTTP11" section="11.2" format="default" sectionFormat="of" derivedContent="HTTP/1.1"/>).</t>'
+    );
+
+    expect(textOf(xml)).toBe('a request smuggling attack (Section 11.2 of [HTTP/1.1]).');
+  });
+
+  it('sectionFormat="bare" は節番号だけを出す', () => {
+    // 前後の地の文が "Section" を書くため、ここで書くと二重になる
+    const xml = build(
+      '<t>see GET_MAXSIZES in Section <xref target="RFC1122" section="3.4" sectionFormat="bare" format="default" derivedContent="19"/> of RFC 1122.</t>'
+    );
+
+    expect(textOf(xml)).toBe('see GET_MAXSIZES in Section 3.4 of RFC 1122.');
+  });
+
+  it('sectionFormat="comma" / "parens" を書き分ける', () => {
+    const comma = build(
+      '<t>as in <xref target="RFC5234" section="B.1" sectionFormat="comma" format="default" derivedContent="RFC5234"/>.</t>'
+    );
+    const parens = build(
+      '<t>as in <xref target="CACHING" section="5.2" sectionFormat="parens" format="default" derivedContent="CACHING"/>.</t>'
+    );
+
+    expect(textOf(comma)).toBe('as in [RFC5234], Section B.1.');
+    expect(textOf(parens)).toBe('as in [CACHING] (Section 5.2).');
+  });
+
+  it('format="counter" は番号だけを出す', () => {
+    const xml = build(
+      '<t>See item <xref target="section-2.1" format="counter" derivedContent="2.1"/>.</t>'
+    );
+
+    expect(textOf(xml)).toBe('See item 2.1.');
+  });
+
+  it('format="none" は要素の中身だけを出す', () => {
+    const xml = build(
+      '<t>a <xref target="status.4xx" format="none" derivedContent="">4xx (Client Error)</xref> status code.</t>'
+    );
+
+    expect(textOf(xml)).toBe('a 4xx (Client Error) status code.');
+  });
+
+  it('derivedContent が無い節参照は節番号から組み立てる', () => {
+    // 公開前の RFCXML には derivedContent が無い
+    const xml = build('<t>See <xref target="section-2"/> for details.</t>');
+
+    expect(textOf(xml)).toBe('See Section 2 for details.');
+  });
+
+  it('書誌参照は角括弧で括る', () => {
+    const xml = build(
+      '<t>defined in <xref target="RFC1122" format="default" derivedContent="19"/>.</t>'
+    );
+
+    expect(textOf(xml)).toBe('defined in [19].');
+  });
+});
+
+describe('公開日の抽出', () => {
+  const withDate = (dateTag: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<rfc number="9999">
+  <front><title>Date Test</title>${dateTag}</front>
+  <middle><section anchor="section-1"><name>Intro</name><t>Body.</t></section></middle>
+  <back></back>
+</rfc>`;
+
+  it('month が数字の場合', () => {
+    expect(parseRFCXML(withDate('<date month="08" year="2022"/>')).metadata.date).toBe('2022-08');
+  });
+
+  it('month が月名の場合', () => {
+    expect(parseRFCXML(withDate('<date month="August" year="2022"/>')).metadata.date).toBe(
+      '2022-08'
+    );
+  });
+
+  it('day があれば日まで返す', () => {
+    expect(parseRFCXML(withDate('<date day="3" month="6" year="2022"/>')).metadata.date).toBe(
+      '2022-06-03'
+    );
+  });
+
+  it('year だけなら year だけ返す', () => {
+    expect(parseRFCXML(withDate('<date year="2022"/>')).metadata.date).toBe('2022');
+  });
+
+  it('date が無ければ undefined', () => {
+    expect(parseRFCXML(withDate('')).metadata.date).toBeUndefined();
+  });
+});

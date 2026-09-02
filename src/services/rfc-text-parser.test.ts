@@ -221,3 +221,29 @@ describe('parseRFCText edge cases', () => {
     expect(section10!.subsections[0].number).toBe('10.1');
   });
 });
+
+describe('テキスト版の公開日抽出', () => {
+  it('ヘッダ行の月名と年から公開年月を取る', () => {
+    const text = [
+      'Internet Engineering Task Force (IETF)                          I. Fette',
+      'Request for Comments: 6455                              Google, Inc.',
+      'Category: Standards Track                                A. Melnikov',
+      'ISSN: 2070-1721                                          Isode Ltd.',
+      '                                                     December 2011',
+      '',
+      '                     The WebSocket Protocol',
+      '',
+      '1.  Introduction',
+      '',
+      '   The client MUST send data.',
+    ].join('\n');
+
+    expect(parseRFCText(text, 6455).metadata.date).toBe('2011-12');
+  });
+
+  it('ヘッダに日付が無ければ undefined', () => {
+    const text = ['Request for Comments: 9999', '', '1.  Introduction', '', '   Body.'].join('\n');
+
+    expect(parseRFCText(text, 9999).metadata.date).toBeUndefined();
+  });
+});

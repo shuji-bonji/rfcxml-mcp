@@ -15,6 +15,12 @@ export interface ParsedRFC {
     title: string;
     docName?: string;
     number?: number;
+    /**
+     * 公開年月（`YYYY-MM`、日付まで判る場合は `YYYY-MM-DD`）。
+     * RFCXML の `front/date`、テキスト経路ではヘッダ行から取る。
+     * Datatracker の `document.time` はレコードの更新時刻であって公開日ではない。
+     */
+    date?: string;
   };
   sections: Section[];
   references: {
@@ -32,7 +38,12 @@ export interface RFCMetadata {
   number: number;
   title: string;
   authors: Author[];
-  date: string;
+  /**
+   * Datatracker のレコード最終更新時刻（`document.time`）。
+   * **公開日ではない**。RFC 9293 はこの値が 2026-05-20 になるが、公開は 2022-08。
+   * 公開日は本文（RFCXML の `front/date` / テキストのヘッダ）から取る。
+   */
+  datatrackerUpdated: string;
   category: 'std' | 'bcp' | 'info' | 'exp' | 'historic';
   stream: 'IETF' | 'IAB' | 'IRTF' | 'independent' | 'editorial';
   abstract?: string;
