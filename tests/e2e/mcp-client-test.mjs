@@ -1,8 +1,8 @@
 /**
  * RFCXML MCP E2E Test Suite
  *
- * MCP SDK Client を使い、stdio トランスポート経由で
- * rfcxml-mcp サーバーの全7ツールをテストする。
+ * MCP SDK v2 の Client を使い、stdio トランスポート経由で
+ * rfcxml-mcp サーバーの全7ツール + リソース + instructions をテストする。
  *
  * Usage:
  *   npm run test:e2e
@@ -10,9 +10,8 @@
  * Prerequisites:
  *   npm run build  (dist/index.js が必要)
  */
-
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { Client } from '@modelcontextprotocol/client';
+import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -391,6 +390,86 @@ async function testValidateStatement(client) {
 }
 
 // ========================================
+// Server Surface Tests (v2)
+// ========================================
+
+/**
+ * 8. instructions
+ *
+ * SDK v2 では `initialize` の応答に含まれる instructions を
+ * `client.getInstructions()` で読める。射程宣言が実際にクライアントへ
+ * 届いているかをここで確認する。
+ */
+async function testInstructions(client) {
+  const toolName = 'instructions';
+  try {
+    const instructions = client.getInstructions();
+    const present = typeof instructions === 'string' && instructions.length > 0;
+    const declaresScope = present && instructions.includes('It does NOT do the following');
+
+    if (present && declaresScope) {
+      logResult(toolName, 'initialize returns instructions', 'PASS', {
+        note: `${instructions.length} chars`,
+      });
+    } else {
+      logResult(toolName, 'initialize returns instructions', 'FAIL', {
+        note: `present=${present}, declaresScope=${declaresScope}`,
+      });
+    }
+  } catch (e) {
+    logResult(toolName, 'initialize returns instructions', 'FAIL', { error: e.message });
+  }
+}
+
+/**
+ * 9. resources
+ */
+async function testResources(client) {
+  const toolName = 'resources';
+  try {
+    const { resources } = await client.listResources();
+    const schema = resources.find((r) => r.uri === 'rfcxml://schema');
+
+    if (!schema) {
+      logResult(toolName, 'rfcxml://schema is listed', 'FAIL', {
+        note: `listed: ${resources.map((r) => r.uri).join(', ')}`,
+      });
+      return;
+    }
+    logResult(toolName, 'rfcxml://schema is listed', 'PASS', { note: schema.name });
+
+    const read = await client.readResource({ uri: 'rfcxml://schema' });
+    const body = JSON.parse(read.contents[0].text);
+    const ok = body.version === 'v3' && !!body.keyElements?.bcp14;
+
+    logResult(toolName, 'rfcxml://schema is readable', ok ? 'PASS' : 'FAIL', {
+      note: `version=${body.version}, keyElements=${Object.keys(body.keyElements || {}).length}`,
+    });
+  } catch (e) {
+    logResult(toolName, 'rfcxml://schema', 'FAIL', { error: e.message });
+  }
+}
+
+/**
+ * 10. 入力スキーマ違反
+ *
+ * v2 は registerTool に渡した JSON Schema でサーバ側入力検証を行う。
+ * 必須項目を欠いた呼び出しが弾かれることを確認する。
+ */
+async function testInputValidation(client) {
+  const toolName = 'input validation';
+  try {
+    const result = await client.callTool({ name: 'get_requirements', arguments: {} });
+    logResult(toolName, 'missing required "rfc" is rejected', result.isError ? 'PASS' : 'FAIL', {
+      note: `isError=${result.isError}`,
+    });
+  } catch (e) {
+    // JSON-RPC エラーとして返る実装でも「弾いた」ことに変わりはない
+    logResult(toolName, 'missing required "rfc" is rejected', 'PASS', { note: e.message });
+  }
+}
+
+// ========================================
 // Main Execution
 // ========================================
 async function main() {
@@ -434,6 +513,18 @@ async function main() {
 
     console.log('--- 7. validate_statement ---');
     await testValidateStatement(client);
+    console.log('');
+
+    console.log('--- 8. instructions ---');
+    await testInstructions(client);
+    console.log('');
+
+    console.log('--- 9. resources ---');
+    await testResources(client);
+    console.log('');
+
+    console.log('--- 10. input validation ---');
+    await testInputValidation(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);
