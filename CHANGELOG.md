@@ -2,6 +2,148 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.6] - 2026-09-02
+
+v0.6.5 の試用で挙がった 5 件を、指示された順（定義と参照 → 要件文 → チェックリスト →
+出力の表記）で直した。
+
+### Fixed
+
+- **`<dl>` を使わない RFC の定義が 1 件も取れていなかった** (`get_definitions`):
+  - RFC 9110 が返す 26 件は §14.6（メディア型登録の記入欄）と §16.3.1（フィールド名
+    登録の記入欄）で、`resource` `client` `server` `cache` といった同文書の用語は
+    入っていなかった。`get_definitions(rfc=9110, term="cache")` は 0 件だった。
+  - RFCXML では、用語を定義している箇所に `<iref primary="true">` が置かれる。
+    RFC 9110 の XML に `<dfn>` は 1 個も無く、`primary="true"` で `subitem` の無い
+    `<iref>` が 162 個あり、これが用語一覧にあたる。
+
+    ```xml
+    <section anchor="caches" pn="section-3.8">
+      <name>Caches</name>
+      <iref item="cache" primary="true" pn="iref-cache-42"/>
+      <t pn="section-3.8-1">
+       A "cache" is a local store of previous response messages and the
+       subsystem that controls its message storage, retrieval, and deletion. …
+    ```
+
+  - `extractIrefDefinitions()` を追加した。`<iref>` を含む段落、無ければ直後の段落を
+    定義とする。`primary="false"` は言及であって定義ではないので採らない。
+    `subitem` を持つものは索引の下位項目（`item="header fields" subitem="Content-Type"`）
+    なので採らない。属性の並び順は RFC ごとに違う（RFC 9114 は `item` が先）ため、
+    順序に依存せず読む。
+  - この抽出だけはパース前の文字列を見る。`preserveOrder: false` では木から
+    `<iref>` と `<t>` の並び順が失われるためである。`<iref>` を落とす処理は
+    `renderInlineTags()` から `stripNonPrinting()` に分け、抽出のあとに回した。
+  - 同じ用語が `<dl>` と `<iref>` の両方にあるときは `<dl>` を採る。用語と定義の対と
+    して書かれているためである。並びは節番号順にした（`compareSectionNumbers`）。
+    文字列順では §14.6 が §3.1 の "resource" より前に出ていた。
+  - 実測:
+
+    | RFC | v0.6.5 | v0.6.6 | 備考 |
+    |---|---|---|---|
+    | 9110 | 26 | **198** | 先頭が `resource` (§3.1) になった |
+    | 9114 | 80 | **91** | `<dl>` に無い `control stream` 等が加わった |
+    | 9293 | 114 | **114** | 用語のコロン除去で重複が畳まれ、増減が相殺 |
+    | 9000 | 148 | **148** | 同上 |
+
+- **テキスト経路の参照が本文の言及を拾い、規範性を判別していなかった**
+  (`get_rfc_dependencies`):
+  - 本文全体を `RFC\s*(\d+)` で走査していた。そのため RFC 6455 の 22 件はすべて
+    `informative` に入り、`normative` は空だった。参考文献に載っていない言及
+    （"RFC 5741" は Status of This Memo の定型文、"RFC 6202" は §1.1 の地の文）まで
+    参照に数え、題名は `"RFC 2119"` という仮置きしか返せなかった。
+  - "14.1 Normative References" / "14.2 Informative References" の見出しで欄を切り替え、
+    `   [RFC2119]` で始まる行から項目を取る。題名は最初の二重引用符の中、RFC 番号は
+    角括弧の中（`[RFC2119]`）か、項目末尾の連番（`…, BCP 14, RFC 2119, March 1997.`）
+    から取る。
+  - ページの区切り（`[Page 68]` の行と、次ページ冒頭の
+    `RFC 6455 … December 2011` の行）は字下げが無い。見出しとして通らなかった
+    非字下げ行を読み飛ばすことで一緒に落ちる。
+  - 節見出しの検出は v0.6.5 の規則（1 桁目から始まる行だけを見出しとする）に従う。
+    この修正が成り立つのは、その修正が入っているからである。
+  - 実測（規範的 / 参考的、題名が取れた件数）:
+
+    | RFC | v0.6.5 | v0.6.6 |
+    |---|---|---|
+    | 6455 | 0 / 22（題名 0 件） | **18 / 9（27 件）** |
+    | 8446 | 0 / 49（0 件） | **27 / 70（97 件）** |
+    | 7230 | 0 / 34（0 件） | **14 / 25（39 件）** |
+    | 3986 | 0 / 23（0 件） | **4 / 23（27 件）** |
+    | 2616 | 0 / 42（0 件） | **0 / 49（49 件）** |
+
+  - RFC 2616 が 0 / 49 なのは、この RFC の参考文献の欄が 1 つしか無いためである。
+    テキストからは規範性を判別できないので `informative` に入れる。
+
+- **テキスト経路の要件文に改行と字下げが残っていた**:
+  - `- [ ] The masking key needs to\n   be unpredictable; thus, …` のように
+    `generate_checklist` の Markdown が箇条書きとして成立していなかった。
+    RFC 6455 では 215 件中 209 件に改行または 4 個以上の連続空白があった。
+  - 段落が図・ABNF でなければ、要件文・`condition`・`action`・`fullContext` を畳む。
+    図の判別は `looksLikeDiagram()` が体裁で行う（行頭から始まる ABNF の規則、
+    2 個以上の空白のあとのセミコロン、4 文字以上の罫線、同じ行で空白が続く縦罫）。
+  - **散文にも現れる書き方は目印にしない**。`%x0A`（RFC 7230 §3 の
+    "the octet LF (%x0A)" は散文）と、`|` のあとの改行（RFC 6455 は本文でヘッダ名を
+    `|Origin|` と括る）は、いずれも散文を図と誤判定させていた。
+  - 行頭の黒丸 `"o  "` を落とす。RFC 6455 §5.4 の 3 件が
+    `"o  Message fragments MUST be delivered …"` で始まっていた。
+  - **ABNF の注釈は散文として組み直す**。続く注釈行をまとめて `;` を外す。
+    RFC 6455 §5.2 の要件は
+    `"frame-rsv1              = %x0 / %x1\n     ; 1 bit in length, MUST "`（"MUST " で
+    切れていた）から `"1 bit in length, MUST be 0 unless negotiated otherwise"` になった。
+  - 実測（改行または 4 個以上の連続空白を含む要件文 / 総数）:
+
+    | RFC | v0.6.5 | v0.6.6 |
+    |---|---|---|
+    | 6455 | 209 / 215 | **0 / 213** |
+    | 8446 | 448 / 471 | **0 / 468** |
+    | 7230 | 220 / 227 | **0 / 226** |
+    | 2616 | 745 / 773 | **0 / 773** |
+
+  - 総数が減るのは、空白の違いだけで別物とされていた要件が重複排除で 1 件に畳まれる
+    ためである。
+
+- **`generate_checklist` が同じ行を 2 度出していた**:
+  - 1 つの文が `MUST` と `MUST NOT` の両方を含むとき（RFC 6455 §5.3 の
+    "the masking key MUST be derived from a strong source of entropy, and the masking
+    key for a given frame MUST NOT make it simple …"）、要件は 2 件立つが文は同じで、
+    どちらの語についての項目なのか読み取れなかった。
+  - 各行に要件レベルを出す（`- [ ] **MUST NOT** … (§5.3)`）。レベルも節も文も同じ行は
+    1 度だけ出す。
+
+- **`section` の形が経路によって違っていた**:
+  - テキスト経路が `5.3`、XML 経路が `section-6.2.3`、後付録が
+    `section-appendix.a.2.5` を返していた。`get_requirements` の結果をそのまま
+    `get_related_sections` に渡すと、RFC ごとに文字列の形が変わっていた。
+  - 外に出す `section` と `id`（`R-6.2.3-1`）、`get_rfc_structure` の `number` は
+    `normalizeSectionNumber()` を通す。後付録は `A.2.5`（公開版 RFC の
+    "Appendix A.2.5"）にする。検索側も同じ関数を通すため、`6.2.3` `section-6.2.3`
+    `A.2.5` `appendix.a.2.5` はいずれも同じ節に当たる。
+  - 実測: XML 経路の要件で `section-` が残るもの、RFC 9110 / 9114 / 9293 / 9000 の
+    それぞれ 438 / 255 / 122 / 517 件 → **すべて 0 件**。
+
+- **用語に末尾のコロンと引用符が残っていた** (`get_definitions`):
+  - `"stream:"` `"Push ID:"` `"\"Strong comparison\":"`。部分一致では引けるが、
+    完全一致で引く利用者には当たらない。
+  - 実測: コロン付きの用語は RFC 9110 / 9114 / 9293 / 9000 で
+    26 / 80 / 42 / 148 件 → **すべて 0 件**。
+
+### Added
+
+- **テストを 259 件から 285 件へ**: iref からの定義抽出（含む段落・直後の段落・
+  `primary="false"` を採らないこと・`subitem` を採らないこと）、用語と節番号の表記、
+  参考文献の欄からの参照抽出（規範性の分離・題名・ページの区切り・本文中の言及）、
+  要件文の畳み込み（折り返し・黒丸・ABNF の注釈・図は畳まないこと）、
+  チェックリストの体裁。
+- **E2E テストを 36 件から 45 件へ**: RFC 9110 の `cache` が定義として返ること、
+  定義が節番号順に並ぶこと、RFC 6455 の参照が 18 / 9 に分かれ題名が取れること、
+  参考文献に無い RFC 5741 が参照に出ないこと、要件文に改行が残らないこと、
+  ABNF の注釈が散文になること、チェックリストの各項目が 1 行に収まること。
+
+### Notes
+
+- RFC 3986 の要件が 0 件なのは不具合ではない。この RFC は大文字の BCP 14 キーワードを
+  1 つも使っていない。
+
 ## [0.6.5] - 2026-09-02
 
 v0.6.4 の試用で挙がった 3 件を、指示された順（空白 → 節の誤認 → 索引）で直した。

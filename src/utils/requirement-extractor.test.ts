@@ -121,9 +121,9 @@ describe('extractRequirementsFromSections', () => {
       section: 'section-3',
       includeSubsections: false,
     });
-    // section-3 のみ
+    // section-3 のみ。出力する `section` は節番号にそろえる（`section-3` → `3`）
     expect(result.length).toBe(1);
-    expect(result[0].section).toBe('section-3');
+    expect(result[0].section).toBe('3');
   });
 
   it('should support multiple sections filter', () => {
@@ -132,7 +132,7 @@ describe('extractRequirementsFromSections', () => {
       includeSubsections: false,
     });
     expect(result.length).toBe(2);
-    expect(result.some((r) => r.section === 'section-3.5')).toBe(true);
+    expect(result.some((r) => r.section === '3.5')).toBe(true);
     expect(result.some((r) => r.section === '5.5')).toBe(true);
   });
 
@@ -346,5 +346,63 @@ describe('要件の構成要素が途中で切れないこと', () => {
     expect(requirement.condition).toBe(
       "this fails (e.g., the server's certificate could not be verified)"
     );
+  });
+});
+
+describe('要件文の体裁（テキスト経路）', () => {
+  const sectionOf = (content: string, requirements: Array<{ level: string; position: number }>) =>
+    [
+      {
+        number: '5.4',
+        title: 'Fragmentation',
+        content: [{ type: 'text', content, requirements, crossReferences: [] }],
+        subsections: [],
+      },
+    ] as never;
+
+  it('段落の折り返しと字下げを 1 個の空白に畳む', () => {
+    const content = 'A client MUST mask all frames that it\n   sends to the server.';
+    const result = extractRequirementsFromSections(
+      sectionOf(content, [{ level: 'MUST', position: content.indexOf('MUST') }])
+    );
+
+    expect(result[0].text).toBe('A client MUST mask all frames that it sends to the server.');
+    expect(result[0].fullContext).not.toMatch(/\n/);
+  });
+
+  it('行頭の黒丸 "o" を落とす', () => {
+    const content =
+      'o  Message fragments MUST be delivered to the recipient in the\n      order sent.';
+    const result = extractRequirementsFromSections(
+      sectionOf(content, [{ level: 'MUST', position: content.indexOf('MUST') }])
+    );
+
+    expect(result[0].text).toBe(
+      'Message fragments MUST be delivered to the recipient in the order sent.'
+    );
+  });
+
+  it('ABNF の注釈を散文として組み直す', () => {
+    const content = [
+      'frame-rsv1              = %x0 / %x1',
+      '                          ; 1 bit in length, MUST be 0 unless',
+      '                          ; negotiated otherwise',
+    ].join('\n');
+    const result = extractRequirementsFromSections(
+      sectionOf(content, [{ level: 'MUST', position: content.indexOf('MUST') }])
+    );
+
+    expect(result[0].text).toBe('1 bit in length, MUST be 0 unless negotiated otherwise');
+  });
+
+  it('図の本体は畳まない', () => {
+    const content = ['+-+-+-+-+-------+', '|F|R|R|R| opcode|', '', 'RSV1 MUST be 0'].join('\n');
+    const figure = 'opcode  MUST be 0 unless\n   +-+-+-+-+-------+';
+    const result = extractRequirementsFromSections(
+      sectionOf(figure, [{ level: 'MUST', position: figure.indexOf('MUST') }])
+    );
+
+    expect(content).toContain('opcode');
+    expect(result[0].fullContext).toMatch(/\n/);
   });
 });

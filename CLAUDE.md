@@ -131,6 +131,12 @@ TypeScript 7.0.2（ネイティブ移植版）でのビルド自体は通る（`
 
 XML の `anchor`（`section-3.5`）と `number`（`3.5`）が混在する。`src/utils/section.ts` の `normalizeSectionNumber` で吸収。ツールはどちらの形式でも受け付ける。
 
+**外に出す `section` と `id` は必ずこの関数を通すこと。** v0.6.5 まではテキスト経路が
+`5.3`、XML 経路が `section-6.2.3` を返しており、`get_requirements` の結果をそのまま
+`get_related_sections` に渡すと RFC ごとに文字列の形が変わっていた。後付録は
+`section-appendix.a.2.5` → `A.2.5`（公開版 RFC の "Appendix A.2.5"）にする。
+並べるときは `compareSectionNumbers`（数字は数として比べ、後付録は本文のあと）。
+
 ### RFC 番号と XML 可用性
 
 RFC 8650 (2019年12月) 以降は RFCXML v3 が確実に利用可能。それ以前はテキストフォールバック（`src/config.ts` の `RFC_CONFIG.xmlAvailableFrom`）。
@@ -182,9 +188,17 @@ XML 経路の散文（`<t>` / 節の題名 / リスト項目 / 定義 / 参考�
 **`<sourcecode>` と `<artwork>` には使わない。** 空白が意味を持つ。
 新しい抽出を足すときは、散文か図かで使い分けること。
 
-テキスト経路は畳んでいない。そこでの体裁は RFC の .txt そのものであり、
-かつ ASCII 図も text ブロックとして入る（RFC 6455 §5.2 の frame 図）。
-一律に畳むと図が壊れる。畳むなら図の判別が先に要る。
+テキスト経路（v0.6.6 以降）は、段落が図・ABNF でなければ要件文と `fullContext` を
+畳む。図の判別は `looksLikeDiagram()`（`src/utils/text.ts`）が体裁で行う。
+
+- 目印にするもの: 行頭から始まる ABNF の規則（`frame-rsv1 = %x0 / %x1`）、
+  2 個以上の空白のあとのセミコロン、4 文字以上続く罫線、同じ行で空白が続く縦罫。
+- **目印にしないもの**: `%x0A`（RFC 7230 §3 は散文で "the octet LF (%x0A)" と書く）、
+  `|` のあとの改行（RFC 6455 は本文でヘッダ名を `|Origin|` と括る）。
+  どちらも散文を図と誤判定させていた。
+
+ABNF の注釈（`; 1 bit in length, MUST be 0 unless`）は規範的な文が書かれる場所で、
+続く注釈行をまとめて `;` を外し、1 行の散文として要件にする（`requirementSource()`）。
 
 ### 自動生成の索引は定義ではない
 
@@ -192,6 +206,39 @@ XML 経路の散文（`<t>` / 節の題名 / リスト項目 / 定義 / 参考�
 `extractDefinitions` から除外する（anchor は付かず `pn` も連番なので名前で見る）。
 **後付録ごと除外してはならない** — RFC 9114 の Appendix A.2.5 のように本物の定義が
 後付録に置かれる。
+
+### 定義は `<dl>` だけにあるとは限らない
+
+用語を `<dl>` で並べる RFC（RFC 9114 §2.2）と、地の文で定義して定義箇所に
+`<iref primary="true">` を置く RFC（RFC 9110）がある。後者を読まないと、
+RFC 9110 の `get_definitions` は §14.6 と §16.3.1 の登録票の項目名しか返さない。
+
+`extractIrefDefinitions()` は `<iref primary="true">`（`subitem` の無いもの）を探し、
+それを含む段落、無ければ直後の段落を定義とする。`primary="false"` は言及であって
+定義ではない。属性の並び順は RFC ごとに違う（`item` が先の RFC もある）ので、
+順序に依存して読まないこと。
+
+この関数だけはパース前の文字列を見る。`preserveOrder: false` では木から
+`<iref>` と `<t>` の並び順が失われるためである。`stripNonPrinting()` が
+`<iref>` を落とすのはそのあと。
+
+同じ用語が両方にあるときは `<dl>` を採る（用語と定義の対として書かれているため）。
+並びは節番号順（`mergeDefinitions`）。
+
+### テキスト経路の参照は参考文献の欄から取る
+
+本文全体を `RFC\s*(\d+)` で走査してはならない。v0.6.5 まではそうしていたため、
+
+- 規範的参照と参考的参照が区別できず、すべて `informative` に入っていた
+- 参考文献に載っていない言及まで参照になっていた（RFC 6455 の "RFC 5741" は
+  Status of This Memo の定型文）
+- 題名が取れず `title: "RFC 2119"` という仮置きしか返せなかった
+
+`extractTextReferences()` は "14.1 Normative References" / "14.2 Informative References"
+の見出しで欄を切り替え、`   [RFC2119]` で始まる行から項目を取る。ページの区切り
+（`[Page 68]` の行と次ページ冒頭の `RFC 6455 … December 2011`）は字下げが無いので、
+見出しとして通らなかった非字下げ行を読み飛ばすことで一緒に落ちる。
+参考文献の欄が 1 つしかない RFC（RFC 2616）では、すべて `informative` に入る。
 
 ### テキスト経路の題名と節
 

@@ -13,11 +13,7 @@ import type {
   RequirementLevel,
   RFCReference,
 } from '../types/index.js';
-import {
-  createRequirementRegex,
-  SECTION_HEADER_PATTERN,
-  createRFCReferenceRegex,
-} from '../constants.js';
+import { createRequirementRegex, SECTION_HEADER_PATTERN } from '../constants.js';
 import { extractCrossReferences } from '../utils/text.js';
 import {
   extractRequirementsFromSections,
@@ -59,38 +55,153 @@ export function parseRFCText(text: string, rfcNumber: number): ParsedRFC {
   return {
     metadata: extractTextMetadata(lines, rfcNumber),
     sections: extractTextSections(lines),
-    references: extractTextReferences(text, rfcNumber),
+    references: extractTextReferences(lines, rfcNumber),
     definitions: extractTextDefinitions(lines),
   };
 }
 
-/**
- * テキストからRFC参照を抽出
- * テキストでは normative/informative の区別ができないため、すべて informative として扱う
- */
-function extractTextReferences(text: string, currentRfcNumber: number): ParsedRFC['references'] {
-  const refs: RFCReference[] = [];
-  const seenRfcs = new Set<number>();
-  const regex = createRFCReferenceRegex();
+/** 参考文献の欄の見出し。番号の有無どちらもある。 */
+const REFERENCE_HEADING_PATTERN =
+  /^(?:\d+(?:\.\d+)*\.?\s+)?((?:normative|informative)\s+)?references\s*$/i;
 
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(text)) !== null) {
-    const rfcNum = parseInt(match[1], 10);
-    // 自己参照と重複を除外
-    if (rfcNum !== currentRfcNumber && !seenRfcs.has(rfcNum)) {
-      seenRfcs.add(rfcNum);
-      refs.push({
-        anchor: `RFC${rfcNum}`,
-        type: 'informative', // テキストでは区別不可のため informative
-        rfcNumber: rfcNum,
-        title: `RFC ${rfcNum}`,
-      });
+/**
+ * 参考文献の 1 項目の始まり。
+ *
+ * ```
+ *    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+ *               Requirement Levels", BCP 14, RFC 2119, March 1997.
+ * ```
+ *
+ * 見出しの角括弧は 4 桁目から始まり、続きの行はさらに深く字下げされる。
+ */
+const REFERENCE_ENTRY_PATTERN = /^ {1,6}\[([^\]\s][^\]]*)\]/;
+
+/**
+ * 参考文献の欄（"14.1 Normative References" / "14.2 Informative References"）から
+ * 参照を取り出す。
+ *
+ * v0.6.5 までは本文全体を `RFC\s*(\d+)` で走査していた。そのため
+ *
+ * - 規範的参照と参考的参照を区別できず、すべて `informative` に入っていた
+ *   （RFC 6455 は normative 11 件 / informative 11 件だが、22 件すべてが
+ *   informative に出ていた）。
+ * - 参考文献に載っていない言及まで参照として数えていた。RFC 6455 の
+ *   「RFC 5741」は Status of This Memo の定型文、「RFC 6202」は §1.1 の地の文である。
+ * - 題名が取れず `title: "RFC 2119"` という仮置きしか返せなかった。
+ *
+ * 節見出しの検出は v0.6.5 で直った規則（1 桁目から始まる行だけを見出しとする）に
+ * 従う。ページの区切り（"[Page 68]" の行と、次ページ冒頭の
+ * "RFC 6455 … December 2011" の行）は字下げが無いので、見出しとして通らなかった
+ * 行を読み飛ばすことで一緒に落ちる。
+ *
+ * 参考文献の欄が 1 つしかない RFC では、そこにある参照はすべて `informative` に入る。
+ * テキストからは規範性を判別できないためである。
+ */
+function extractTextReferences(lines: string[], currentRfcNumber: number): ParsedRFC['references'] {
+  const result = {
+    normative: [] as RFCReference[],
+    informative: [] as RFCReference[],
+  };
+  const seen = new Set<string>();
+
+  let bucket: 'normative' | 'informative' | null = null;
+  let anchor = '';
+  let buffer: string[] = [];
+
+  const flush = (): void => {
+    if (bucket && anchor) {
+      const ref = parseTextReference(anchor, buffer.join(' '), bucket);
+      const key = `${bucket}\u0000${ref.anchor}`;
+      if (ref.rfcNumber !== currentRfcNumber && !seen.has(key)) {
+        seen.add(key);
+        result[bucket].push(ref);
+      }
+    }
+    anchor = '';
+    buffer = [];
+  };
+
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, '');
+    if (!line) continue;
+
+    // 1 桁目から始まる行だけが見出しになりうる。
+    if (!/^\s/.test(line)) {
+      const headerMatch = line.match(SECTION_HEADER_PATTERN);
+      const heading = headerMatch
+        ? isValidSectionHeader(headerMatch[1].replace(/\.$/, ''), headerMatch[2])
+          ? headerMatch[2]
+          : null
+        : line;
+
+      if (heading !== null) {
+        const asReferences = REFERENCE_HEADING_PATTERN.exec(heading.trim());
+        if (asReferences) {
+          flush();
+          bucket = /normative/i.test(asReferences[1] ?? '') ? 'normative' : 'informative';
+          continue;
+        }
+        // 参考文献ではない節に入ったら欄を閉じる。ページの区切りの行は
+        // `isValidSectionHeader` を通らないので、ここには来ない。
+        if (headerMatch) {
+          flush();
+          bucket = null;
+        }
+      }
+      continue;
+    }
+
+    if (!bucket) continue;
+
+    const entry = line.match(REFERENCE_ENTRY_PATTERN);
+    if (entry) {
+      flush();
+      anchor = entry[1].trim();
+      buffer = [line];
+    } else if (anchor) {
+      buffer.push(line);
     }
   }
 
+  flush();
+
+  return result;
+}
+
+/**
+ * 参考文献の 1 項目を `RFCReference` にする。
+ *
+ * - RFC 番号: 角括弧の中が `RFC2119` ならそこから。`[HTTP/1.1]` のような
+ *   略号のときは、項目の末尾に置かれる連番（"…, BCP 14, RFC 2119, March 1997."）の
+ *   最後の 1 つを採る。"for use in RFCs to Indicate" のような地の文は
+ *   数字が続かないので当たらない。
+ * - 題名: 最初の二重引用符で囲まれた部分。
+ */
+function parseTextReference(
+  anchor: string,
+  rawEntry: string,
+  type: 'normative' | 'informative'
+): RFCReference {
+  const entry = rawEntry.replace(/\s+/g, ' ').trim();
+
+  let rfcNumber: number | undefined;
+  const fromAnchor = /^RFC\s*(\d+)$/i.exec(anchor);
+  if (fromAnchor) {
+    rfcNumber = parseInt(fromAnchor[1], 10);
+  } else {
+    const inline = [...entry.matchAll(/\bRFC\s+(\d+)\b/g)];
+    if (inline.length > 0) {
+      rfcNumber = parseInt(inline[inline.length - 1][1], 10);
+    }
+  }
+
+  const title = /"([^"]+)"/.exec(entry)?.[1].trim();
+
   return {
-    normative: [],
-    informative: refs,
+    anchor,
+    type,
+    rfcNumber,
+    title: title || (rfcNumber ? `RFC ${rfcNumber}` : anchor),
   };
 }
 

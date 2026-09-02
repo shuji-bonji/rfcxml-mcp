@@ -4,7 +4,14 @@
  */
 
 import type { Section, Requirement, RequirementLevel } from '../types/index.js';
-import { clipAtClauseEnd, extractSentence } from './text.js';
+import {
+  clipAtClauseEnd,
+  extractSentence,
+  foldWhitespace,
+  requirementSource,
+  stripListMarker,
+} from './text.js';
+import { normalizeSectionNumber } from './section.js';
 
 /**
  * 要件抽出フィルタ
@@ -29,10 +36,10 @@ export interface ParseOptions {
 }
 
 /**
- * セクション番号を正規化（section- プレフィックスを除去）
+ * セクション番号を正規化（`section-6.2.3` → `6.2.3`、`section-appendix.a.2.5` → `A.2.5`）
  */
 function normalizeSectionId(id: string): string {
-  return id.replace(/^section-/, '');
+  return normalizeSectionNumber(id);
 }
 
 /**
@@ -92,7 +99,9 @@ export function extractRequirementsFromSections(
   }
 
   function processSection(section: Section, path: string) {
-    const sectionId = section.number || section.anchor || path;
+    // 内部の識別子（RFCXML の `pn`）はそのままでは外に出せない。出力する
+    // `id` と `section` は節番号にそろえる。
+    const sectionId = normalizeSectionId(section.number || section.anchor || path);
 
     // セクションフィルタリング
     const shouldProcess = matchesSectionFilter(sectionId, filter);
@@ -106,8 +115,14 @@ export function extractRequirementsFromSections(
               continue;
             }
 
-            const sentence = extractSentence(block.content, marker.position);
-            if (isDuplicate(sectionId, marker.level, sentence.trim())) {
+            // 図・ABNF は空白を畳まない。ABNF の注釈は散文として組み直す。
+            const source = requirementSource(block.content, marker.position, marker.level);
+            const raw = extractSentence(source.text, source.position);
+            const sentence = source.prose
+              ? foldWhitespace(stripListMarker(raw))
+              : stripListMarker(raw).trim();
+
+            if (isDuplicate(sectionId, marker.level, sentence)) {
               continue;
             }
 
@@ -118,10 +133,10 @@ export function extractRequirementsFromSections(
             requirements.push({
               id: `R-${sectionId}-${idCounter++}`,
               level: marker.level,
-              text: sentence.trim(),
+              text: sentence,
               section: sectionId,
               sectionTitle: section.title,
-              fullContext: block.content,
+              fullContext: source.prose ? foldWhitespace(block.content) : block.content,
               ...components,
             });
           }
@@ -135,21 +150,22 @@ export function extractRequirementsFromSections(
                 continue;
               }
 
-              if (isDuplicate(sectionId, marker.level, item.content.trim())) {
+              const itemText = foldWhitespace(stripListMarker(item.content));
+              if (isDuplicate(sectionId, marker.level, itemText)) {
                 continue;
               }
 
               const components = options.parseComponents
-                ? parseRequirementComponents(item.content, marker.level)
+                ? parseRequirementComponents(itemText, marker.level)
                 : {};
 
               requirements.push({
                 id: `R-${sectionId}-${idCounter++}`,
                 level: marker.level,
-                text: item.content.trim(),
+                text: itemText,
                 section: sectionId,
                 sectionTitle: section.title,
-                fullContext: item.content,
+                fullContext: itemText,
                 ...components,
               });
             }

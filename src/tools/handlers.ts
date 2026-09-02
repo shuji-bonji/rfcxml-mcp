@@ -11,7 +11,7 @@ import {
 import { getParsedRFC, clearParseCache, getSourceNoteIfText } from '../services/rfc-service.js';
 import { fetchRFCMetadata, fetchReferencedBy, fetchReferences } from '../services/rfc-fetcher.js';
 import { validateRFCNumber } from '../utils/validation.js';
-import { findSection, collectCrossReferences } from '../utils/section.js';
+import { findSection, collectCrossReferences, normalizeSectionNumber } from '../utils/section.js';
 import type {
   GetRFCStructureArgs,
   GetRequirementsArgs,
@@ -65,7 +65,8 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
   // Simplify section structure
   function simplifySection(section: Section, includeContent: boolean): SimplifiedSection {
     const result: SimplifiedSection = {
-      number: section.number,
+      // RFCXML の `pn`（"section-6.2.3"）ではなく、RFC が印字する節番号を返す。
+      number: section.number ? normalizeSectionNumber(section.number) : section.number,
       title: section.title,
       anchor: section.anchor,
     };

@@ -20,6 +20,7 @@ import type {
 export type { Section, ParsedRFC };
 import { createRequirementRegex } from '../constants.js';
 import { extractCrossReferences, toArray } from '../utils/text.js';
+import { compareSectionNumbers, normalizeSectionNumber } from '../utils/section.js';
 import {
   extractRequirementsFromSections,
   type RequirementFilter,
@@ -110,13 +111,6 @@ function renderInlineTags(xml: string): string {
 
   let result = xml;
 
-  // 索引・編集注記は印字されない
-  result = result
-    .replace(/<iref\b[^>]*\/>/gi, '')
-    .replace(/<iref\b[^>]*>[\s\S]*?<\/iref>/gi, '')
-    .replace(/<cref\b[^>]*\/>/gi, '')
-    .replace(/<cref\b[^>]*>[\s\S]*?<\/cref>/gi, '');
-
   // 人名
   result = result.replace(/<contact\b([^>]*)\/>/gi, (_m, attrs: string) => {
     const fullname = /\bfullname="([^"]*)"/i.exec(attrs);
@@ -144,6 +138,22 @@ function renderInlineTags(xml: string): string {
   }
 
   return result;
+}
+
+/**
+ * 印字されない要素を落とす。
+ *
+ * `<iref>` は索引の項目、`<cref>` は編集時の注記で、どちらも公開版 RFC の本文には
+ * 出ない。ただし `<iref primary="true">` は「その用語をここで定義している」という
+ * 目印でもあるため、落とす前に `extractIrefDefinitions()` が読む。
+ * この関数は `renderInlineTags()` から分けてあり、パースの直前に適用する。
+ */
+function stripNonPrinting(xml: string): string {
+  return xml
+    .replace(/<iref\b[^>]*\/>/gi, '')
+    .replace(/<iref\b[^>]*>[\s\S]*?<\/iref>/gi, '')
+    .replace(/<cref\b[^>]*\/>/gi, '')
+    .replace(/<cref\b[^>]*>[\s\S]*?<\/cref>/gi, '');
 }
 
 /**
@@ -250,7 +260,8 @@ export function parseRFCXML(xml: string): ParsedRFC {
   // BCP 14 タグとインライン要素を素テキストへ正規化してから解析する。
   // xref を先に解くのは、`<em><xref/></em>` のような入れ子で内側から
   // 組み立てるため。
-  const normalizedXml = renderInlineTags(renderXrefTags(normalizeBcp14Tags(xml)));
+  const inlineRendered = renderInlineTags(renderXrefTags(normalizeBcp14Tags(xml)));
+  const normalizedXml = stripNonPrinting(inlineRendered);
   const parsed = parser.parse(normalizedXml);
   const rfc = parsed.rfc || parsed;
 
@@ -258,7 +269,7 @@ export function parseRFCXML(xml: string): ParsedRFC {
     metadata: extractMetadata(rfc),
     sections: extractSections(rfc.middle?.section || []),
     references: extractReferences(rfc.back?.references || []),
-    definitions: extractDefinitions(rfc),
+    definitions: mergeDefinitions(extractDefinitions(rfc), extractIrefDefinitions(inlineRendered)),
   };
 }
 
@@ -629,9 +640,9 @@ function extractDefinitions(rfc: XmlNode): Definition[] {
 
           if (term && definition) {
             definitions.push({
-              term,
+              term: normalizeTerm(term),
               definition,
-              section,
+              section: normalizeSectionNumber(section),
             });
           }
         }
@@ -655,6 +666,198 @@ function extractDefinitions(rfc: XmlNode): Definition[] {
 
   findDefinitionLists(rfc);
   return definitions;
+}
+
+/**
+ * `<iref primary="true">` が付いた段落から定義を取り出す。
+ *
+ * v0.6.5 までは `<dl>` だけを見ていた。用語を `<dl>` で並べる RFC（RFC 9114 §2.2
+ * "Terminology"）では取れるが、地の文で定義する RFC では 1 件も取れない。
+ * RFC 9110 の `get_definitions` が返す 26 件は §14.6（メディア型登録の記入欄）と
+ * §16.3.1（フィールド名登録の記入欄）で、`resource` `client` `server` `cache`
+ * といった同文書の用語は 1 件も入っていなかった。
+ *
+ * RFCXML では、用語を定義している箇所に `<iref primary="true">` が置かれる。
+ *
+ * ```xml
+ * <section anchor="caches" pn="section-3.8">
+ *   <name>Caches</name>
+ *   <iref primary="true" item="cache" pn="iref-cache-42"/>
+ *   <t pn="section-3.8-1">
+ *    A "cache" is a local store of previous response messages and the
+ *    subsystem that controls its message storage, retrieval, and deletion. …
+ * ```
+ *
+ * `primary="true"` が定義箇所、`primary="false"` は単なる言及である。
+ * `subitem` を持つものは索引の下位項目（item="header fields" subitem="Content-Type"）
+ * なので採らない。RFC 9110 では 414 個の `primary="true"` のうち、`subitem` の無い
+ * ものが 162 個あり、これが同文書の用語一覧にあたる。
+ *
+ * 定義本文は、その `<iref>` を含む段落、または直後の段落を丸ごと採る。1 つの段落が
+ * 複数の用語を定義していることがあり（§3.3 は `client` `server` `connection` の
+ * 3 語）、その場合は同じ本文が 3 件に付く。段落より細かく切ると、定義の条件節が
+ * 落ちる。
+ *
+ * 節は `<t>` の `pn`（"section-3.8-1"）から末尾の連番を外して求める。`<dl>` 経路が
+ * 返す `sec['@_pn']` と同じ形になる。
+ *
+ * この関数はパース前の文字列を見る。`fast-xml-parser` は `preserveOrder: false` で
+ * 動くため、木からは `<iref>` と `<t>` の並び順が失われるためである。
+ */
+export function extractIrefDefinitions(xml: string): Definition[] {
+  const definitions: Definition[] = [];
+  const seen = new Set<string>();
+
+  // `<t ...>` の開始位置を先に集めておく（線形に走査するため）
+  const paragraphs: Array<{ open: number; contentStart: number; tag: string }> = [];
+  for (const m of xml.matchAll(/<t\b[^>]*>/g)) {
+    paragraphs.push({ open: m.index, contentStart: m.index + m[0].length, tag: m[0] });
+  }
+
+  for (const m of xml.matchAll(/<iref\b([^>]*)\/>/g)) {
+    const attrs = m[1];
+    if (attributeOf(attrs, 'primary')?.toLowerCase() !== 'true') continue;
+    if (attributeOf(attrs, 'subitem')) continue;
+
+    const term = attributeOf(attrs, 'item')?.trim();
+    if (!term) continue;
+
+    const paragraph = paragraphContaining(xml, paragraphs, m.index, m.index + m[0].length);
+    if (!paragraph) continue;
+
+    const definition = extractProse(stripTags(paragraph.body));
+    if (definition.length < DEFINITION_MIN_LENGTH) continue;
+
+    const key = term.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    definitions.push({
+      term: normalizeTerm(term),
+      definition,
+      section: normalizeSectionNumber(paragraph.section),
+    });
+  }
+
+  return definitions;
+}
+
+/** 定義本文として採る最小の長さ。これ未満は目印だけで中身が無い。 */
+const DEFINITION_MIN_LENGTH = 10;
+
+/**
+ * 用語の表記をそろえる。
+ *
+ * `<dl>` の `<dt>` は "stream:" のように末尾にコロンを置き、引用符で括ることもある
+ * （RFC 9110 §8.8.3.2 の `"Strong comparison":`）。用語そのものではないので落とす。
+ * 完全一致で引く利用者が当たらなくなるためである。
+ */
+function normalizeTerm(term: string): string {
+  return term
+    .replace(/\s*:\s*$/, '')
+    .replace(/^["\u201c](.*)["\u201d]$/, '$1')
+    .trim();
+}
+
+/** 属性を並び順に依存せず読む。RFC ごとに `item` と `primary` の順が違う。 */
+function attributeOf(attrs: string, name: string): string | undefined {
+  return new RegExp(`\\b${name}="([^"]*)"`, 'i').exec(attrs)?.[1];
+}
+
+/**
+ * `<iref>` を含む段落、無ければ直後の段落を返す。
+ */
+function paragraphContaining(
+  xml: string,
+  paragraphs: Array<{ open: number; contentStart: number; tag: string }>,
+  irefStart: number,
+  irefEnd: number
+): { body: string; section: string } | undefined {
+  const take = (index: number): { body: string; section: string } | undefined => {
+    const p = paragraphs[index];
+    const close = xml.indexOf('</t>', p.contentStart);
+    if (close === -1) return undefined;
+    return {
+      body: xml.slice(p.contentStart, close),
+      section: sectionOfParagraph(xml, p),
+    };
+  };
+
+  // 直前の `<t>` が閉じる前に `<iref>` があれば、その段落の中にいる
+  let previous = -1;
+  for (let i = 0; i < paragraphs.length; i++) {
+    if (paragraphs[i].open > irefStart) break;
+    previous = i;
+  }
+  if (previous >= 0) {
+    const close = xml.indexOf('</t>', paragraphs[previous].contentStart);
+    if (close > irefStart) return take(previous);
+  }
+
+  // 段落の外（節の直下）にある `<iref>`。定義は直後の段落。
+  const next = paragraphs.find((p) => p.open >= irefEnd);
+  return next ? take(paragraphs.indexOf(next)) : undefined;
+}
+
+/**
+ * 段落が属する節の識別子。
+ *
+ * `pn="section-3.8-1"` の末尾の連番を外して "section-3.8" にする。`pn` が無い
+ * 公開前の RFCXML では、直前の `<section>` の `anchor` / `pn` を使う。
+ */
+function sectionOfParagraph(xml: string, paragraph: { open: number; tag: string }): string {
+  const pn = attributeOf(paragraph.tag, 'pn');
+  if (pn) return pn.replace(/-\d+$/, '');
+
+  const before = xml.lastIndexOf('<section', paragraph.open);
+  if (before === -1) return '';
+  const tagEnd = xml.indexOf('>', before);
+  const attrs = xml.slice(before, tagEnd === -1 ? before : tagEnd);
+  return attributeOf(attrs, 'pn') ?? attributeOf(attrs, 'anchor') ?? '';
+}
+
+/** 残っているタグを落として素テキストにする。 */
+function stripTags(fragment: string): string {
+  return decodeXmlEntities(fragment.replace(/<[^>]*>/g, ' '));
+}
+
+/**
+ * 文字実体参照を戻す。木を経由しない経路（`extractIrefDefinitions`）では
+ * パーサの復号が効かないため、ここで行う。
+ */
+function decodeXmlEntities(text: string): string {
+  return text
+    .replace(/&#x([0-9a-f]+);/gi, (_m, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_m, dec: string) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+/**
+ * `<dl>` 由来と `<iref>` 由来の定義を、用語が重ならないように繋ぐ。
+ *
+ * 同じ用語が両方にあるときは `<dl>` を採る。`<dt>`/`<dd>` は用語と定義の対として
+ * 書かれているのに対し、`<iref>` の側は定義箇所の段落を丸ごと採るため、条件節や
+ * 前置きが混じる。
+ *
+ * 並びは節番号順にする。2 つの経路にまたがると文書の順序が失われ、RFC 9110 では
+ * §14.6（メディア型登録の記入欄）が §3.1 の "resource" より前に出ていた。
+ */
+function mergeDefinitions(fromLists: Definition[], fromIrefs: Definition[]): Definition[] {
+  const seen = new Set(fromLists.map((d) => d.term.toLowerCase()));
+  const merged = [...fromLists];
+
+  for (const definition of fromIrefs) {
+    const key = definition.term.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(definition);
+  }
+
+  return merged.sort((a, b) => compareSectionNumbers(a.section, b.section));
 }
 
 /**

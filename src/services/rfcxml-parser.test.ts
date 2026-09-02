@@ -681,6 +681,96 @@ describe('索引を定義として拾わないこと', () => {
     // back ごと落としてはならない。
     const terms = parseRFCXML(xml).definitions.map((d) => d.term);
 
-    expect(terms).toEqual(['stream:', 'RST_STREAM (0x03):']);
+    expect(terms).toEqual(['stream', 'RST_STREAM (0x03)']);
+  });
+});
+
+describe('iref から定義を取り出す', () => {
+  const xml = `<?xml version="1.0"?>
+<rfc number="9110">
+  <middle>
+    <section anchor="caches" pn="section-3.8">
+      <name>Caches</name>
+      <iref item="cache" primary="true" pn="iref-cache-42"/>
+      <t pn="section-3.8-1">A "cache" is a local store of previous response messages.</t>
+    </section>
+    <section anchor="proxies" pn="section-3.7">
+      <name>Proxies</name>
+      <t pn="section-3.7-1"><iref primary="true" item="proxy"/>A "proxy" is a message-forwarding agent chosen by the client.</t>
+      <t pn="section-3.7-2"><iref primary="false" item="proxy"/>Proxies are often used to group requests.</t>
+    </section>
+    <section anchor="fields" pn="section-5">
+      <name>Fields</name>
+      <t pn="section-5-1"><iref primary="true" item="header fields" subitem="Content-Type"/>The Content-Type field is defined in Section 8.3.</t>
+    </section>
+  </middle>
+</rfc>`;
+
+  it('定義箇所の段落を用語の定義として返す', () => {
+    const definitions = parseRFCXML(xml).definitions;
+
+    expect(definitions).toContainEqual({
+      term: 'cache',
+      definition: 'A "cache" is a local store of previous response messages.',
+      section: '3.8',
+    });
+  });
+
+  it('段落の中に置かれた iref も、その段落を定義とする', () => {
+    const proxy = parseRFCXML(xml).definitions.find((d) => d.term === 'proxy');
+
+    expect(proxy?.definition).toBe('A "proxy" is a message-forwarding agent chosen by the client.');
+  });
+
+  it('primary="false" は言及であって定義ではない', () => {
+    // §3.7 の 2 つめの段落は proxy を定義していない。定義として採ると
+    // "Proxies are often used to group requests." が定義になる。
+    const proxy = parseRFCXML(xml).definitions.filter((d) => d.term === 'proxy');
+
+    expect(proxy).toHaveLength(1);
+  });
+
+  it('subitem を持つものは索引の下位項目なので採らない', () => {
+    const terms = parseRFCXML(xml).definitions.map((d) => d.term);
+
+    expect(terms).not.toContain('header fields');
+  });
+});
+
+describe('用語と節番号の表記', () => {
+  const xml = `<?xml version="1.0"?>
+<rfc number="9110">
+  <middle>
+    <section anchor="etag" pn="section-8.8.3.2">
+      <name>Comparison</name>
+      <dl>
+        <dt>"Strong comparison":</dt>
+        <dd>two entity tags are equivalent if both are not weak.</dd>
+      </dl>
+    </section>
+  </middle>
+  <back>
+    <section pn="section-appendix.a.2.5">
+      <name>Frames</name>
+      <dl>
+        <dt>RST_STREAM (0x03):</dt>
+        <dd>RST_STREAM frames do not exist in HTTP/3.</dd>
+      </dl>
+    </section>
+  </back>
+</rfc>`;
+
+  it('用語の末尾のコロンと引用符を落とす', () => {
+    const terms = parseRFCXML(xml).definitions.map((d) => d.term);
+
+    expect(terms).toContain('Strong comparison');
+    expect(terms).toContain('RST_STREAM (0x03)');
+  });
+
+  it('節は RFC が印字する番号で返す', () => {
+    const sections = parseRFCXML(xml).definitions.map((d) => d.section);
+
+    // `pn` の "section-8.8.3.2" / "section-appendix.a.2.5" は外に出さない
+    expect(sections).toEqual(['8.8.3.2', 'A.2.5']);
   });
 });

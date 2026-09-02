@@ -828,6 +828,190 @@ async function testDefinitions(client) {
   }
 }
 
+/**
+ * 16. iref から取った定義（v0.6.6）
+ *
+ * `<dl>` で用語を並べない RFC では定義が 1 件も取れていなかった。RFC 9110 の
+ * `get_definitions` は §14.6 と §16.3.1 の登録票の項目名しか返さず、
+ * `resource` `cache` といった同文書の用語は入っていなかった。
+ */
+async function testIrefDefinitions(client) {
+  const toolName = 'definitions';
+
+  try {
+    const res = await callTool(client, 'get_definitions', { rfc: 9110, term: 'cache' });
+    const cache = (res.definitions || []).find((d) => d.term === 'cache');
+
+    logResult(
+      toolName,
+      'terms defined in prose are returned',
+      cache && /local store of previous response messages/.test(cache.definition) ? 'PASS' : 'FAIL',
+      { note: `count=${res.count}, section=${cache?.section}` }
+    );
+  } catch (e) {
+    logResult(toolName, 'terms defined in prose are returned', 'FAIL', { error: e.message });
+  }
+
+  try {
+    const res = await callTool(client, 'get_definitions', { rfc: 9110 });
+    const definitions = res.definitions || [];
+    const withColon = definitions.filter((d) => /:$/.test(d.term || ''));
+    const rawSection = definitions.filter((d) => /^section-/.test(d.section || ''));
+
+    logResult(
+      toolName,
+      'terms and sections are printed in the published form',
+      withColon.length === 0 && rawSection.length === 0 ? 'PASS' : 'FAIL',
+      { note: `count=${definitions.length}, colon=${withColon.length}, pn=${rawSection.length}` }
+    );
+  } catch (e) {
+    logResult(toolName, 'terms and sections are printed in the published form', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    // 定義は節番号の順に並ぶ。§14.6 の登録票が §3.1 の resource より前に出ない。
+    const res = await callTool(client, 'get_definitions', { rfc: 9110 });
+    const first = (res.definitions || [])[0];
+
+    logResult(
+      toolName,
+      'definitions are ordered by section',
+      first?.term === 'resource' ? 'PASS' : 'FAIL',
+      {
+        note: `first=${first?.term} (${first?.section})`,
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'definitions are ordered by section', 'FAIL', { error: e.message });
+  }
+}
+
+// ========================================
+// References (text path)
+// ========================================
+
+/**
+ * 17. テキスト経路の参照（v0.6.6）
+ *
+ * v0.6.5 までは本文全体を `RFC\s*(\d+)` で走査していたため、規範的参照と
+ * 参考的参照が区別できず、参考文献に載っていない言及まで参照に入っていた。
+ */
+async function testTextReferences(client) {
+  const toolName = 'dependencies';
+
+  try {
+    const res = await callTool(client, 'get_rfc_dependencies', { rfc: 6455 });
+    const normative = res.normative || [];
+    const informative = res.informative || [];
+
+    logResult(
+      toolName,
+      'normative and informative are separated on the text path',
+      normative.length === 18 && informative.length === 9 ? 'PASS' : 'FAIL',
+      { note: `normative=${normative.length}, informative=${informative.length}` }
+    );
+
+    const stubs = [...normative, ...informative].filter((r) => /^RFC \d+$/.test(r.title || ''));
+    logResult(
+      toolName,
+      'titles come from the reference entries',
+      stubs.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `stubTitles=${stubs.length}`,
+      }
+    );
+
+    // "RFC 5741" は Status of This Memo の定型文、"RFC 6202" は §1.1 の地の文。
+    // 6202 は参考文献にも載っているので、載っていない 5741 で見る。
+    const mention = [...normative, ...informative].some((r) => r.rfcNumber === 5741);
+    logResult(
+      toolName,
+      'mentions outside the reference list are not references',
+      !mention ? 'PASS' : 'FAIL',
+      {
+        note: `RFC5741 present=${mention}`,
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'normative and informative are separated on the text path', 'FAIL', {
+      error: e.message,
+    });
+  }
+}
+
+// ========================================
+// Requirement text (text path)
+// ========================================
+
+/**
+ * 18. テキスト経路の要件文（v0.6.6）
+ */
+async function testTextRequirementShape(client) {
+  const toolName = 'requirements';
+
+  try {
+    const res = await callTool(client, 'get_requirements', { rfc: 6455 });
+    const requirements = res.requirements || [];
+    const wrapped = requirements.filter((r) => /\n| {4,}/.test(r.text || ''));
+    const bullets = requirements.filter((r) => /^o\s/.test(r.text || ''));
+
+    logResult(
+      toolName,
+      'requirement text is one folded line',
+      wrapped.length === 0 && bullets.length === 0 ? 'PASS' : 'FAIL',
+      { note: `total=${requirements.length}, wrapped=${wrapped.length}, bullets=${bullets.length}` }
+    );
+
+    // ABNF の注釈は散文として組み直され、"…, MUST " で切れない
+    const abnf = requirements.find((r) => /1 bit in length/.test(r.text || ''));
+    logResult(toolName, 'ABNF comments are rebuilt as prose', abnf ? 'PASS' : 'FAIL', {
+      note: abnf ? abnf.text : 'not found',
+    });
+  } catch (e) {
+    logResult(toolName, 'requirement text is one folded line', 'FAIL', { error: e.message });
+  }
+}
+
+// ========================================
+// Checklist
+// ========================================
+
+/**
+ * 19. チェックリストの体裁（v0.6.6）
+ */
+async function testChecklistShape(client) {
+  const toolName = 'checklist';
+
+  try {
+    const res = await callTool(client, 'generate_checklist', {
+      rfc: 6455,
+      sections: ['5.3'],
+      role: 'client',
+    });
+    const lines = (res.markdown || '').split('\n');
+    const items = lines.filter((l) => l.startsWith('- [ ]'));
+    const stray = lines.filter((l) => /^\s+\S/.test(l));
+    const unique = new Set(items);
+
+    logResult(
+      toolName,
+      'each item is one Markdown line and carries its level',
+      stray.length === 0 &&
+        items.length === unique.size &&
+        items.every((l) => /^- \[ \] \*\*/.test(l))
+        ? 'PASS'
+        : 'FAIL',
+      { note: `items=${items.length}, unique=${unique.size}, continuationLines=${stray.length}` }
+    );
+  } catch (e) {
+    logResult(toolName, 'each item is one Markdown line and carries its level', 'FAIL', {
+      error: e.message,
+    });
+  }
+}
+
 // ========================================
 // Inline elements (XML)
 // ========================================
@@ -966,6 +1150,22 @@ async function main() {
 
     console.log('--- 16. definitions ---');
     await testDefinitions(client);
+    console.log('');
+
+    console.log('--- 17. definitions from iref ---');
+    await testIrefDefinitions(client);
+    console.log('');
+
+    console.log('--- 18. references (text path) ---');
+    await testTextReferences(client);
+    console.log('');
+
+    console.log('--- 19. requirement text (text path) ---');
+    await testTextRequirementShape(client);
+    console.log('');
+
+    console.log('--- 20. checklist shape ---');
+    await testChecklistShape(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);

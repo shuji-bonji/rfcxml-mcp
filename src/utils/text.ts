@@ -157,3 +157,121 @@ export function toArray<T>(value: T | T[] | undefined): T[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
 }
+
+// ========================================
+// 要件文の切り出し（テキスト経路）
+// ========================================
+
+/**
+ * ABNF の注釈行。RFC のテキストでは規範的な文がここに書かれることがある。
+ *
+ * ```
+ * frame-rsv1              = %x0 / %x1
+ *                           ; 1 bit in length, MUST be 0 unless
+ *                           ; negotiated otherwise
+ * ```
+ */
+const ABNF_COMMENT_LINE = /^\s*;\s?/;
+
+/**
+ * 図・ABNF らしい体裁か。
+ *
+ * テキスト経路（RFC 8650 未満）には `<sourcecode>` や `<artwork>` にあたる目印が
+ * 無いため、体裁で見分けるほかない。当たった段落では空白を畳まない。畳むと
+ * RFC 6455 §5.2 のフレーム図や ABNF の桁揃えが崩れる。
+ */
+const DIAGRAM_PATTERNS: RegExp[] = [
+  /^[ \t]*[A-Za-z][\w-]*[ \t]*=[ \t]/m, // ABNF の規則（"frame-rsv1 = %x0 / %x1"）
+  / {2};/, // ABNF の注釈（2 個以上の空白のあとのセミコロン）
+  /[-+]{4,}/, // 図の罫線
+  /\|[ \t]{2,}/, // 図の縦罫（"|   F   |"）
+];
+
+/**
+ * 散文にも現れる書き方は目印にしない。
+ *
+ * - `%x0A` — RFC 7230 §3 の "the octet LF (%x0A)" は散文である。ABNF の本体には
+ *   規則の行があるので、そちらで当たる。
+ * - `|` のあとの改行 — RFC 6455 は本文でヘッダ名を `|Origin|` と括る。図の縦罫は
+ *   同じ行の中で空白が続くので、改行を含めずに見る。
+ */
+export function looksLikeDiagram(text: string): boolean {
+  return DIAGRAM_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+/**
+ * 行頭の箇条書き記号を落とす。
+ *
+ * RFC のテキストでは "o  " が黒丸の代わりに使われる。要件文が
+ * `"o  Message fragments MUST be delivered …"` のように始まっていた。
+ * 数字や括弧付きの記号も同様に落とす。
+ */
+export function stripListMarker(text: string): string {
+  return text.replace(/^\s*(?:o {2}|[-*•] |\d+\.\s{2}|\(\d+\)\s|[a-z]\)\s)/, '');
+}
+
+/** 段落内の改行と字下げを 1 個の空白に畳む。 */
+export function foldWhitespace(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * 要件文を切り出す元になる文字列と、その中でのキーワードの位置。
+ */
+export interface RequirementSource {
+  /** 切り出しの対象 */
+  text: string;
+  /** `text` の中でのキーワードの位置 */
+  position: number;
+  /** 散文として扱えるか。false なら空白を畳まない */
+  prose: boolean;
+}
+
+/**
+ * 要件文の切り出し元を決める。
+ *
+ * 3 通りある。
+ *
+ * 1. **ABNF の注釈の中** — 続く注釈行をまとめ、";" を外して 1 行の散文にする。
+ *    RFC 6455 §5.2 の
+ *    `"; 1 bit in length, MUST be 0 unless" / "; negotiated otherwise"` は
+ *    `"1 bit in length, MUST be 0 unless negotiated otherwise"` になる。
+ *    v0.6.5 まではキーワードのある行だけが `frame-rsv1 = %x0 / %x1` と一緒に
+ *    切り出され、"…, MUST " で切れていた。
+ * 2. **図・ABNF の本体** — そのまま切り出し、空白は畳まない。
+ * 3. **散文** — そのまま切り出し、空白を畳む。
+ */
+export function requirementSource(
+  content: string,
+  position: number,
+  level: string
+): RequirementSource {
+  const lineStart = content.lastIndexOf('\n', position - 1) + 1;
+  const lineEndIndex = content.indexOf('\n', position);
+  const lineEnd = lineEndIndex === -1 ? content.length : lineEndIndex;
+  const line = content.slice(lineStart, lineEnd);
+
+  if (ABNF_COMMENT_LINE.test(line)) {
+    const lines = content.split('\n');
+    const index = content.slice(0, lineStart).split('\n').length - 1;
+
+    let first = index;
+    while (first > 0 && ABNF_COMMENT_LINE.test(lines[first - 1])) first--;
+    let last = index;
+    while (last + 1 < lines.length && ABNF_COMMENT_LINE.test(lines[last + 1])) last++;
+
+    const text = foldWhitespace(
+      lines
+        .slice(first, last + 1)
+        .map((l) => l.replace(ABNF_COMMENT_LINE, ''))
+        .join(' ')
+    );
+    const keyword = text.indexOf(level);
+    return { text, position: keyword === -1 ? 0 : keyword, prose: true };
+  }
+
+  // 段落は空行で切られているので、図や ABNF は 1 つの段落にまとまっている。
+  // キーワードのある行だけでなく段落全体を見る。図の中の散文らしい行だけが
+  // 畳まれて桁が崩れるのを防ぐ。
+  return { text: content, position, prose: !looksLikeDiagram(content) };
+}

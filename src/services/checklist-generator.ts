@@ -84,6 +84,40 @@ export function generateChecklist(
 }
 
 /**
+ * チェックリストの 1 行を組み立てる。
+ *
+ * 要件レベルを行に出す。1 つの文が MUST と MUST NOT の両方を含むとき
+ * （RFC 6455 §5.3 の "the masking key MUST be derived from a strong source of
+ * entropy, and the masking key for a given frame MUST NOT make it simple …"）、
+ * 要件は 2 件立つが文は同一である。v0.6.5 までは同じ行が 2 度並び、どちらの語に
+ * ついての項目なのか読み取れなかった。
+ */
+function renderChecklistItem(item: ChecklistItem): string {
+  const { level, text, section } = item.requirement;
+  return `- [ ] **${level}** ${text} (§${section})`;
+}
+
+/**
+ * 同じ行が 2 度出ないようにする。
+ *
+ * レベルを行に出したことで、上記の MUST / MUST NOT は別の行になる。ここで落ちるのは
+ * レベルも節も文も同じ行だけで、それは同じ要件である。
+ */
+function renderChecklistItems(items: ChecklistItem[]): string[] {
+  const seen = new Set<string>();
+  const lines: string[] = [];
+
+  for (const item of items) {
+    const line = renderChecklistItem(item);
+    if (seen.has(line)) continue;
+    seen.add(line);
+    lines.push(line);
+  }
+
+  return lines;
+}
+
+/**
  * チェックリストをMarkdown形式で出力
  */
 export function generateChecklistMarkdown(checklist: ImplementationChecklist): string {
@@ -103,27 +137,21 @@ export function generateChecklistMarkdown(checklist: ImplementationChecklist): s
   if (checklist.must.length > 0) {
     lines.push('## Mandatory Requirements (MUST / REQUIRED / SHALL)');
     lines.push('');
-    for (const item of checklist.must) {
-      lines.push(`- [ ] ${item.requirement.text} (${item.requirement.section})`);
-    }
+    lines.push(...renderChecklistItems(checklist.must));
     lines.push('');
   }
 
   if (checklist.should.length > 0) {
     lines.push('## Recommended Requirements (SHOULD / RECOMMENDED)');
     lines.push('');
-    for (const item of checklist.should) {
-      lines.push(`- [ ] ${item.requirement.text} (${item.requirement.section})`);
-    }
+    lines.push(...renderChecklistItems(checklist.should));
     lines.push('');
   }
 
   if (checklist.may.length > 0) {
     lines.push('## Optional Requirements (MAY / OPTIONAL)');
     lines.push('');
-    for (const item of checklist.may) {
-      lines.push(`- [ ] ${item.requirement.text} (${item.requirement.section})`);
-    }
+    lines.push(...renderChecklistItems(checklist.may));
     lines.push('');
   }
 

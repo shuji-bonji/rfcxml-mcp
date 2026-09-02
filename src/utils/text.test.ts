@@ -3,7 +3,16 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { clipAtClauseEnd, extractCrossReferences, extractSentence, isSentenceEnd } from './text.js';
+import {
+  clipAtClauseEnd,
+  extractCrossReferences,
+  extractSentence,
+  foldWhitespace,
+  isSentenceEnd,
+  looksLikeDiagram,
+  requirementSource,
+  stripListMarker,
+} from './text.js';
 
 describe('extractCrossReferences', () => {
   it('この RFC の節を section として拾う', () => {
@@ -141,5 +150,70 @@ describe('平文で書かれた別文書参照', () => {
 
     expect(refs.filter((r) => r.type === 'section').map((r) => r.section)).toEqual(['3.7.2']);
     expect(refs.filter((r) => r.type === 'external').map((r) => r.section)).toEqual(['3.4']);
+  });
+});
+
+describe('looksLikeDiagram', () => {
+  it('ABNF の規則を図として扱う', () => {
+    expect(looksLikeDiagram('frame-rsv1              = %x0 / %x1')).toBe(true);
+    expect(looksLikeDiagram('extension-param = token [ "=" (token | quoted-string) ]')).toBe(true);
+  });
+
+  it('図の罫線を図として扱う', () => {
+    expect(looksLikeDiagram('+-+-+-+-+-------+-+-------------+')).toBe(true);
+  });
+
+  it('散文は図として扱わない', () => {
+    expect(looksLikeDiagram('A client MUST mask all frames that it sends to the server.')).toBe(
+      false
+    );
+  });
+});
+
+describe('stripListMarker', () => {
+  it('RFC の黒丸 "o" を落とす', () => {
+    expect(stripListMarker('o  Message fragments MUST be delivered in order.')).toBe(
+      'Message fragments MUST be delivered in order.'
+    );
+  });
+
+  it('散文の先頭は削らない', () => {
+    expect(stripListMarker('The server MUST close the connection.')).toBe(
+      'The server MUST close the connection.'
+    );
+  });
+});
+
+describe('requirementSource', () => {
+  const abnf = [
+    'frame-rsv1              = %x0 / %x1',
+    '                          ; 1 bit in length, MUST be 0 unless',
+    '                          ; negotiated otherwise',
+  ].join('\n');
+
+  it('ABNF の注釈を 1 行の散文に組み直す', () => {
+    const position = abnf.indexOf('MUST');
+    const source = requirementSource(abnf, position, 'MUST');
+
+    expect(source.text).toBe('1 bit in length, MUST be 0 unless negotiated otherwise');
+    expect(source.prose).toBe(true);
+    expect(source.text.slice(source.position, source.position + 4)).toBe('MUST');
+  });
+
+  it('図の本体は畳まない', () => {
+    const figure = 'frame-fin = %x0 / %x1 MUST be set';
+    const source = requirementSource(figure, figure.indexOf('MUST'), 'MUST');
+
+    expect(source.prose).toBe(false);
+  });
+
+  it('散文は畳む対象にする', () => {
+    const prose = 'A client MUST mask all frames\n   that it sends to the server.';
+    const source = requirementSource(prose, prose.indexOf('MUST'), 'MUST');
+
+    expect(source.prose).toBe(true);
+    expect(foldWhitespace(source.text)).toBe(
+      'A client MUST mask all frames that it sends to the server.'
+    );
   });
 });

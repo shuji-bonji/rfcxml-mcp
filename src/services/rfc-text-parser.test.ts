@@ -429,3 +429,83 @@ describe('本文の番号付きリストを節にしないこと', () => {
     expect(numbers).toContain('5');
   });
 });
+
+describe('参考文献の欄から参照を取り出す', () => {
+  const text = [
+    '14.  References',
+    '',
+    '14.1.  Normative References',
+    '',
+    '   [ANSI.X3-4.1986]',
+    '              American National Standards Institute, "Coded Character',
+    '              Set - 7-bit American Standard Code for Information',
+    '              Interchange", ANSI X3.4, 1986.',
+    '',
+    '   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate',
+    '              Requirement Levels", BCP 14, RFC 2119, March 1997.',
+    '',
+    '',
+    'Fette & Melnikov             Standards Track                   [Page 68]',
+    '',
+    'RFC 6455                 The WebSocket Protocol            December 2011',
+    '',
+    '   [RFC2818]  Rescorla, E., "HTTP Over TLS", RFC 2818, May 2000.',
+    '',
+    '14.2.  Informative References',
+    '',
+    '   [RFC6202]  Loreto, S., "Known Issues and Best Practices", RFC 6202,',
+    '              April 2011.',
+    '',
+    "Authors' Addresses",
+    '',
+    '   Ian Fette',
+  ].join('\n');
+
+  it('規範的参照と参考的参照を分ける', () => {
+    const refs = parseRFCText(text, 6455).references;
+
+    expect(refs.normative.map((r) => r.anchor)).toEqual(['ANSI.X3-4.1986', 'RFC2119', 'RFC2818']);
+    expect(refs.informative.map((r) => r.anchor)).toEqual(['RFC6202']);
+  });
+
+  it('題名と RFC 番号を項目から取る', () => {
+    const refs = parseRFCText(text, 6455).references;
+
+    expect(refs.normative[1]).toEqual({
+      anchor: 'RFC2119',
+      type: 'normative',
+      rfcNumber: 2119,
+      title: 'Key words for use in RFCs to Indicate Requirement Levels',
+    });
+  });
+
+  it('RFC でない参照も落とさない', () => {
+    const ansi = parseRFCText(text, 6455).references.normative[0];
+
+    expect(ansi.rfcNumber).toBeUndefined();
+    expect(ansi.title).toBe(
+      'Coded Character Set - 7-bit American Standard Code for Information Interchange'
+    );
+  });
+
+  it('ページの区切りを参照に混ぜない', () => {
+    const refs = parseRFCText(text, 6455).references;
+    const all = [...refs.normative, ...refs.informative];
+
+    expect(all.some((r) => /Page|Standards Track/.test(r.title))).toBe(false);
+    // "RFC 6455 … December 2011" のページ見出しから 6455 を拾わない
+    expect(all.some((r) => r.rfcNumber === 6455)).toBe(false);
+  });
+
+  it('本文中の言及は参照にしない', () => {
+    // 参考文献の欄に無い RFC は参照ではない。RFC 6455 の "RFC 5741" は
+    // Status of This Memo の定型文である。
+    const withMention = ['1.  Introduction', '', '   See RFC 5741 for details.', '', text].join(
+      '\n'
+    );
+    const refs = parseRFCText(withMention, 6455).references;
+    const all = [...refs.normative, ...refs.informative];
+
+    expect(all.some((r) => r.rfcNumber === 5741)).toBe(false);
+  });
+});
