@@ -584,3 +584,103 @@ describe('インライン要素の描画', () => {
     ).toBe('see <https://example.com/x>.');
   });
 });
+
+describe('散文の空白を畳むこと', () => {
+  const build = (body: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<rfc number="9999">
+  <front><title>Whitespace</title></front>
+  <middle>
+    <section anchor="section-1"><name>Intro</name>${body}</section>
+  </middle>
+  <back></back>
+</rfc>`;
+
+  const blocksOf = (xml: string) => parseRFCXML(xml).sections[0].content;
+  const textOf = (xml: string): string => {
+    const block = blocksOf(xml).find((b) => b.type === 'text');
+    return block && block.type === 'text' ? block.content : '';
+  };
+
+  it('タグを外した跡の字下げを残さない', () => {
+    // RFC 9114 §6.2.3 の形。bcp14 が独立した行に置かれている。
+    const xml = build(`<t>They
+            <bcp14>MAY</bcp14>
+            also be sent on connections where no data is
+currently being transferred.</t>`);
+
+    expect(textOf(xml)).toBe(
+      'They MAY also be sent on connections where no data is currently being transferred.'
+    );
+  });
+
+  it('段落の折り返しを 1 行に畳む', () => {
+    const xml = build('<t>The client\n   MUST send\n   data.</t>');
+
+    expect(textOf(xml)).toBe('The client MUST send data.');
+  });
+
+  it('節の題名も畳む', () => {
+    const xml = build('<t>Body text here.</t>');
+    const section = parseRFCXML(
+      xml.replace('<name>Intro</name>', '<name>Reserved\n      Stream Types</name>')
+    ).sections[0];
+
+    expect(section.title).toBe('Reserved Stream Types');
+  });
+
+  it('sourcecode と artwork の空白は保つ', () => {
+    // 図やコードは空白が意味を持つ。畳んではならない。
+    const xml = build(
+      '<t>See below.</t><artwork>+-+-+-+\n|A|B|C|\n+-+-+-+</artwork><sourcecode type="abnf">rule = a\n       b</sourcecode>'
+    );
+    const blocks = blocksOf(xml);
+    const artwork = blocks.find((b) => b.type === 'artwork');
+    const code = blocks.find((b) => b.type === 'sourcecode');
+
+    expect(artwork && artwork.type === 'artwork' ? artwork.content : '').toContain('\n');
+    expect(code && code.type === 'sourcecode' ? code.content : '').toContain('\n');
+  });
+});
+
+describe('索引を定義として拾わないこと', () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rfc number="9999">
+  <front><title>Index Test</title></front>
+  <middle>
+    <section anchor="section-2"><name>Terminology</name>
+      <dl>
+        <dt>stream:</dt>
+        <dd>A bidirectional bytestream provided by the transport.</dd>
+      </dl>
+    </section>
+  </middle>
+  <back>
+    <section numbered="false" pn="section-appendix.a"><name>Changes</name>
+      <dl>
+        <dt>RST_STREAM (0x03):</dt>
+        <dd>Does not exist in this protocol.</dd>
+      </dl>
+    </section>
+    <section numbered="false" pn="section-appendix.c"><name>Index</name>
+      <dl>
+        <dt>control stream</dt>
+        <dd>Section 2, Paragraph 3; Section 3.2, Paragraph 4</dd>
+      </dl>
+    </section>
+  </back>
+</rfc>`;
+
+  it('Index の節の項目を除外する', () => {
+    const terms = parseRFCXML(xml).definitions.map((d) => d.term);
+
+    expect(terms).not.toContain('control stream');
+  });
+
+  it('後付録の本物の定義は残す', () => {
+    // RFC 9114 の Appendix A.2.5 のように、定義が後付録に置かれることがある。
+    // back ごと落としてはならない。
+    const terms = parseRFCXML(xml).definitions.map((d) => d.term);
+
+    expect(terms).toEqual(['stream:', 'RST_STREAM (0x03):']);
+  });
+});

@@ -731,6 +731,32 @@ async function testTextPathStructure(client) {
     });
   }
 
+  // RFC 6455 は本文の番号付きリスト項目を節として拾い、節番号が重複していた
+  try {
+    const res = await callTool(client, 'get_rfc_structure', { rfc: 6455 });
+    const flat = [];
+    const walk = (sections) => {
+      for (const section of sections) {
+        flat.push(section);
+        walk(section.subsections || []);
+      }
+    };
+    walk(res.sections || []);
+    const numbers = flat.map((s) => s.number);
+    const duplicates = numbers.length - new Set(numbers).size;
+
+    logResult(
+      toolName,
+      'list items are not treated as sections',
+      duplicates === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `sections=${flat.length}, duplicateNumbers=${duplicates}`,
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'list items are not treated as sections', 'FAIL', { error: e.message });
+  }
+
   try {
     const res = await callTool(client, 'get_rfc_structure', { rfc: 8174 });
     const flat = [];
@@ -758,11 +784,56 @@ async function testTextPathStructure(client) {
 }
 
 // ========================================
+// Definitions
+// ========================================
+
+/**
+ * 16. 索引が定義として出ないこと
+ *
+ * RFC 9114 は 112 件の「定義」のうち 32 件が Appendix C の索引項目だった。
+ */
+async function testDefinitions(client) {
+  const toolName = 'definitions';
+
+  try {
+    const res = await callTool(client, 'get_definitions', { rfc: 9114 });
+    const indexLike = (res.definitions || []).filter((d) =>
+      /Paragraph \d/.test(d.definition || '')
+    );
+
+    logResult(
+      toolName,
+      'index entries are not definitions',
+      indexLike.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `definitions=${res.count}, indexLike=${indexLike.length}`,
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'index entries are not definitions', 'FAIL', { error: e.message });
+  }
+
+  try {
+    // 後付録の本物の定義（RFC 9114 Appendix A.2.5）は残っていること
+    const res = await callTool(client, 'get_definitions', { rfc: 9114, term: 'RST_STREAM' });
+    const found = (res.definitions || []).some((d) => /RST_STREAM/.test(d.term || ''));
+
+    logResult(toolName, 'real definitions in the back matter are kept', found ? 'PASS' : 'FAIL', {
+      note: `count=${res.count}`,
+    });
+  } catch (e) {
+    logResult(toolName, 'real definitions in the back matter are kept', 'FAIL', {
+      error: e.message,
+    });
+  }
+}
+
+// ========================================
 // Inline elements (XML)
 // ========================================
 
 /**
- * 15. インライン要素が本文に残っていること
+ * 15. インライン要素が本文に残っていること（空白の畳み込みを含む）
  *
  * `<tt>` `<sup>` は xref と同じ理由で落ちており、RFC 9114 の
  * "HEADERS<tt>…</tt>frame" が語ごと繋がり、RFC 9293 の "2<sup>32</sup> - 1" が
@@ -794,6 +865,24 @@ async function testInlineElements(client) {
     });
   } catch (e) {
     logResult(toolName, 'tt is rendered', 'FAIL', { error: e.message });
+  }
+
+  // タグを外した跡の字下げが残らないこと
+  try {
+    const res = await callTool(client, 'get_requirements', { rfc: 9114 });
+    const requirements = res.requirements || [];
+    const runs = requirements.filter((r) => / {4,}/.test(r.text || ''));
+
+    logResult(
+      toolName,
+      'no whitespace runs are left in the text',
+      runs.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `withRuns=${runs.length}/${requirements.length}`,
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'no whitespace runs are left in the text', 'FAIL', { error: e.message });
   }
 }
 
@@ -873,6 +962,10 @@ async function main() {
 
     console.log('--- 15. inline elements ---');
     await testInlineElements(client);
+    console.log('');
+
+    console.log('--- 16. definitions ---');
+    await testDefinitions(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);

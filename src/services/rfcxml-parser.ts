@@ -269,7 +269,7 @@ function extractMetadata(rfc: RfcXml): ParsedRFC['metadata'] {
   const front = rfc.front || {};
 
   return {
-    title: extractText(front.title) || 'Untitled',
+    title: extractProse(front.title) || 'Untitled',
     docName: rfc['@_docName'],
     number: rfc['@_number'] ? parseInt(rfc['@_number'], 10) : undefined,
     date: extractPublicationDate(front.date),
@@ -330,7 +330,7 @@ function extractSections(sections: XmlNode | XmlNode[]): Section[] {
     (sec): Section => ({
       anchor: sec['@_anchor'],
       number: sec['@_pn'] || sec['@_numbered'],
-      title: extractText(sec.name) || 'Untitled Section',
+      title: extractProse(sec.name) || 'Untitled Section',
       content: extractContent(sec),
       subsections: extractSections(sec.section),
     })
@@ -346,7 +346,7 @@ function extractContent(section: XmlNode): ContentBlock[] {
   // テキストパラグラフ <t>
   const paragraphs = toArray(section.t);
   for (const t of paragraphs) {
-    const text = extractText(t);
+    const text = extractProse(t);
     if (text) {
       blocks.push(createTextBlock(text, t));
     }
@@ -358,7 +358,7 @@ function extractContent(section: XmlNode): ContentBlock[] {
       type: 'list',
       style: 'symbols',
       items: toArray(list.li).map((li) => {
-        const content = extractText(li);
+        const content = extractProse(li);
         return {
           content,
           requirements: extractRequirementMarkers(content),
@@ -372,7 +372,7 @@ function extractContent(section: XmlNode): ContentBlock[] {
       type: 'list',
       style: 'numbers',
       items: toArray(list.li).map((li) => {
-        const content = extractText(li);
+        const content = extractProse(li);
         return {
           content,
           requirements: extractRequirementMarkers(content),
@@ -556,7 +556,7 @@ function extractReferences(referenceSections: XmlNode | XmlNode[]): ParsedRFC['r
 
   for (const refSection of flatSections) {
     // normative/informative の判定: name, anchor, pn, slugifiedName をチェック
-    const sectionName = extractText(refSection.name)?.toLowerCase() || '';
+    const sectionName = extractProse(refSection.name)?.toLowerCase() || '';
     const anchorAttr = (refSection['@_anchor'] || '').toLowerCase();
     const pnAttr = (refSection['@_pn'] || '').toLowerCase();
     const slugAttr = refSection.name?.['@_slugifiedName']?.toLowerCase() || '';
@@ -602,7 +602,7 @@ function parseReference(ref: XmlNode, type: 'normative' | 'informative'): RFCRef
     anchor: ref['@_anchor'] || '',
     type,
     rfcNumber,
-    title: extractText(front.title) || '',
+    title: extractProse(front.title) || '',
     target: ref['@_target'],
   };
 }
@@ -624,8 +624,8 @@ function extractDefinitions(rfc: XmlNode): Definition[] {
         const dds = toArray(dl.dd);
 
         for (let i = 0; i < dts.length; i++) {
-          const term = extractText(dts[i]);
-          const definition = extractText(dds[i]);
+          const term = extractProse(dts[i]);
+          const definition = extractProse(dds[i]);
 
           if (term && definition) {
             definitions.push({
@@ -643,6 +643,7 @@ function extractDefinitions(rfc: XmlNode): Definition[] {
       if (key === 'section') {
         const sections = toArray(obj[key]);
         for (const sec of sections) {
+          if (isIndexSection(sec)) continue;
           const secNum = sec['@_pn'] || sec['@_anchor'] || '';
           findDefinitionLists(sec, secNum);
         }
@@ -656,6 +657,26 @@ function extractDefinitions(rfc: XmlNode): Definition[] {
   return definitions;
 }
 
+/**
+ * 自動生成される索引（Index）の節かどうか。
+ *
+ * 索引は用語ごとに出現箇所を並べた `<dl>` を持つため、定義として拾われていた。
+ * RFC 9114 は 112 件の「定義」のうち 32 件が索引項目だった。
+ *
+ * ```json
+ * { "term": "control stream",
+ *   "definition": "Section 2, Paragraph 3; Section 3.2, Paragraph 4; …" }
+ * ```
+ *
+ * 目印は `<name>` が "Index" であること。索引の節には anchor が付かず、
+ * `pn` は `section-appendix.c` のように連番になるため当てにできない。
+ * 後付録（`<back>`）ごと除外はしない。RFC 9114 の Appendix A.2.5 のように、
+ * 本物の定義が後付録に置かれることがある。
+ */
+function isIndexSection(section: XmlNode): boolean {
+  return extractProse(section.name).toLowerCase() === 'index';
+}
+
 // ========================================
 // ユーティリティ関数
 // ========================================
@@ -666,6 +687,23 @@ function extractDefinitions(rfc: XmlNode): Definition[] {
  * Note: <bcp14> タグは parseRFCXML で事前に正規化されるため、
  * この関数では通常のテキストノードとして処理される
  */
+/**
+ * 散文（`<t>` / 題名 / リスト項目 / 定義）のテキストを取り出し、空白を 1 個に畳む。
+ *
+ * XML の折り返しと字下げがそのまま残ると、要件文が
+ * "They            MAY\n also be sent" のようになる。インライン要素を素テキストへ
+ * 置き換えると、要素が独立した行に置かれていた分の字下げが残るためである
+ * （RFC 9114 では要件の 96% に 4 個以上の連続空白があった）。
+ *
+ * 段落の中の改行と字下げは表示上のもので、意味を持たない。公開版 RFC も 72 桁で
+ * 組み直している。畳んで 1 行の散文として返す。
+ *
+ * **`<sourcecode>` と `<artwork>` には使わないこと。** それらは空白が意味を持つ。
+ */
+function extractProse(node: XmlNode | string | number | undefined | null): string {
+  return extractText(node).replace(/\s+/g, ' ').trim();
+}
+
 function extractText(node: XmlNode | string | number | undefined | null): string {
   if (!node) return '';
   if (typeof node === 'string') return node;
