@@ -12,7 +12,11 @@
  */
 export interface ParsedRFC {
   metadata: {
-    title: string;
+    /**
+     * 本文から取れた題名。テキスト経路では取れないことがあるため任意。
+     * 取れなかったときは Datatracker のタイトルへ落とす（`handlers.ts`）。
+     */
+    title?: string;
     docName?: string;
     number?: number;
     /**
