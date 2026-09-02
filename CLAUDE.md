@@ -149,21 +149,41 @@ RFC 9293 §3.7.1 の MUST-67 のように、BCP 14 キーワードを持たず�
 
 ### インライン要素はパース前に素テキストへ落とす
 
-パーサは `preserveOrder: false` で動く。インライン要素（`<bcp14>` `<xref>` `<tt>` など）は
-本文テキストから**位置ごと**落ちるため、`extractText` の側では直せない。
-`(<xref .../>)` が `()` だけになっていたのがこれである。
+パーサは `preserveOrder: false` で動く。インライン要素（`<bcp14>` `<xref>` `<tt>`
+`<em>` `<strong>` `<sup>` など）は本文テキストから**位置ごと**落ちるため、
+`extractText` の側では直せない。`(<xref .../>)` が `()` だけになり、
+"HEADERS<tt>…</tt>frame" が "HEADERSframe" になっていたのがこれである。
 
-対処は `parseRFCXML` の入口で行う。`normalizeBcp14Tags` と `renderXrefTags` が、
-パース前の文字列に対して素テキストへ置き換える。新しいインライン要素で同じ症状が出たら、
-`extractText` ではなくここに足すこと。
+対処は `parseRFCXML` の入口で行う。適用順は
+`normalizeBcp14Tags` → `renderXrefTags` → `renderInlineTags`。
+xref を先に解くのは `<em><xref/></em>` のような入れ子を内側から組み立てるため。
+新しい要素で同じ症状が出たら、`extractText` ではなくここに足すこと。
 
-`renderXrefTags` の置き換えは RFCXML の `format` / `sectionFormat` と `derivedContent`
-（公開版が持つ印字用文字列）に従う。`bare` は節番号だけ、`of` は
-"Section 11.2 of [HTTP/1.1]"、`counter` は番号だけ、`none` は要素の中身だけ。
+置き換えは**公開版 .txt の印字に合わせる**（推測しない）。`<em>` は `_X_`、
+`<strong>` は `*X*`、`<sup>` は `^X`、`<contact fullname="N"/>` は `N`、
+`<iref>` は何も出さない。`<tt>` は素のまま（引用符で囲む RFC もあるが、
+公開版 10 本での一致率は囲まない方が高い）。
 
-検証は「公開版 RFC の .txt に本文段落がそのまま現れるか」で行う。
-v0.6.2 時点で RFC 9293 92.9% / 9110 92.5% / 9114 60.7%。
-9114 が低いのは `<tt>` などが同じ理由で落ちているため。
+`renderXrefTags` は `format` / `sectionFormat` と `derivedContent` に従う。
+中身がある `<xref>` は「中身 + 参照先」（"RFC 793 [16]"）。付録は `derivedLink` の
+`#appendix-` を根拠に "Appendix B" と書く。
+
+検証は「公開版 RFC の .txt に本文段落がそのまま現れるか」で行う
+（`/tmp` の fidelity スクリプトと同じ考え方。折り返しのハイフンとスラッシュは
+両側で正規化する）。v0.6.4 時点で RFC 9293 / 9110 / 9114 とも 100%。
+
+### テキスト経路の題名と節
+
+- 題名はヘッダ塊（発行者と著者の 2 段組）を最初の空行で終端し、その次の
+  非空行から取る。「コロンを含まない行」で探すと 1 行目を拾う。
+- 目次の行は「リーダー + ページ番号」で終わる。ドット + 空白と連続ドットの
+  2 形式があり、どちらも `isValidSectionHeader` で落とす。落とさないと同じ
+  節番号が 2 回現れ、`findSection` がどちらを引くか定まらない。
+- 題名が取れないときは `metadata.title` を `undefined` にして、
+  Datatracker の題名へ落とす（`handlers.ts`）。
+
+**未対応**: 本文中の番号付きリスト項目を節と誤認する。RFC 6455 は 141 節のうち
+52 件が節番号の重複。
 
 ### 別文書の節と、この RFC の節を混ぜない
 

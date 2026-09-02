@@ -414,14 +414,43 @@ describe('xref の描画', () => {
 
   it('sectionFormat="comma" / "parens" を書き分ける', () => {
     const comma = build(
-      '<t>as in <xref target="RFC5234" section="B.1" sectionFormat="comma" format="default" derivedContent="RFC5234"/>.</t>'
+      '<t>as in <xref target="RFC9112" section="11.2" sectionFormat="comma" format="default" derivedContent="HTTP/1.1"/>.</t>'
     );
     const parens = build(
       '<t>as in <xref target="CACHING" section="5.2" sectionFormat="parens" format="default" derivedContent="CACHING"/>.</t>'
     );
 
-    expect(textOf(comma)).toBe('as in [RFC5234], Section B.1.');
+    expect(textOf(comma)).toBe('as in [HTTP/1.1], Section 11.2.');
     expect(textOf(parens)).toBe('as in [CACHING] (Section 5.2).');
+  });
+
+  it('付録は Appendix と書く', () => {
+    // RFC 9110 は "Appendix B of [RFC7231]" と印字する。
+    // 根拠は derivedLink の #appendix-。属性が無い場合は番号が数字で
+    // 始まらないことを手がかりにする。
+    const byLink = build(
+      '<t>deprecated (<xref target="RFC7231" section="B" format="default" sectionFormat="of" derivedLink="https://rfc-editor.org/rfc/rfc7231#appendix-B" derivedContent="RFC7231"/>).</t>'
+    );
+    const byNumber = build(
+      '<t>as defined in <xref target="RFC5234" section="B.1" format="default" sectionFormat="of" derivedContent="RFC5234"/>.</t>'
+    );
+
+    expect(textOf(byLink)).toBe('deprecated (Appendix B of [RFC7231]).');
+    expect(textOf(byNumber)).toBe('as defined in Appendix B.1 of [RFC5234].');
+  });
+
+  it('中身がある xref は「中身 + 参照先」で出す', () => {
+    const reference = build(
+      '<t>In 1981, <xref target="RFC0793" format="default" sectionFormat="of" derivedContent="16">RFC 793</xref> was released.</t>'
+    );
+    const section = build(
+      '<t>a server that supports <xref target="byte.ranges" format="default" sectionFormat="of" derivedContent="Section 14.1.2">byte-range requests</xref> can send it.</t>'
+    );
+
+    expect(textOf(reference)).toBe('In 1981, RFC 793 [16] was released.');
+    expect(textOf(section)).toBe(
+      'a server that supports byte-range requests (Section 14.1.2) can send it.'
+    );
   });
 
   it('format="counter" は番号だけを出す', () => {
@@ -486,5 +515,72 @@ describe('公開日の抽出', () => {
 
   it('date が無ければ undefined', () => {
     expect(parseRFCXML(withDate('')).metadata.date).toBeUndefined();
+  });
+});
+
+describe('インライン要素の描画', () => {
+  const build = (body: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<rfc number="9999">
+  <front><title>Inline</title></front>
+  <middle>
+    <section anchor="section-1"><name>Intro</name>${body}</section>
+  </middle>
+  <back></back>
+</rfc>`;
+
+  const textOf = (xml: string): string => {
+    const block = parseRFCXML(xml).sections[0].content.find((b) => b.type === 'text');
+    return block && block.type === 'text' ? block.content : '';
+  };
+
+  it('tt は素のまま出す', () => {
+    // 以前は要素ごと落ちて "format for non-negative" のように語が繋がっていた
+    expect(textOf(build('<t>the format <tt>0x1f * N + 0x21</tt> for values</t>'))).toBe(
+      'the format 0x1f * N + 0x21 for values'
+    );
+  });
+
+  it('sup は ^ を付ける', () => {
+    // 以前は "2- 1" になっていた
+    expect(textOf(build('<t>ranges from 0 to 2<sup>32</sup> - 1.</t>'))).toBe(
+      'ranges from 0 to 2^32 - 1.'
+    );
+  });
+
+  it('em は _ 、strong は * で囲む', () => {
+    expect(textOf(build('<t><strong>Note:</strong> see <em>this</em>.</t>'))).toBe(
+      '*Note:* see _this_.'
+    );
+  });
+
+  it('入れ子を内側から解く', () => {
+    expect(
+      textOf(
+        build(
+          '<t><strong><em><xref format="default" sectionFormat="of" target="s" derivedContent="Section 15.2.1"/></em></strong></t>'
+        )
+      )
+    ).toBe('*_Section 15.2.1_*');
+  });
+
+  it('contact は氏名を出す', () => {
+    expect(textOf(build('<t>of which <contact fullname="Jon Postel"/> was the editor.</t>'))).toBe(
+      'of which Jon Postel was the editor.'
+    );
+  });
+
+  it('iref と cref は何も出さない', () => {
+    expect(textOf(build('<t>a field<iref item="field"/> is defined.</t>'))).toBe(
+      'a field is defined.'
+    );
+  });
+
+  it('eref は URL を出す（brackets="angle" なら山括弧付き）', () => {
+    expect(
+      textOf(build('<t>see <eref target="https://example.com/x" brackets="none"/>.</t>'))
+    ).toBe('see https://example.com/x.');
+    expect(
+      textOf(build('<t>see <eref target="https://example.com/x" brackets="angle"/>.</t>'))
+    ).toBe('see <https://example.com/x>.');
   });
 });

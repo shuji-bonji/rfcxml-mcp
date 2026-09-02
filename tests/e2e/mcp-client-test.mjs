@@ -705,6 +705,99 @@ async function testInputValidation(client) {
 }
 
 // ========================================
+// Text path (RFC < 8650)
+// ========================================
+
+/**
+ * 14. テキスト経路の題名と節
+ *
+ * RFC 8174 は題名が "Internet Engineering Task Force (IETF)   B. Leiba"
+ * （ヘッダ塊の 1 行目）になり、目次の 5 行が節として混ざって 10 節に見えていた。
+ */
+async function testTextPathStructure(client) {
+  const toolName = 'text path';
+
+  try {
+    const res = await callTool(client, 'get_rfc_structure', { rfc: 8174 });
+    const title = res.metadata?.title || '';
+    const ok = title === 'Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words';
+
+    logResult(toolName, 'title is the document title, not the header line', ok ? 'PASS' : 'FAIL', {
+      note: JSON.stringify(title.slice(0, 70)),
+    });
+  } catch (e) {
+    logResult(toolName, 'title is the document title, not the header line', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    const res = await callTool(client, 'get_rfc_structure', { rfc: 8174 });
+    const flat = [];
+    const walk = (sections) => {
+      for (const section of sections) {
+        flat.push(section);
+        walk(section.subsections || []);
+      }
+    };
+    walk(res.sections || []);
+
+    const toc = flat.filter((s) => /(?:\.\s?){3,}\s*\d+\s*$/.test((s.title || '').trim()));
+    const numbers = flat.map((s) => s.number);
+    const duplicates = numbers.length - new Set(numbers).size;
+    const ok = toc.length === 0 && duplicates === 0 && flat.length === 5;
+
+    logResult(toolName, 'table of contents is not listed as sections', ok ? 'PASS' : 'FAIL', {
+      note: `sections=${flat.length}, tocEntries=${toc.length}, duplicateNumbers=${duplicates}`,
+    });
+  } catch (e) {
+    logResult(toolName, 'table of contents is not listed as sections', 'FAIL', {
+      error: e.message,
+    });
+  }
+}
+
+// ========================================
+// Inline elements (XML)
+// ========================================
+
+/**
+ * 15. インライン要素が本文に残っていること
+ *
+ * `<tt>` `<sup>` は xref と同じ理由で落ちており、RFC 9114 の
+ * "HEADERS<tt>…</tt>frame" が語ごと繋がり、RFC 9293 の "2<sup>32</sup> - 1" が
+ * "2- 1" になっていた。
+ */
+async function testInlineElements(client) {
+  const toolName = 'inline';
+
+  try {
+    const res = await callTool(client, 'get_requirements', { rfc: 9114, section: '4.1' });
+    const contexts = (res.requirements || []).map((r) => r.fullContext || '').join('\n');
+    const runOn = contexts.includes('HEADERSframe');
+    const spaced = contexts.includes('HEADERS frame');
+
+    logResult(toolName, 'words are not run together', !runOn && spaced ? 'PASS' : 'FAIL', {
+      note: `"HEADERS frame"=${spaced}, "HEADERSframe"=${runOn}`,
+    });
+  } catch (e) {
+    logResult(toolName, 'words are not run together', 'FAIL', { error: e.message });
+  }
+
+  try {
+    const res = await callTool(client, 'get_requirements', { rfc: 9114, section: '6.2.3' });
+    const contexts = (res.requirements || []).map((r) => r.fullContext || '').join('\n');
+    const ok = contexts.includes('0x1f * N + 0x21');
+
+    logResult(toolName, 'tt is rendered', ok ? 'PASS' : 'FAIL', {
+      note: `has the code fragment=${ok}`,
+    });
+  } catch (e) {
+    logResult(toolName, 'tt is rendered', 'FAIL', { error: e.message });
+  }
+}
+
+// ========================================
 // Main Execution
 // ========================================
 async function main() {
@@ -772,6 +865,14 @@ async function main() {
 
     console.log('--- 13. sentence extraction ---');
     await testSentenceExtraction(client);
+    console.log('');
+
+    console.log('--- 14. text path structure ---');
+    await testTextPathStructure(client);
+    console.log('');
+
+    console.log('--- 15. inline elements ---');
+    await testInlineElements(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);

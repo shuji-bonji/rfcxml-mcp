@@ -98,31 +98,79 @@ function extractTextReferences(text: string, currentRfcNumber: number): ParsedRF
  * メタデータ抽出（テキストから）
  */
 function extractTextMetadata(lines: string[], rfcNumber: number): ParsedRFC['metadata'] {
-  let title = `RFC ${rfcNumber}`;
-
-  // タイトルを探す（通常は最初の数行にある）
-  for (let i = 0; i < Math.min(METADATA_EXTRACTION.MAX_LINES_TO_SCAN, lines.length); i++) {
-    const line = lines[i].trim();
-    // 空行を挟んで大文字で始まるタイトルっぽい行を探す
-    if (
-      line.length > METADATA_EXTRACTION.TITLE_MIN_LENGTH &&
-      line.length < METADATA_EXTRACTION.TITLE_MAX_LENGTH &&
-      !line.includes(':') &&
-      !line.match(/^\d/)
-    ) {
-      // RFC番号の行ではない
-      if (!line.toLowerCase().includes('request for comments')) {
-        title = line;
-        break;
-      }
-    }
-  }
-
   return {
-    title,
+    title: extractTextTitle(lines),
     number: rfcNumber,
     date: extractTextPublicationDate(lines),
   };
+}
+
+/** 題名の位置に来ることがある見出し。当たったら題名は取れていない。 */
+const FRONT_MATTER_HEADINGS = new Set([
+  'abstract',
+  'status of this memo',
+  'status of memo',
+  'copyright notice',
+  'table of contents',
+]);
+
+/**
+ * テキスト版 RFC の題名を取り出す。
+ *
+ * 先頭は必ず次の形をしている。発行者と著者が 2 段組で並ぶ「ヘッダ塊」があり、
+ * 空行を挟んで、中央寄せの題名が来る。
+ *
+ * ```
+ * Internet Engineering Task Force (IETF)                          B. Leiba
+ * Request for Comments: 8174                           Huawei Technologies
+ * BCP: 14                                                         May 2017
+ * Updates: 2119
+ * Category: Best Current Practice
+ * ISSN: 2070-1721
+ *
+ *
+ *       Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words
+ *
+ * Abstract
+ * ```
+ *
+ * 以前は「コロンを含まない適度な長さの行」を上から探していたため、ヘッダ塊の
+ * 1 行目（"Internet Engineering Task Force (IETF)      B. Leiba"）を題名として
+ * 拾っていた。ヘッダ塊を空行で終端し、その次の非空行から取る。
+ *
+ * @returns 題名。判別できなければ `undefined`（呼び出し側が API の題名へ落とす）
+ */
+function extractTextTitle(lines: string[]): string | undefined {
+  const limit = Math.min(METADATA_EXTRACTION.MAX_LINES_TO_SCAN, lines.length);
+
+  // ヘッダ塊の始まり
+  let index = 0;
+  while (index < limit && lines[index].trim() === '') index++;
+  if (index >= limit) return undefined;
+
+  // ヘッダ塊の終わり（最初の空行）
+  while (index < limit && lines[index].trim() !== '') index++;
+
+  // 題名の始まり
+  while (index < limit && lines[index].trim() === '') index++;
+  if (index >= limit) return undefined;
+
+  // 中央寄せなので字下げがある。無ければ題名ではない。
+  if (!/^\s/.test(lines[index])) return undefined;
+
+  // 空行までを 1 つの題名として繋ぐ（2 行に折り返す題名がある）
+  const parts: string[] = [];
+  while (index < limit && lines[index].trim() !== '' && parts.length < 3) {
+    parts.push(lines[index].trim());
+    index++;
+  }
+
+  const title = parts.join(' ');
+  if (title.length < METADATA_EXTRACTION.TITLE_MIN_LENGTH) return undefined;
+  if (title.length > METADATA_EXTRACTION.TITLE_MAX_LENGTH) return undefined;
+  if (FRONT_MATTER_HEADINGS.has(title.toLowerCase())) return undefined;
+
+  return title;
 }
 
 /** ヘッダ行に現れる月名 → 月番号 */
@@ -172,7 +220,27 @@ function extractTextPublicationDate(lines: string[]): string | undefined {
  * セクションヘッダーとして妥当かを検証
  * 誤検出を防ぐためのヒューリスティクス
  */
+/**
+ * 目次の行かどうか。
+ *
+ * 目次は「題名 + リーダー + ページ番号」で終わる。リーダーの書き方は 2 通りある。
+ *
+ * ```
+ * 1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . .   4   (RFC 6455)
+ * 1. Introduction ....................................................6   (RFC 8446)
+ * ```
+ *
+ * 除外しないと、同じ節番号が目次と本文の 2 回現れる。RFC 6455 では 228 節のうち
+ * 87 件が目次の行だった。節番号が重複すると `findSection` がどちらを引くか定まらない。
+ */
+function isTableOfContentsEntry(title: string): boolean {
+  return /(?:\.\s?){3,}\s*\d+\s*$/.test(title.trim());
+}
+
 function isValidSectionHeader(sectionNum: string, title: string): boolean {
+  // 目次の行は節ではない
+  if (isTableOfContentsEntry(title)) return false;
+
   // セクション番号の検証
   const numParts = sectionNum.split('.');
   const depth = numParts.length;

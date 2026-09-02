@@ -247,3 +247,126 @@ describe('テキスト版の公開日抽出', () => {
     expect(parseRFCText(text, 9999).metadata.date).toBeUndefined();
   });
 });
+
+describe('テキスト版の題名抽出', () => {
+  const header = [
+    '',
+    '',
+    'Internet Engineering Task Force (IETF)                          B. Leiba',
+    'Request for Comments: 8174                           Huawei Technologies',
+    'BCP: 14                                                         May 2017',
+    'Updates: 2119',
+    'Category: Best Current Practice',
+    'ISSN: 2070-1721',
+    '',
+    '',
+  ];
+
+  it('ヘッダ塊の次に来る中央寄せの行を題名にする', () => {
+    const text = [
+      ...header,
+      '        Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words',
+      '',
+      'Abstract',
+      '',
+      '   Body.',
+    ].join('\n');
+
+    expect(parseRFCText(text, 8174).metadata.title).toBe(
+      'Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words'
+    );
+  });
+
+  it('ヘッダ塊の 1 行目を題名にしない', () => {
+    // 以前は「コロンを含まない適度な長さの行」を上から探していたため、
+    // 発行者と著者が並ぶ 1 行目を拾っていた。
+    const text = [...header, '        The WebSocket Protocol', '', 'Abstract'].join('\n');
+
+    expect(parseRFCText(text, 6455).metadata.title).not.toContain(
+      'Internet Engineering Task Force'
+    );
+    expect(parseRFCText(text, 6455).metadata.title).toBe('The WebSocket Protocol');
+  });
+
+  it('コロンを含む題名も取れる', () => {
+    // RFC 3986 "Uniform Resource Identifier (URI): Generic Syntax"
+    const text = [...header, '        Uniform Resource Identifier (URI): Generic Syntax', ''].join(
+      '\n'
+    );
+
+    expect(parseRFCText(text, 3986).metadata.title).toBe(
+      'Uniform Resource Identifier (URI): Generic Syntax'
+    );
+  });
+
+  it('2 行に折り返した題名を繋ぐ', () => {
+    const text = [
+      ...header,
+      '        Hypertext Transfer Protocol (HTTP/1.1):',
+      '                  Message Syntax and Routing',
+      '',
+    ].join('\n');
+
+    expect(parseRFCText(text, 7230).metadata.title).toBe(
+      'Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing'
+    );
+  });
+
+  it('題名の位置に Abstract が来たら undefined', () => {
+    const text = [...header, 'Abstract', '', '   Body.'].join('\n');
+
+    expect(parseRFCText(text, 9999).metadata.title).toBeUndefined();
+  });
+});
+
+describe('目次の行を節にしないこと', () => {
+  const build = (tocStyle: string[]) =>
+    [
+      '',
+      'Internet Engineering Task Force (IETF)                          B. Leiba',
+      'ISSN: 2070-1721',
+      '',
+      '',
+      '        Test Document',
+      '',
+      'Table of Contents',
+      '',
+      ...tocStyle,
+      '',
+      '1.  Introduction',
+      '',
+      '   The client MUST send data.',
+      '',
+      '2.  Security Considerations',
+      '',
+      '   The server MUST verify it.',
+    ].join('\n');
+
+  it('ドット + 空白のリーダー形式を除外する', () => {
+    const parsed = parseRFCText(
+      build([
+        '   1.  Introduction  . . . . . . . . . . . . . . . . . . . .   2',
+        '   2.  Security Considerations . . . . . . . . . . . . . . .   3',
+      ]),
+      9999
+    );
+
+    expect(parsed.sections.map((s) => s.number)).toEqual(['1', '2']);
+    expect(parsed.sections.map((s) => s.title)).toEqual([
+      'Introduction',
+      'Security Considerations',
+    ]);
+  });
+
+  it('連続ドットのリーダー形式を除外する', () => {
+    const parsed = parseRFCText(
+      build([
+        '   1. Introduction ....................................................2',
+        '   2. Security Considerations .........................................3',
+      ]),
+      9999
+    );
+
+    expect(parsed.sections.map((s) => s.number)).toEqual(['1', '2']);
+  });
+});

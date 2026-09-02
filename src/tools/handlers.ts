@@ -336,7 +336,12 @@ export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
   });
 
   // Generate checklist using service
-  const checklist = generateChecklist(args.rfc, parsed.metadata.title, requirements, args.role);
+  const checklist = generateChecklist(
+    args.rfc,
+    parsed.metadata.title ?? `RFC ${args.rfc}`,
+    requirements,
+    args.role
+  );
 
   // Generate Markdown
   const markdown = generateChecklistMarkdown(checklist);
