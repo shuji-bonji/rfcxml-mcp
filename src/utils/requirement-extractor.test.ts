@@ -446,3 +446,31 @@ describe('fullContext の体裁', () => {
     expect(result[0].fullContext).toBe('An endpoint MUST be capable of handling control frames.');
   });
 });
+
+describe('要件文は 1 行', () => {
+  it('図から取った要件文も 1 行にする', () => {
+    // `generate_checklist` は 1 項目 1 行の Markdown にする。桁は fullContext が持つ。
+    const table = [
+      'Option                    DHCPOFFER    DHCPACK',
+      'Client identifier         MUST NOT     MUST NOT',
+    ].join('\n');
+    const result = extractRequirementsFromSections([
+      {
+        number: '4.3.1',
+        title: 'DHCPDISCOVER message',
+        content: [
+          {
+            type: 'text',
+            content: table,
+            requirements: [{ level: 'MUST NOT', position: table.indexOf('MUST NOT') }],
+            crossReferences: [],
+          },
+        ],
+        subsections: [],
+      },
+    ] as never);
+
+    expect(result[0].text).not.toMatch(/\n/);
+    expect(result[0].fullContext).toMatch(/\n/);
+  });
+});

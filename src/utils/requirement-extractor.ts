@@ -118,9 +118,9 @@ export function extractRequirementsFromSections(
             // 図・ABNF は空白を畳まない。ABNF の注釈は散文として組み直す。
             const source = requirementSource(block.content, marker.position, marker.level);
             const raw = extractSentence(source.text, source.position);
-            const sentence = source.prose
-              ? foldWhitespace(stripListMarker(raw))
-              : stripListMarker(raw).trim();
+            // `text` は必ず 1 行にする。要件文は文として読まれ、`generate_checklist` は
+            // 1 項目 1 行の Markdown にする。図の桁を残すのは `fullContext` の役目である。
+            const sentence = foldWhitespace(stripListMarker(raw));
 
             if (isDuplicate(sectionId, marker.level, sentence)) {
               continue;

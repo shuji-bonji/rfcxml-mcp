@@ -1571,6 +1571,73 @@ async function testOldStyleLayout(client) {
   }
 }
 
+/**
+ * 31. 表を含む RFC（v0.6.12）
+ */
+async function testTableHeavyRfc(client) {
+  try {
+    const res = await callTool(client, 'get_requirements', { rfc: 2131 });
+    const requirements = res.requirements || [];
+    const wrapped = requirements.filter((r) => /\n| {4,}/.test(r.text || ''));
+
+    logResult(
+      'get_requirements',
+      'requirement text is always one line',
+      wrapped.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `RFC 2131 total=${requirements.length}, wrapped=${wrapped.length}`,
+      }
+    );
+  } catch (e) {
+    logResult('get_requirements', 'requirement text is always one line', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    const res = await callTool(client, 'generate_checklist', { rfc: 2131 });
+    const stray = (res.markdown || '').split('\n').filter((l) => /^\s+\S/.test(l));
+
+    logResult(
+      'checklist',
+      'a table-heavy RFC still yields valid Markdown',
+      stray.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `continuationLines=${stray.length}`,
+      }
+    );
+  } catch (e) {
+    logResult('checklist', 'a table-heavy RFC still yields valid Markdown', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  try {
+    // RFC 1035 の "25 (SMTP).  If this bit is set …" は折り返した本文である
+    const res = await callTool(client, 'get_rfc_structure', { rfc: 1035 });
+    const bogus = (function walk(sections) {
+      return (sections || []).reduce(
+        (found, s) =>
+          found.concat(/[.!?]\s+\S/.test(s.title || '') ? [s.number] : [], walk(s.subsections)),
+        []
+      );
+    })(res.sections);
+
+    logResult(
+      'get_rfc_structure',
+      'a wrapped body line is not a section',
+      bogus.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: bogus.length === 0 ? 'RFC 1035 clean' : bogus.join(','),
+      }
+    );
+  } catch (e) {
+    logResult('get_rfc_structure', 'a wrapped body line is not a section', 'FAIL', {
+      error: e.message,
+    });
+  }
+}
+
 // ========================================
 // Main Execution
 // ========================================
@@ -1707,6 +1774,10 @@ async function main() {
 
     console.log('--- 30. old style layout ---');
     await testOldStyleLayout(client);
+    console.log('');
+
+    console.log('--- 31. table heavy rfc ---');
+    await testTableHeavyRfc(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);

@@ -763,3 +763,42 @@ describe('古い書式の参考文献', () => {
     expect(refs[0].title).toBe('Modularity and Efficiency in Protocol Implementation,');
   });
 });
+
+describe('折り返した本文を節にしない', () => {
+  it('句点のあとに語が続く題名は本文とみなす', () => {
+    // RFC 1035 の "…the 26th bit corresponds to TCP port" の次の行は
+    // "25 (SMTP).  If this bit is set, …" で、番号 25 の節として通っていた。
+    const text = [
+      '4.  MESSAGES',
+      '',
+      'For example, if PROTOCOL=TCP (6), the 26th bit corresponds to TCP port',
+      '25 (SMTP).  If this bit is set, a SMTP server should be listening on TCP',
+      'port 25.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1035);
+
+    expect(parsed.sections.map((s) => s.number)).toEqual(['4']);
+  });
+
+  it('括弧で始まる題名は落とさない', () => {
+    // RFC 8446 §7.4 "(EC)DHE Shared Secret Calculation"
+    const text = ['7.4.  (EC)DHE Shared Secret Calculation', '', '   Text.', ''].join('\n');
+    const parsed = parseRFCText(text, 8446);
+
+    expect(parsed.sections[0].title).toBe('(EC)DHE Shared Secret Calculation');
+  });
+
+  it('見出しと本文が 1 行にある RFC を切り分ける', () => {
+    // RFC 1035 §6.4.1 は見出しの後ろに本文の書き出しが続く
+    const text = [
+      '6.4.1. The contents of inverse queries and responses          Inverse',
+      'queries reverse the mappings performed by standard queries.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1035);
+
+    expect(parsed.sections[0].title).toBe('The contents of inverse queries and responses');
+    expect(JSON.stringify(parsed.sections[0].content)).toContain('Inverse');
+  });
+});

@@ -225,6 +225,7 @@ const DIAGRAM_PATTERNS: RegExp[] = [
   /[-+]{4,}/, // 図の罫線
   /\|[ \t]{2,}/, // 図の縦罫（"|   F   |"）
   /^[ \t]*\|.*\|[ \t]*$/m, // 罫線で囲んだ行（"|F|R|R|R| opcode|M| Payload len |"）
+  /\S {3,}\S[^\n]* {3,}\S/, // 空白で桁を揃えた表の行（"Message   SHOULD   SHOULD   SHOULD"）
 ];
 
 /**

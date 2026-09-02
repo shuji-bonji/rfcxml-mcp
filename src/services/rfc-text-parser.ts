@@ -491,7 +491,16 @@ function isValidSectionHeader(sectionNum: string, title: string): boolean {
   const first = Number(parts[0]);
   if (!Number.isInteger(first) || first < 1 || first > 99) return false;
 
-  return title.trim().length > 0;
+  const trimmed = title.trim();
+  if (trimmed.length === 0) return false;
+
+  // 題名は文を含まない。折り返した本文が数字から始まると節に見える。
+  // RFC 1035 の "…the 26th bit corresponds to TCP port" の次の行は
+  // "25 (SMTP).  If this bit is set, a SMTP server should be listening on TCP"
+  // で、番号 25 の節として通っていた。句点のあとに語が続く題名は本文である。
+  // RFC 8446 §7.4 "(EC)DHE Shared Secret Calculation" のように括弧で始まる
+  // 題名はあるので、先頭の文字では判定しない。
+  return !/[.!?]\s+\S/.test(trimmed);
 }
 
 /**
@@ -690,15 +699,20 @@ function extractTextSections(lines: string[]): Section[] {
           sections.push(currentSection);
         }
 
+        // 見出しと本文が 1 行に入っている RFC がある（RFC 1035 §6.4.1 の
+        // "6.4.1. The contents of inverse queries and responses          Inverse"）。
+        // 4 個以上の空白で切り、残りは本文に回す。
+        const [headline, ...rest] = title.split(/ {4,}/);
+
         // 新しいセクションを開始
         currentSection = {
           number: sectionNum,
-          title: title,
+          title: headline.trim(),
           content: [],
           subsections: [],
         };
         lastSectionNumber = sectionNum;
-        currentContent = [];
+        currentContent = rest.length > 0 ? [rest.join(' ').trim()] : [];
       } else if (currentSection) {
         // 検証に失敗した行はコンテンツとして扱う
         currentContent.push(line);

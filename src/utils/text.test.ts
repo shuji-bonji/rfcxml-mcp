@@ -252,3 +252,21 @@ describe('罫線で囲んだ行', () => {
     );
   });
 });
+
+describe('空白で桁を揃えた表', () => {
+  it('表の行を図として扱う', () => {
+    // RFC 2131 §4.3.1 の Table 3
+    expect(
+      looksLikeDiagram('Message                   SHOULD       SHOULD             SHOULD')
+    ).toBe(true);
+    expect(looksLikeDiagram('Client identifier         MUST NOT     MUST NOT           MAY')).toBe(
+      true
+    );
+  });
+
+  it('本文の行は表として扱わない', () => {
+    expect(looksLikeDiagram('   A client MUST mask all frames that it sends to the server.')).toBe(
+      false
+    );
+  });
+});
