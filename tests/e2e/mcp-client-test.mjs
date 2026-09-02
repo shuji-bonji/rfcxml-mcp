@@ -1354,6 +1354,114 @@ async function testUnquotedReferenceTitles(client) {
   }
 }
 
+/**
+ * 26. 落ちていた節（v0.6.9）
+ *
+ * v0.6.8 までの `isValidSectionHeader` は題名の長さと語彙でも判定していたため、
+ * 実在する節が落ちていた。落ちた節の要件は手前の節に付く。
+ */
+async function testMissingSections(client) {
+  const toolName = 'get_rfc_structure';
+  const cases = [
+    { rfc: 7230, section: '4.3', title: 'TE' },
+    { rfc: 7230, section: '2.7.1', title: 'http URI Scheme' },
+    { rfc: 8446, section: '8', title: '0-RTT and Anti-Replay' },
+    { rfc: 793, section: '2', title: 'PHILOSOPHY' },
+  ];
+  const missing = [];
+
+  for (const { rfc, section, title } of cases) {
+    try {
+      const res = await callTool(client, 'get_related_sections', { rfc, section });
+      if (res.error || res.title !== title)
+        missing.push(`RFC ${rfc} S${section} (${res.title ?? res.error})`);
+    } catch (e) {
+      missing.push(`RFC ${rfc} S${section}: ${e.message}`);
+    }
+  }
+
+  logResult(
+    toolName,
+    'sections with short or lowercase titles are kept',
+    missing.length === 0 ? 'PASS' : 'FAIL',
+    {
+      note: missing.length === 0 ? `${cases.length} sections resolved` : missing.join(' | '),
+    }
+  );
+}
+
+/**
+ * 27. ページの区切りと文の続き（v0.6.9）
+ */
+async function testCompleteSentences(client) {
+  const toolName = 'get_requirements';
+
+  for (const rfc of [2616, 7230, 9110]) {
+    try {
+      const res = await callTool(client, 'get_requirements', { rfc });
+      const requirements = res.requirements || [];
+      const truncated = requirements.filter((r) => !/[.:;)"']$/.test(r.text || ''));
+
+      logResult(
+        toolName,
+        `RFC ${rfc}: requirement text is a complete sentence`,
+        truncated.length <= 1 ? 'PASS' : 'FAIL',
+        {
+          note: `total=${requirements.length}, truncated=${truncated.length}${truncated[0] ? ` e.g. ...${truncated[0].text.slice(-40)}` : ''}`,
+        }
+      );
+    } catch (e) {
+      logResult(toolName, `RFC ${rfc}: requirement text is a complete sentence`, 'FAIL', {
+        error: e.message,
+      });
+    }
+  }
+
+  try {
+    // RFC 9110 S9.3.5 は「文 + 箇条書き」で 1 つの文を書く
+    const res = await callTool(client, 'get_requirements', { rfc: 9110, section: '9.3.5' });
+    const requirement = (res.requirements || []).find((r) => /DELETE method/.test(r.text || ''));
+
+    logResult(
+      toolName,
+      'a list that completes the sentence is included',
+      /202 \(Accepted\)/.test(requirement?.text ?? '') ? 'PASS' : 'FAIL',
+      {
+        note: (requirement?.text ?? '(not found)').slice(0, 120),
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'a list that completes the sentence is included', 'FAIL', {
+      error: e.message,
+    });
+  }
+}
+
+/**
+ * 28. 中身の無い定義（v0.6.9）
+ */
+async function testEmptyDefinitions(client) {
+  try {
+    const res = await callTool(client, 'get_definitions', { rfc: 9110 });
+    const empty = (res.definitions || []).filter((d) =>
+      /^(n\/a|none)$/i.test((d.definition || '').trim())
+    );
+
+    logResult(
+      'definitions',
+      'placeholder values are not returned as definitions',
+      empty.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `total=${res.count}, placeholders=${empty.length}`,
+      }
+    );
+  } catch (e) {
+    logResult('definitions', 'placeholder values are not returned as definitions', 'FAIL', {
+      error: e.message,
+    });
+  }
+}
+
 // ========================================
 // Main Execution
 // ========================================
@@ -1470,6 +1578,18 @@ async function main() {
 
     console.log('--- 25. unquoted reference titles ---');
     await testUnquotedReferenceTitles(client);
+    console.log('');
+
+    console.log('--- 26. missing sections ---');
+    await testMissingSections(client);
+    console.log('');
+
+    console.log('--- 27. complete sentences ---');
+    await testCompleteSentences(client);
+    console.log('');
+
+    console.log('--- 28. empty definitions ---');
+    await testEmptyDefinitions(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);

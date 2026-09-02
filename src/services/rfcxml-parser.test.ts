@@ -812,3 +812,91 @@ describe('定義の段落を選ぶ', () => {
     expect(widget?.section).toBe('9');
   });
 });
+
+describe('文の途中で終わる段落に続きを繋ぐ', () => {
+  const xml = `<?xml version="1.0"?>
+<rfc number="9110">
+  <middle>
+    <section anchor="delete" pn="section-9.3.5">
+      <name>DELETE</name>
+      <t pn="section-9.3.5-4">If a DELETE method is successfully applied, the origin server <bcp14>SHOULD</bcp14> send</t>
+      <ul pn="section-9.3.5-5">
+        <li pn="section-9.3.5-5.1">a 202 (Accepted) status code if the action will likely succeed</li>
+        <li pn="section-9.3.5-5.2">a 204 (No Content) status code if the action has been enacted</li>
+      </ul>
+    </section>
+    <section anchor="ranges" pn="section-14.3">
+      <name>Accept-Ranges</name>
+      <t pn="section-14.3-8">A server that does not support range requests <bcp14>MAY</bcp14> send</t>
+      <sourcecode pn="section-14.3-9">Accept-Ranges: none</sourcecode>
+      <t pn="section-14.3-10">to advise the client not to attempt a range request.</t>
+    </section>
+    <section anchor="date" pn="section-6.6.1">
+      <name>Date</name>
+      <t pn="section-6.6.1-3">An example is</t>
+      <sourcecode pn="section-6.6.1-4">Date: Tue, 15 Nov 1994 08:12:31 GMT</sourcecode>
+      <t pn="section-6.6.1-5">A sender <bcp14>SHOULD</bcp14> generate its field value as the best available approximation.</t>
+    </section>
+  </middle>
+</rfc>`;
+
+  const requirementsOf = (section: string) =>
+    extractRequirements(parseRFCXML(xml).sections, { section });
+
+  it('直後の箇条書きを取り込む', () => {
+    const [requirement] = requirementsOf('9.3.5');
+
+    expect(requirement.text).toBe(
+      'If a DELETE method is successfully applied, the origin server SHOULD send a 202 (Accepted) status code if the action will likely succeed; a 204 (No Content) status code if the action has been enacted.'
+    );
+  });
+
+  it('表示例をまたいだ文を繋ぐ', () => {
+    const [requirement] = requirementsOf('14.3');
+
+    expect(requirement.text).toBe(
+      'A server that does not support range requests MAY send Accept-Ranges: none to advise the client not to attempt a range request.'
+    );
+  });
+
+  it('取り込んだ段落から要件を二重に出さない', () => {
+    const requirements = requirementsOf('14.3');
+
+    expect(requirements).toHaveLength(1);
+  });
+
+  it('BCP 14 キーワードの無い段落は繋がない', () => {
+    // "An example is" は表示例の見出しであって、途中で切れた要件ではない。
+    const [requirement] = requirementsOf('6.6.1');
+
+    expect(requirement.text).toBe(
+      'A sender SHOULD generate its field value as the best available approximation.'
+    );
+  });
+});
+
+describe('中身の無い定義', () => {
+  const xml = `<?xml version="1.0"?>
+<rfc number="9110">
+  <middle>
+    <section anchor="media" pn="section-14.6">
+      <name>byteranges Media Type</name>
+      <dl>
+        <dt>Type name:</dt>
+        <dd>multipart</dd>
+        <dt>Optional parameters:</dt>
+        <dd>N/A</dd>
+        <dt>Encoding considerations:</dt>
+        <dd>only "7bit", "8bit", or "binary" are permitted</dd>
+      </dl>
+    </section>
+  </middle>
+</rfc>`;
+
+  it('N/A は定義として返さない', () => {
+    const terms = parseRFCXML(xml).definitions.map((d) => d.term);
+
+    expect(terms).not.toContain('Optional parameters');
+    expect(terms).toContain('Encoding considerations');
+  });
+});

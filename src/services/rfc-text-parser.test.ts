@@ -538,3 +538,120 @@ describe('引用符を使わない参考文献', () => {
     expect(urn?.title).toBe('Functional Requirements for Uniform Resource Names');
   });
 });
+
+describe('ページの区切り', () => {
+  const page = [
+    '3.3.1.  Transfer-Encoding',
+    '',
+    '   A client MUST NOT send a request containing Transfer-Encoding unless',
+    '   it knows the',
+    '',
+    '',
+    '',
+    'Fielding & Reschke           Standards Track                   [Page 29]',
+    '\f',
+    'RFC 7230           HTTP/1.1 Message Syntax and Routing         June 2014',
+    '',
+    '',
+    '   server will handle HTTP/1.1 (or later) requests.',
+    '',
+  ].join('\n');
+
+  it('文の途中でページが変わったら段落を続ける', () => {
+    const parsed = parseRFCText(page, 7230);
+    const text = JSON.stringify(parsed.sections);
+
+    expect(text).toContain('server will handle HTTP/1.1 (or later) requests.');
+    expect(text).not.toContain('Standards Track');
+    expect(text).not.toContain('[Page 29]');
+  });
+
+  it('文が終わっていればページの変わり目で段落を切る', () => {
+    const closed = page.replace('   it knows the', '   it knows the server capabilities.');
+    const parsed = parseRFCText(closed, 7230);
+    const blocks = parsed.sections[0].content.filter((b) => b.type === 'text');
+
+    expect(blocks.length).toBeGreaterThan(1);
+  });
+});
+
+describe('節見出しの判定', () => {
+  const doc = (lines: string[]) => lines.join('\n');
+
+  it('題名が 2 文字でも節として拾う', () => {
+    // RFC 2616 §14.39 / RFC 7230 §4.3 の "TE"
+    const parsed = parseRFCText(
+      doc(['4.3.  TE', '', '   The TE field is defined here.', '']),
+      7230
+    );
+
+    expect(parsed.sections.some((s) => s.number === '4.3' && s.title === 'TE')).toBe(true);
+  });
+
+  it('題名が小文字で始まっても節として拾う', () => {
+    // RFC 7230 §2.7.1 の "http URI Scheme"
+    const parsed = parseRFCText(
+      doc(['2.7.1.  http URI Scheme', '', '   The scheme is defined here.', '']),
+      7230
+    );
+
+    expect(parsed.sections.some((s) => s.title === 'http URI Scheme')).toBe(true);
+  });
+
+  it('題名が数字で始まっても節として拾う', () => {
+    // RFC 8446 §8 の "0-RTT and Anti-Replay"
+    const parsed = parseRFCText(
+      doc(['8.  0-RTT and Anti-Replay', '', '   Replay is discussed here.', '']),
+      8446
+    );
+
+    expect(parsed.sections.some((s) => s.title === '0-RTT and Anti-Replay')).toBe(true);
+  });
+
+  it('中央寄せの大文字見出しを節として拾う', () => {
+    // RFC 793 は上位の節見出しを中央に寄せる
+    const parsed = parseRFCText(
+      doc([
+        '                             2.  PHILOSOPHY',
+        '',
+        '2.1.  Elements of the Internetwork System',
+        '',
+        '  The internetwork environment consists of hosts.',
+        '',
+      ]),
+      793
+    );
+
+    expect(parsed.sections.some((s) => s.number === '2' && s.title === 'PHILOSOPHY')).toBe(true);
+  });
+
+  it('中央寄せでも番号が節番号でなければ拾わない', () => {
+    // RFC 793 §3.9 の表 "0       0     SEG.SEQ = RCV.NXT"
+    const parsed = parseRFCText(
+      doc(['        0       0     SEG.SEQ = RCV.NXT', '', '   Text follows.', '']),
+      793
+    );
+
+    expect(parsed.sections.some((s) => s.number === '0')).toBe(false);
+  });
+});
+
+describe('文が途中で終わる段落', () => {
+  it('表示例をまたいだ文を繋ぐ', () => {
+    // RFC 2616 §14.5 の形
+    const text = [
+      '14.5.  Accept-Ranges',
+      '',
+      '      Origin servers that accept byte-range requests MAY send',
+      '',
+      '          Accept-Ranges: bytes',
+      '',
+      '      but are not required to do so.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 2616);
+    const blocks = parsed.sections[0].content.filter((b) => b.type === 'text');
+
+    expect(blocks[0].content).toContain('but are not required to do so.');
+  });
+});

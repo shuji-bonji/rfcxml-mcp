@@ -238,3 +238,17 @@ describe('clipAtClauseEnd の並列', () => {
     );
   });
 });
+
+describe('罫線で囲んだ行', () => {
+  it('図の行として扱う', () => {
+    expect(looksLikeDiagram('|F|R|R|R| opcode|M| Payload len |')).toBe(true);
+    expect(looksLikeDiagram('| server_name [RFC6066] | CH, EE |')).toBe(true);
+  });
+
+  it('本文の中の縦棒は図として扱わない', () => {
+    // RFC 6455 は本文でヘッダ名を |Origin| と括る
+    expect(looksLikeDiagram('The request MUST include a header field with the name |Origin|')).toBe(
+      false
+    );
+  });
+});

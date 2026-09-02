@@ -14,7 +14,7 @@ import type {
   RFCReference,
 } from '../types/index.js';
 import { createRequirementRegex, SECTION_HEADER_PATTERN } from '../constants.js';
-import { extractCrossReferences } from '../utils/text.js';
+import { extractCrossReferences, looksLikeDiagram } from '../utils/text.js';
 import {
   extractRequirementsFromSections,
   type RequirementFilter,
@@ -50,7 +50,7 @@ const DEFINITION_EXTRACTION = {
  * RFC テキストをパースして構造化データに変換（中精度）
  */
 export function parseRFCText(text: string, rfcNumber: number): ParsedRFC {
-  const lines = text.split('\n');
+  const lines = stripPageFurniture(text).split('\n');
 
   return {
     metadata: extractTextMetadata(lines, rfcNumber),
@@ -58,6 +58,74 @@ export function parseRFCText(text: string, rfcNumber: number): ParsedRFC {
     references: extractTextReferences(lines, rfcNumber),
     definitions: extractTextDefinitions(lines),
   };
+}
+
+/** ページ末尾の行。"Fielding & Reschke   Standards Track   [Page 29]" */
+const PAGE_FOOTER = /\[Page\s+\d+\]\s*$/;
+
+/** ページ先頭の行。1 桁目から始まり、末尾が発行年月。 */
+const PAGE_HEADER = /^\S.*\b(19|20)\d{2}\s*$/;
+
+/**
+ * ページの区切り（フッタ・改ページ・ヘッダ）を取り除く。
+ *
+ * RFC の .txt は 1 ページ 58 行で組まれており、段落の途中でもページが変わる。
+ *
+ * ```
+ *    A client MUST NOT send a request containing Transfer-Encoding unless it knows the
+ *
+ * Fielding & Reschke           Standards Track                   [Page 29]
+ * \f
+ * RFC 7230           HTTP/1.1 Message Syntax and Routing         June 2014
+ *
+ *    server will handle HTTP/1.1 (or later) requests; such knowledge might
+ * ```
+ *
+ * `createTextBlocks()` は空行で段落を切るため、この区切りで段落が 2 つに割れて
+ * いた。要件文は "…unless it knows the" で終わり、`fullContext` にも続きが入らない。
+ * RFC 7230 / 2616 / 8446 では、文末記号で終わらない要件がそれぞれ 2 / 6 / 5 件あった。
+ *
+ * 区切りを外したあと、**直前の行が文末で終わっていなければ空行を入れずに続ける**。
+ * ページの変わり目が段落の切れ目でもあるかどうかはテキストからは判らないので、
+ * 文が途中かどうかで決める。
+ */
+export function stripPageFurniture(text: string): string {
+  const lines = text.split('\n');
+  const out: string[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (!PAGE_FOOTER.test(line)) {
+      out.push(line);
+      i++;
+      continue;
+    }
+
+    // フッタの手前に入っているページ埋めの空行を落とす
+    while (out.length > 0 && out[out.length - 1].trim() === '') out.pop();
+    i++;
+
+    // 改ページ（\f）とその前後の空行
+    let sawFormFeed = false;
+    while (i < lines.length && (lines[i].trim() === '' || lines[i].includes('\f'))) {
+      if (lines[i].includes('\f')) sawFormFeed = true;
+      i++;
+    }
+
+    // ページ先頭の見出し行。改ページがあったか、行の形が見出しらしいときだけ落とす。
+    if (i < lines.length && (sawFormFeed || PAGE_HEADER.test(lines[i]))) {
+      i++;
+      while (i < lines.length && lines[i].trim() === '') i++;
+    }
+
+    // 文が途中なら段落を続ける。終わっていれば段落の切れ目として残す。
+    const previous = out.length > 0 ? out[out.length - 1] : '';
+    if (!previous.trim() || /[.:;?!]\s*$/.test(previous)) out.push('');
+  }
+
+  return out.join('\n');
 }
 
 /** 参考文献の欄の見出し。番号の有無どちらもある。 */
@@ -380,94 +448,113 @@ function isTableOfContentsEntry(title: string): boolean {
   return /(?:\.\s?){3,}\s*\d+\s*$/.test(title.trim());
 }
 
+/**
+ * 節見出しとして妥当か。
+ *
+ * ここに来る行は、1 桁目から始まり「番号 + 空白 + 題名」の形をしている
+ * （`extractTextSections` が字下げのある行を弾いている）。RFC の .txt は本文を
+ * 3 桁目から組むので、この形の行はほぼ節見出しである。残る除外は目次の行と、
+ * 節番号として不自然な数だけでよい。
+ *
+ * v0.6.8 まではここで題名の長さと語彙も見ていた。「3 文字未満は落とす」
+ * 「小文字で始まり 20 文字未満なら落とす」「決まった語を含むか、大文字で始まり
+ * 5 文字以上か、階層が 2 段以上」という条件で、実在する節が落ちていた。
+ *
+ * | RFC | 節 | 題名 | 落ちた理由 |
+ * |---|---|---|---|
+ * | 2616 | 14.39 | `TE` | 3 文字未満 |
+ * | 7230 | 4.3 | `TE` | 3 文字未満 |
+ * | 7230 | 2.7.1 | `http URI Scheme` | 小文字始まりで 20 文字未満 |
+ * | 8446 | 8 | `0-RTT and Anti-Replay` | 語彙に無く、数字始まりで、1 段 |
+ *
+ * 落ちた節は `get_rfc_structure` に出ないだけでなく、その節の要件が手前の節に
+ * 付く。`get_related_sections` が返す参照先も引けなくなる。
+ */
 function isValidSectionHeader(sectionNum: string, title: string): boolean {
   // 目次の行は節ではない
   if (isTableOfContentsEntry(title)) return false;
 
-  // セクション番号の検証
-  const numParts = sectionNum.split('.');
-  const depth = numParts.length;
+  const parts = sectionNum.split('.');
+  if (parts.length > 6) return false;
 
-  // 深すぎる階層は除外（通常5レベル以下）
-  if (depth > 5) return false;
+  const first = Number(parts[0]);
+  if (!Number.isInteger(first) || first < 1 || first > 99) return false;
 
-  // 最初の番号が大きすぎる場合は除外（ステータスコードの可能性）
-  // 例: "1000", "1001" はセクション番号ではなくステータスコード
-  const firstNum = parseInt(numParts[0], 10);
-  if (firstNum > 99) return false;
-
-  // タイトルの検証
-  const trimmedTitle = title.trim();
-
-  // タイトルが短すぎる（リスト項目の可能性）
-  if (trimmedTitle.length < 3) return false;
-
-  // タイトルが小文字のみで始まる場合（リスト項目の可能性が高い）
-  // ただし "a", "an", "the" で始まる正式なタイトルもあるので注意
-  if (/^[a-z]/.test(trimmedTitle) && trimmedTitle.length < 20) {
-    // 短い小文字始まりの行はセクションタイトルではない可能性が高い
-    return false;
-  }
-
-  // 典型的なセクションタイトルキーワードをチェック
-  const sectionKeywords = [
-    'introduction',
-    'overview',
-    'background',
-    'requirements',
-    'specification',
-    'protocol',
-    'format',
-    'security',
-    'considerations',
-    'references',
-    'acknowledgments',
-    'appendix',
-    'terminology',
-    'definitions',
-    'abstract',
-    'scope',
-    'normative',
-    'informative',
-    'implementation',
-    'examples',
-    'error',
-    'status',
-    'codes',
-    'messages',
-    'operations',
-  ];
-
-  const lowerTitle = trimmedTitle.toLowerCase();
-  for (const keyword of sectionKeywords) {
-    if (lowerTitle.includes(keyword)) {
-      return true;
-    }
-  }
-
-  // 大文字で始まり、適度な長さがあればセクションタイトルとして受け入れる
-  if (/^[A-Z]/.test(trimmedTitle) && trimmedTitle.length >= 5) {
-    return true;
-  }
-
-  // それ以外は厳密にチェック
-  // セクション番号にドットが含まれる場合はより信頼性が高い（1.1, 2.3 など）
-  if (depth >= 2) {
-    return true;
-  }
-
-  return false;
+  return title.trim().length > 0;
 }
 
 /**
  * セクション構造の抽出（テキストから）
  */
+/** 中央寄せの見出しとみなす最小の字下げ。 */
+const CENTERED_HEADER_MIN_INDENT = 8;
+
+/**
+ * その行が中央寄せの節見出しなら、番号と題名を返す。
+ *
+ * 条件をすべて満たすときだけ見出しとみなす。
+ *
+ * - 字下げが 8 桁以上
+ * - 「番号 + 空白 + 題名」の形で、番号が 1 段（"2." であって "2.1." ではない）
+ * - 題名に小文字が無く、3 文字以上
+ * - 前後が空行
+ */
+function centeredSectionHeader(
+  lines: string[],
+  index: number
+): { number: string; title: string } | null {
+  const line = lines[index];
+  const indent = line.length - line.trimStart().length;
+  if (indent < CENTERED_HEADER_MIN_INDENT) return null;
+
+  const match = line.trim().match(SECTION_HEADER_PATTERN);
+  if (!match) return null;
+
+  const number = match[1].replace(/\.$/, '');
+  if (number.includes('.')) return null;
+
+  const title = match[2].trim();
+  if (title.length < 3 || /[a-z]/.test(title)) return null;
+  // 1 桁目の見出しと同じ検査を通す。RFC 793 §3.9 の表
+  // "0       0     SEG.SEQ = RCV.NXT" は番号が 0 なのでここで落ちる。
+  if (!isValidSectionHeader(number, title)) return null;
+
+  const before = index > 0 ? lines[index - 1] : '';
+  const after = index + 1 < lines.length ? lines[index + 1] : '';
+  if (before.trim() !== '' || after.trim() !== '') return null;
+
+  return { number, title };
+}
+
 function extractTextSections(lines: string[]): Section[] {
   const sections: Section[] = [];
   let currentSection: Section | null = null;
   let currentContent: string[] = [];
 
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+
+    // 古い RFC は上位の節見出しを中央に寄せる（RFC 793 の "2.  PHILOSOPHY"）。
+    // 1 桁目の規則だけでは §1 / §2 / §3 が丸ごと落ち、その節の要件が
+    // 手前の節に付く。字下げが深く、題名が全部大文字で、前後が空行の
+    // 1 段目の見出しだけを拾う。RFC 793 の状態遷移図にある
+    // "  2.  SYN-SENT --> ..." は字下げが浅く、小文字を含むので当たらない。
+    const centered = centeredSectionHeader(lines, index);
+    if (centered) {
+      if (currentSection) {
+        currentSection.content = createTextBlocks(currentContent.join('\n'));
+        sections.push(currentSection);
+      }
+      currentSection = {
+        number: centered.number,
+        title: centered.title,
+        content: [],
+        subsections: [],
+      };
+      currentContent = [];
+      continue;
+    }
+
     // 節見出しは 1 桁目から始まる。字下げされた行は本文の番号付きリスト項目である。
     //
     // 以前は `line.trim()` してから照合していたため字下げが失われ、
@@ -548,9 +635,58 @@ function organizeSections(flatSections: Section[]): Section[] {
 /**
  * テキストからコンテンツブロックを作成
  */
+/** 文が途中で終わる段落を、いくつ先まで繋ぐか。 */
+const MAX_PARAGRAPH_JOINS = 3;
+
+/**
+ * 文の途中で終わっている段落を、次の段落と繋ぐ。
+ *
+ * RFC は列挙や表示例を空行で挟んで書く。
+ *
+ * ```
+ *       Origin servers that accept byte-range requests MAY send
+ *
+ *           Accept-Ranges: bytes
+ *
+ *       but are not required to do so.
+ * ```
+ *
+ * 空行で段落を切ると、要件文が "…MAY send" で終わる。RFC 9110 §9.3.5 の
+ * "the origin server SHOULD send" と続く箇条書き、RFC 2616 §8.2.4 の
+ * "the client" と続く "- SHOULD NOT continue and" も同じ形である。
+ *
+ * 図・ABNF で終わる段落は繋がない。`acceptable-ranges = 1#range-unit | "none"` の
+ * ように、文末記号が無いのが普通だからである。
+ */
+function joinUnterminatedParagraphs(paragraphs: string[]): string[] {
+  const joined: string[] = [];
+  const joinCount: number[] = [];
+
+  for (const paragraph of paragraphs) {
+    const last = joined.length - 1;
+    const previous = joined[last];
+    const canJoin =
+      previous !== undefined &&
+      !/[.!?:;]\s*$/.test(previous) &&
+      !looksLikeDiagram(previous) &&
+      joinCount[last] < MAX_PARAGRAPH_JOINS;
+
+    if (canJoin) {
+      joined[last] = `${previous}\n${paragraph}`;
+      joinCount[last] += 1;
+      continue;
+    }
+
+    joined.push(paragraph);
+    joinCount.push(0);
+  }
+
+  return joined;
+}
+
 function createTextBlocks(text: string): ContentBlock[] {
   const blocks: ContentBlock[] = [];
-  const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim());
+  const paragraphs = joinUnterminatedParagraphs(text.split(/\n\s*\n/).filter((p) => p.trim()));
 
   for (const para of paragraphs) {
     const trimmed = para.trim();

@@ -749,16 +749,38 @@ const GENERIC_ACRONYMS = new Set([
  *
  * 角括弧の引用（`[RFC5246]`）は名前ではないので先に落とす。
  */
-export function identifiersOf(action: string): string[] {
-  const withoutCitations = action.replace(/\[[^\]]*\]/g, ' ');
+export function identifiersOf(text: string): string[] {
+  const withoutCitations = text.replace(/\[[^\]]*\]/g, ' ');
   const found = new Set<string>();
+
+  // ハイフンでつないだ頭大文字の語（フィールド名）: Content-Length / Sec-WebSocket-Protocol
+  for (const match of withoutCitations.matchAll(/\b[A-Z][A-Za-z0-9]*(?:-[A-Z][A-Za-z0-9]*)+\b/g)) {
+    found.add(match[0]);
+  }
+
+  // "Date header field" のように、頭大文字の語がフィールドや欄を名指しする形
+  for (const match of withoutCitations.matchAll(
+    /\b([A-Z][a-z][A-Za-z0-9]*)\s+(?:header\s+field|header|field)\b/g
+  )) {
+    found.add(match[1]);
+  }
+
+  // 状態符号: 1xx / 204 / 1002
+  for (const match of withoutCitations.matchAll(/\b([1-5]xx|[1-9]\d{2,3})\b/g)) {
+    found.add(match[1]);
+  }
 
   for (const token of withoutCitations.split(/[^A-Za-z0-9_]+/)) {
     if (!token) continue;
-    if (token.includes('_')) {
+
+    // 語の内側のアンダースコアだけを名前とみなす。RFC 6455 は本文で定義語を
+    // `_Establish a WebSocket Connection_` と囲むので、前後のアンダースコアを
+    // 名前と読むと関係のない要件まで除外してしまう。
+    if (/^[A-Za-z0-9]+(?:_[A-Za-z0-9]+)+$/.test(token)) {
       found.add(token);
       continue;
     }
+    if (token.includes('_')) continue;
     if (token.length >= 3 && token === token.toUpperCase() && /[A-Z]/.test(token)) {
       if (!GENERIC_ACRONYMS.has(token)) found.add(token);
     }
@@ -777,6 +799,7 @@ export function identifiersOf(action: string): string[] {
 const QUALIFIER_WORDS = [
   'arbitrarily',
   'unnecessarily',
+  'needlessly',
   'blindly',
   'silently',
   'automatically',
@@ -785,6 +808,7 @@ const QUALIFIER_WORDS = [
   'unless',
   'except',
   'other than',
+  'without',
 ];
 
 export function qualifiersOf(action: string): string[] {
@@ -877,11 +901,16 @@ export function describesSameAct(
 ): boolean {
   const lower = statement.toLowerCase();
 
-  for (const identifier of identifiersOf(action)) {
+  // 名前と限定は要件文全体から取る。要求アクションの外に置かれることがある。
+  //   "An origin server **without a clock** MUST NOT generate a Date header field."
+  //   "The **HEAD** method is identical to GET except that the server MUST NOT send content …"
+  const scope = `${requirement.text} ${action}`;
+
+  for (const identifier of identifiersOf(scope)) {
     if (!lower.includes(identifier.toLowerCase())) return false;
   }
 
-  for (const qualifier of qualifiersOf(action)) {
+  for (const qualifier of qualifiersOf(scope)) {
     if (!lower.includes(qualifier)) return false;
   }
 

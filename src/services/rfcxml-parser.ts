@@ -351,62 +351,209 @@ function extractSections(sections: XmlNode | XmlNode[]): Section[] {
 /**
  * コンテンツブロックの抽出
  */
+/** 文の続きとして繋ぐ要素を、いくつ先まで見るか。 */
+const MAX_CONTINUATION_BLOCKS = 3;
+
+/** 文の続きとして取り込む表示例の最大の長さ。これを超えるものは独立した図とみなす。 */
+const INLINE_EXAMPLE_MAX_LENGTH = 120;
+
+/** `pn="section-9.3.5-4"` の末尾の連番。 */
+function paragraphOrder(pn: string | undefined): number | null {
+  const match = /-(\d+)$/.exec(pn ?? '');
+  return match ? Number(match[1]) : null;
+}
+
+/** 節の中の要素を、文書に現れる順に並べたもの。 */
+interface OrderedElement {
+  order: number;
+  kind: 'text' | 'list' | 'sourcecode' | 'artwork';
+  node: XmlNode;
+  text: string;
+  items?: string[];
+  style?: 'symbols' | 'numbers';
+  language?: string;
+}
+
+/**
+ * 節の直下の要素を `pn` の連番順に並べる。
+ *
+ * `preserveOrder: false` で動かしているため、木からは `<t>` と `<ul>` の並び順が
+ * 失われる。公開版 RFCXML は `pn="section-9.3.5-4"` の形で連番を持つので、
+ * それで並べ直す。連番を持たない要素が 1 つでもあれば並べ直しをあきらめて
+ * `null` を返す（公開前の RFCXML）。
+ */
+function orderedElements(section: XmlNode): OrderedElement[] | null {
+  const elements: OrderedElement[] = [];
+
+  const push = (node: XmlNode, element: Omit<OrderedElement, 'order' | 'node'>): void => {
+    const order = paragraphOrder(node['@_pn']);
+    if (order === null) throw new Error('no pn');
+    elements.push({ order, node, ...element });
+  };
+
+  try {
+    for (const t of toArray(section.t)) push(t, { kind: 'text', text: extractProse(t) });
+    for (const list of toArray(section.ul)) {
+      push(list, {
+        kind: 'list',
+        text: '',
+        style: 'symbols',
+        items: toArray(list.li).map((li) => extractProse(li)),
+      });
+    }
+    for (const list of toArray(section.ol)) {
+      push(list, {
+        kind: 'list',
+        text: '',
+        style: 'numbers',
+        items: toArray(list.li).map((li) => extractProse(li)),
+      });
+    }
+    for (const code of toArray(section.sourcecode)) {
+      push(code, { kind: 'sourcecode', text: extractText(code), language: code['@_type'] });
+    }
+    for (const art of toArray(section.artwork)) {
+      push(art, { kind: 'artwork', text: extractText(art) });
+    }
+  } catch {
+    return null;
+  }
+
+  return elements.sort((a, b) => a.order - b.order);
+}
+
+/**
+ * 文の途中で終わる段落に、直後の要素を取り込む。
+ *
+ * RFC は 1 つの文を「文 + 箇条書き」や「文 + 表示例 + 文」に分けて書く。
+ *
+ * ```xml
+ * <t pn="section-9.3.5-4">... the origin server <bcp14>SHOULD</bcp14> send</t>
+ * <ul pn="section-9.3.5-5"><li>a 202 (Accepted) status code if ...</li>...</ul>
+ * ```
+ *
+ * ```xml
+ * <t pn="section-14.3-8">A server that does not support any kind of range
+ *   request ... <bcp14>MAY</bcp14> send</t>
+ * <sourcecode pn="section-14.3-9">Accept-Ranges: none</sourcecode>
+ * <t pn="section-14.3-10">to advise the client not to attempt a range request ...</t>
+ * ```
+ *
+ * `<t>` だけを要件文にすると "the origin server SHOULD send" で終わる。
+ *
+ * **取り込んだ要素は消す。** 残すと、その中の要件が「単独の段落」と「繋いだ段落」の
+ * 2 か所から出て、ほとんど同じ文が 2 件並ぶ。
+ *
+ * **BCP 14 キーワードを含む段落だけを繋ぐ。** RFC 9110 §6.6.1 の
+ * `<t>An example is</t>` のような表示例の見出しは文末記号が無いのが普通で、
+ * 繋ぐと要件文の頭に "An example is Date: Tue, 15 Nov 1994 08:12:31 GMT" が付く。
+ */
+function mergeContinuations(elements: OrderedElement[]): OrderedElement[] {
+  const merged: OrderedElement[] = [];
+  const consumed = new Set<number>();
+
+  for (let i = 0; i < elements.length; i++) {
+    if (consumed.has(i)) continue;
+
+    const element = elements[i];
+    if (element.kind !== 'text') {
+      merged.push(element);
+      continue;
+    }
+
+    let text = element.text;
+    const hasKeyword = createRequirementRegex().test(text);
+
+    for (let step = 1; hasKeyword && step <= MAX_CONTINUATION_BLOCKS; step++) {
+      if (/[.!?:;]$/.test(text)) break;
+
+      const next = elements[i + step];
+      if (!next || consumed.has(i + step)) break;
+
+      if (next.kind === 'list') {
+        const items = (next.items ?? []).filter((item) => item.length > 0);
+        if (items.length === 0) break;
+        text = `${text} ${items.join('; ').replace(/[;,]?\s*$/, '')}.`;
+        consumed.add(i + step);
+        break;
+      }
+
+      const rendered = extractProse(next.text);
+      if (!rendered) break;
+      if (next.kind !== 'text' && rendered.length > INLINE_EXAMPLE_MAX_LENGTH) break;
+
+      text = `${text} ${rendered}`;
+      consumed.add(i + step);
+    }
+
+    merged.push({ ...element, text });
+  }
+
+  return merged;
+}
+
+/**
+ * コンテンツブロックの抽出
+ */
 function extractContent(section: XmlNode): ContentBlock[] {
+  const ordered = orderedElements(section);
+  if (!ordered) return extractContentUnordered(section);
+
   const blocks: ContentBlock[] = [];
 
-  // テキストパラグラフ <t>
-  const paragraphs = toArray(section.t);
-  for (const t of paragraphs) {
-    const text = extractProse(t);
-    if (text) {
-      blocks.push(createTextBlock(text, t));
+  for (const element of mergeContinuations(ordered)) {
+    if (element.kind === 'text') {
+      if (element.text) blocks.push(createTextBlock(element.text, element.node));
+    } else if (element.kind === 'list') {
+      blocks.push({
+        type: 'list',
+        style: element.style ?? 'symbols',
+        items: (element.items ?? []).map((content) => ({
+          content,
+          requirements: extractRequirementMarkers(content),
+        })),
+      });
+    } else if (element.kind === 'sourcecode') {
+      blocks.push({ type: 'sourcecode', language: element.language, content: element.text });
+    } else {
+      blocks.push({ type: 'artwork', content: element.text });
     }
   }
 
-  // リスト <ul>, <ol>, <dl>
-  for (const list of toArray(section.ul)) {
-    blocks.push({
-      type: 'list',
-      style: 'symbols',
-      items: toArray(list.li).map((li) => {
-        const content = extractProse(li);
-        return {
-          content,
-          requirements: extractRequirementMarkers(content),
-        };
-      }),
-    });
+  return blocks;
+}
+
+/** `pn` を持たない RFCXML 用。並べ直さず、種類ごとに出す。 */
+function extractContentUnordered(section: XmlNode): ContentBlock[] {
+  const blocks: ContentBlock[] = [];
+
+  for (const t of toArray(section.t)) {
+    const text = extractProse(t);
+    if (text) blocks.push(createTextBlock(text, t));
   }
 
-  for (const list of toArray(section.ol)) {
-    blocks.push({
-      type: 'list',
-      style: 'numbers',
-      items: toArray(list.li).map((li) => {
-        const content = extractProse(li);
-        return {
-          content,
-          requirements: extractRequirementMarkers(content),
-        };
-      }),
-    });
+  for (const [lists, style] of [
+    [toArray(section.ul), 'symbols'],
+    [toArray(section.ol), 'numbers'],
+  ] as const) {
+    for (const list of lists) {
+      blocks.push({
+        type: 'list',
+        style,
+        items: toArray(list.li).map((li) => {
+          const content = extractProse(li);
+          return { content, requirements: extractRequirementMarkers(content) };
+        }),
+      });
+    }
   }
 
-  // ソースコード <sourcecode>
   for (const code of toArray(section.sourcecode)) {
-    blocks.push({
-      type: 'sourcecode',
-      language: code['@_type'],
-      content: extractText(code),
-    });
+    blocks.push({ type: 'sourcecode', language: code['@_type'], content: extractText(code) });
   }
 
-  // アートワーク <artwork>
   for (const art of toArray(section.artwork)) {
-    blocks.push({
-      type: 'artwork',
-      content: extractText(art),
-    });
+    blocks.push({ type: 'artwork', content: extractText(art) });
   }
 
   return blocks;
@@ -638,7 +785,7 @@ function extractDefinitions(rfc: XmlNode): Definition[] {
           const term = extractProse(dts[i]);
           const definition = extractProse(dds[i]);
 
-          if (term && definition) {
+          if (term && isMeaningfulDefinition(definition)) {
             definitions.push({
               term: normalizeTerm(term),
               definition,
@@ -744,6 +891,21 @@ export function extractIrefDefinitions(xml: string): Definition[] {
 
 /** 定義本文として採る最小の長さ。これ未満は目印だけで中身が無い。 */
 const DEFINITION_MIN_LENGTH = 10;
+
+/** 中身の無い定義。IANA 登録票の記入欄は空欄を "N/A" と書く。 */
+const EMPTY_DEFINITIONS = new Set(['n/a', 'na', 'none', 'not applicable', '-', '--']);
+
+/**
+ * 定義として返す値があるか。
+ *
+ * RFC 9110 §14.6 の登録票は `Optional parameters: N/A` のように空欄を埋める。
+ * これを定義として返しても何も伝えていない。
+ */
+function isMeaningfulDefinition(definition: string): boolean {
+  const trimmed = definition.trim();
+  if (trimmed.length < 3) return false;
+  return !EMPTY_DEFINITIONS.has(trimmed.toLowerCase());
+}
 
 /**
  * 用語の表記をそろえる。

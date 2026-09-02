@@ -395,15 +395,32 @@ describe('要件文の体裁（テキスト経路）', () => {
     expect(result[0].text).toBe('1 bit in length, MUST be 0 unless negotiated otherwise');
   });
 
-  it('図の本体は畳まない', () => {
-    const content = ['+-+-+-+-+-------+', '|F|R|R|R| opcode|', '', 'RSV1 MUST be 0'].join('\n');
-    const figure = 'opcode  MUST be 0 unless\n   +-+-+-+-+-------+';
+  it('図の行は要件文に混ぜず、散文だけを畳む', () => {
+    // 1 つの段落に図と散文が混じることがある（RFC 8446 §4.2 は表のすぐあとに
+    // 散文を書く）。段落全体を図と見なすと散文まで畳まれない。
+    const content = [
+      '+-+-+-+-+-------+',
+      '|F|R|R|R| opcode|',
+      'There MUST NOT be more than one extension',
+      '   of the same type in a block.',
+    ].join('\n');
+    const result = extractRequirementsFromSections(
+      sectionOf(content, [{ level: 'MUST NOT', position: content.indexOf('MUST NOT') }])
+    );
+
+    expect(result[0].text).toBe(
+      'There MUST NOT be more than one extension of the same type in a block.'
+    );
+    expect(result[0].text).not.toContain('+-+');
+  });
+
+  it('図の行に当たった要件は畳まない', () => {
+    const figure = 'frame-rsv1              = %x0 / %x1 MUST be 0';
     const result = extractRequirementsFromSections(
       sectionOf(figure, [{ level: 'MUST', position: figure.indexOf('MUST') }])
     );
 
-    expect(content).toContain('opcode');
-    expect(result[0].fullContext).toMatch(/\n/);
+    expect(result[0].fullContext).toBe(figure);
   });
 });
 

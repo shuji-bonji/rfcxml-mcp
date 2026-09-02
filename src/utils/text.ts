@@ -224,6 +224,7 @@ const DIAGRAM_PATTERNS: RegExp[] = [
   / {2};/, // ABNF の注釈（2 個以上の空白のあとのセミコロン）
   /[-+]{4,}/, // 図の罫線
   /\|[ \t]{2,}/, // 図の縦罫（"|   F   |"）
+  /^[ \t]*\|.*\|[ \t]*$/m, // 罫線で囲んだ行（"|F|R|R|R| opcode|M| Payload len |"）
 ];
 
 /**
@@ -233,6 +234,7 @@ const DIAGRAM_PATTERNS: RegExp[] = [
  *   規則の行があるので、そちらで当たる。
  * - `|` のあとの改行 — RFC 6455 は本文でヘッダ名を `|Origin|` と括る。図の縦罫は
  *   同じ行の中で空白が続くので、改行を含めずに見る。
+ * - 行の途中の `|` — 同じ理由。図の行は `|` で始まり `|` で終わる。
  */
 export function looksLikeDiagram(text: string): boolean {
   return DIAGRAM_PATTERNS.some((pattern) => pattern.test(text));
@@ -309,8 +311,30 @@ export function requirementSource(
     return { text, position: keyword === -1 ? 0 : keyword, prose: true };
   }
 
-  // 段落は空行で切られているので、図や ABNF は 1 つの段落にまとまっている。
-  // キーワードのある行だけでなく段落全体を見る。図の中の散文らしい行だけが
-  // 畳まれて桁が崩れるのを防ぐ。
-  return { text: content, position, prose: !looksLikeDiagram(content) };
+  // 図・ABNF の行に当たっているなら、その段落はそのまま返す（畳まない）。
+  if (looksLikeDiagram(line)) {
+    return { text: content, position, prose: false };
+  }
+
+  // 1 つの段落に図と散文が混じることがある。RFC 2616 §14.27 は ABNF の 1 行の
+  // あとに続けて散文を書き、RFC 8446 §4.2 は表のすぐあとに散文を書く。
+  // 段落全体を図と見なすと散文まで畳まれず、`generate_checklist` の Markdown が
+  // 崩れる。キーワードのある行を含む「図でない行の連なり」だけを切り出しの
+  // 対象にする。
+  const lines = content.split('\n');
+  const lineIndex = content.slice(0, lineStart).split('\n').length - 1;
+
+  let first = lineIndex;
+  while (first > 0 && !looksLikeDiagram(lines[first - 1])) first--;
+  let last = lineIndex;
+  while (last + 1 < lines.length && !looksLikeDiagram(lines[last + 1])) last++;
+
+  const runStart = lines.slice(0, first).join('\n').length + (first > 0 ? 1 : 0);
+  const runEnd = lines.slice(0, last + 1).join('\n').length;
+
+  return {
+    text: content.slice(runStart, runEnd),
+    position: position - runStart,
+    prose: true,
+  };
 }

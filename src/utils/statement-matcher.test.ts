@@ -768,3 +768,99 @@ describe('identifiersOf', () => {
     expect(identifiersOf('parse an HTTP message over TCP')).toEqual([]);
   });
 });
+
+describe('固有の名前の形', () => {
+  it('ハイフンでつないだフィールド名を取る', () => {
+    expect(identifiersOf('send a Content-Length header field in any response')).toContain(
+      'Content-Length'
+    );
+    expect(identifiersOf('send back a Sec-WebSocket-Protocol header field')).toContain(
+      'Sec-WebSocket-Protocol'
+    );
+  });
+
+  it('フィールドを名指しする頭大文字の語を取る', () => {
+    expect(identifiersOf('generate a Date header field')).toContain('Date');
+    expect(identifiersOf('generate a Server header field containing detail')).toContain('Server');
+  });
+
+  it('状態符号を取る', () => {
+    expect(identifiersOf('send a 1xx response to an HTTP/1.0 client')).toContain('1xx');
+    expect(identifiersOf('send a Close frame with status code 1002')).toContain('1002');
+  });
+
+  it('語の内側のアンダースコアだけを名前とみなす', () => {
+    // RFC 6455 は本文で定義語を `_Establish a WebSocket Connection_` と囲む。
+    expect(identifiersOf('open a connection to _Establish a WebSocket Connection_')).toEqual([]);
+    expect(identifiersOf('send a MAX_PUSH_ID frame')).toEqual(['MAX_PUSH_ID']);
+  });
+});
+
+describe('名前と限定は要件文全体から取る', () => {
+  it('主語句に置かれた限定を見る', () => {
+    // 禁じられているのは「時計を持たない」オリジンサーバの場合だけである。
+    const withoutClock: Requirement[] = [
+      {
+        id: 'R-6.6.1-87',
+        level: 'MUST NOT',
+        text: 'An origin server without a clock MUST NOT generate a Date header field.',
+        section: '6.6.1',
+        sectionTitle: 'Date',
+        fullContext: 'An origin server without a clock MUST NOT generate a Date header field.',
+        action: 'generate a Date header field',
+      },
+    ];
+
+    expect(
+      detectConflicts(
+        'An origin server generates a Date header field in its responses.',
+        withoutClock
+      )
+    ).toHaveLength(0);
+  });
+
+  it('限定語が主張にもあれば挙げる', () => {
+    const needlessDetail: Requirement[] = [
+      {
+        id: 'R-10.2.4-258',
+        level: 'SHOULD NOT',
+        text: 'An origin server SHOULD NOT generate a Server header field containing needlessly fine-grained detail.',
+        section: '10.2.4',
+        sectionTitle: 'Server',
+        fullContext: '',
+        subject: 'server',
+        action: 'generate a Server header field containing needlessly fine-grained detail',
+      },
+    ];
+
+    expect(
+      detectConflicts('An origin server generates a Server header field.', needlessDetail)
+    ).toHaveLength(0);
+
+    expect(
+      detectConflicts(
+        'An origin server generates a Server header field containing needlessly fine-grained detail.',
+        needlessDetail
+      )
+    ).toHaveLength(1);
+  });
+
+  it('キーワードより前に置かれた適用対象の名前を見る', () => {
+    const headOnly: Requirement[] = [
+      {
+        id: 'R-9.3.2-188',
+        level: 'MUST NOT',
+        text: 'The HEAD method is identical to GET except that the server MUST NOT send content in the response.',
+        section: '9.3.2',
+        sectionTitle: 'HEAD',
+        fullContext: '',
+        subject: 'server',
+        action: 'send content in the response',
+      },
+    ];
+
+    expect(
+      detectConflicts('A server sends a 100 Continue response before the final response.', headOnly)
+    ).toHaveLength(0);
+  });
+});
