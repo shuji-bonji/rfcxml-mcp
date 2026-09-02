@@ -2,6 +2,63 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.3] - 2026-09-02
+
+v0.6.2 の試用で挙がった 2 件を修正した。どちらも v0.6.2 で `<xref>` を本文に
+描画するようになったことで露出が増えたもので、原因自体は以前からあった。
+
+### Fixed
+
+- **平文で書かれた別文書の節を、この RFC の節として解決していた**:
+  - v0.6.2 の切り分けは角括弧の書誌ラベル（`[HTTP/1.1]`）だけを対象にしていた。
+    `sectionFormat="bare"` の `<xref>` は地の文が文書名を書くため、
+    "GET_MAXSIZES in Section 3.4 of RFC 1122." や
+    "as explained in RFC 6691, Section 3.1." という形になり、素通りしていた。
+  - `createExternalSectionRegexes` に `Section X of RFC NNNN` と
+    `RFC NNNN, Section X` を追加した。節番号の照合も `[\d.]+?` から
+    `\d+(?:\.\d+)*` へ変え、文末の句点を巻き込まないようにした。
+  - RFC 9293 §3.7.1 の `get_related_sections` は、RFC 1122 §3.4 を
+    「3.4 = Sequence Numbers」、RFC 6691 §3.1 を「3.1 = Header Format」として
+    返していた。どちらも RFC 9293 の節ではない。v0.6.3 では返さない。
+- **要件文が節番号や略語のピリオドで切れていた**:
+  - `extractSentence` はピリオドを無条件に文末とみなしていた。RFC 本文には
+    "(see Section 5.3 for further details)." や "(e.g., ...)" が頻出するため、
+    要件文が "…(see Section 5." や "…low number (e." で終わっていた。
+  - 文末の判定を `isSentenceEnd` に切り出した。句読点の直後が空白か文字列の
+    終わりであること、直前が略語（`e.g.` `i.e.` `etc.` など）でないことを課す。
+  - `parseRequirementComponents` の `condition` / `exception` / `action` は
+    `[^,.]+` で止めていたため、括弧内のカンマでも切れていた
+    （"this fails (e" ）。`clipAtClauseEnd` に置き換え、括弧の中のカンマでは
+    切らないようにした。
+  - 途中で切れた要件文の数（`(see Section N.` / `(e.` の形）:
+
+    | RFC | 修正前 | v0.6.3 |
+    |---|---|---|
+    | 6455 | 4 | **0** |
+    | 9293 | 6 | **0** |
+    | 9110 | 16 | **0** |
+
+  - 副次的に重複が減った。切れた文と完全な文が別々の要件として並んでいたため。
+    RFC 9293 は 129 件 → 122 件、RFC 9110 は 439 件 → 438 件。
+    消えた要件は無く（section + level の組は全て残存）、減ったのは
+    「同じ要求の切れた版」だけであることを実測で確認した。
+
+### Added
+
+- **テストを 222 件から 234 件へ**: 文末判定（節番号・略語・通常の文末）、
+  `clipAtClauseEnd`（括弧内のカンマ・節番号・括弧外のカンマ）、
+  平文の別文書参照 2 形、同じ文に両方があるとき。
+- **E2E テストを 25 件から 28 件へ**: RFC 9293 §3.7.1 が RFC 1122 / RFC 6691 の
+  節を含まないこと、要件文が節番号の途中で終わらないこと、
+  略語や節番号の途中で切れた要件文が 1 件も無いこと。
+
+### Notes
+
+- 括弧の釣り合いは品質の指標にならない。RFC 6455 §11.3.2 は原典が
+  "(which is logically the same as ... contains all values." と閉じ括弧を
+  欠いており、忠実に取れば釣り合わない（§11.3.3 の同じ文は閉じている）。
+  E2E は釣り合いではなく「切れ方の形」を見る。
+
 ## [0.6.2] - 2026-09-02
 
 v0.6.1 の試用で挙がった 3 件を修正した。うち `<xref>` の取りこぼしは本文テキスト

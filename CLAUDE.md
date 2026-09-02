@@ -176,6 +176,25 @@ v0.6.2 時点で RFC 9293 92.9% / 9110 92.5% / 9114 60.7%。
 "Section 11.2 of [HTTP/1.1]" を §11.2 "Authentication Parameters" として
 返していたのがそれである。
 
+### 文末の判定は `isSentenceEnd` に集約する
+
+ピリオドを無条件に文末とみなすと、要件文が節番号や略語で切れる。RFC 本文には
+"(see Section 5.3 for further details)." や "(e.g., ...)" が頻出する。
+
+- 文末の条件は「句読点の直後が空白か文字列の終わり」かつ「直前が略語でない」。
+- 節（clause）の切り出しは `clipAtClauseEnd`。括弧の中のカンマでは切らない。
+  `condition` / `exception` / `action` はこれを通す（`[^,.]+` で止めない）。
+
+Why: 切れた文と完全な文が別々の要件として並び、重複にも見えていた。
+How to apply: 新しい抽出で「最初のピリオドまで」を書きたくなったら、必ずこの 2 つを使う。
+
+### 別文書参照は角括弧の形だけではない
+
+`sectionFormat="bare"` の `<xref>` は地の文が文書名を書くため、
+"Section 3.4 of RFC 1122" や "RFC 6691, Section 3.1" という平文の形になる。
+`createExternalSectionRegexes` は角括弧の形（`[HTTP/1.1]`）と RFC 番号の形の
+両方を持つ。片方だけだと、もう一方が素通りしてこの RFC の節として解決される。
+
 ### 公開日は本文から取る
 
 Datatracker の `document.time` は**レコードの最終更新時刻**であって公開日ではない

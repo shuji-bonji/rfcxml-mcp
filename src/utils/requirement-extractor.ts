@@ -4,7 +4,7 @@
  */
 
 import type { Section, Requirement, RequirementLevel } from '../types/index.js';
-import { extractSentence } from './text.js';
+import { clipAtClauseEnd, extractSentence } from './text.js';
 
 /**
  * 要件抽出フィルタ
@@ -184,21 +184,26 @@ function parseRequirementComponents(text: string, level: RequirementLevel): Part
   }
 
   // 条件の抽出（"if", "when", "unless"）
-  const conditionMatch = text.match(/\b(if|when|unless|where|in case)\s+([^,.]+)/i);
+  // 切り出しは clipAtClauseEnd に任せる。`[^,.]+` で止めると、括弧内のカンマや
+  // 節番号のピリオドで切れて "this fails (e" のようになる。
+  const conditionMatch = text.match(/\b(if|when|unless|where|in case)\s+(.+)/is);
   if (conditionMatch) {
-    result.condition = conditionMatch[2].trim();
+    const condition = clipAtClauseEnd(conditionMatch[2]);
+    if (condition) result.condition = condition;
   }
 
   // 例外の抽出
-  const exceptionMatch = text.match(/\b(unless|except|excluding)\s+([^,.]+)/i);
+  const exceptionMatch = text.match(/\b(unless|except|excluding)\s+(.+)/is);
   if (exceptionMatch) {
-    result.exception = exceptionMatch[2].trim();
+    const exception = clipAtClauseEnd(exceptionMatch[2]);
+    if (exception) result.exception = exception;
   }
 
   // アクションの抽出（キーワードの後）
-  const actionMatch = text.match(new RegExp(`${level}\\s+(.+?)(?:\\.|,|$)`, 'i'));
+  const actionMatch = text.match(new RegExp(`${level}\\s+(.+)`, 'is'));
   if (actionMatch) {
-    result.action = actionMatch[1].trim();
+    const action = clipAtClauseEnd(actionMatch[1]);
+    if (action) result.action = action;
   }
 
   return result;

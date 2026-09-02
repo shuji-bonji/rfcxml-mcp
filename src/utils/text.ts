@@ -11,6 +11,35 @@ import {
 } from '../constants.js';
 
 /**
+ * 文末とみなさない略語。ピリオドの直前をここと照合する。
+ */
+const ABBREVIATIONS = ['e.g.', 'i.e.', 'etc.', 'cf.', 'vs.', 'fig.', 'no.', 'al.'];
+
+/**
+ * その位置が文の終わりかどうか。
+ *
+ * ピリオドを無条件に文末とみなすと、節番号や略語で文が切れる。
+ * RFC 本文には "(see Section 5.3 for further details)." や "(e.g., ...)" が
+ * 頻出するため、要件文が "…(see Section 5." のように途中で切れていた。
+ *
+ * 文末の条件は 2 つ。
+ * 1. 句読点のあとに空白が来るか、文字列が終わること（"5.3" の "." は次が数字なので違う）
+ * 2. 直前が略語でないこと（"e.g. the client" のような書き方への備え）
+ */
+export function isSentenceEnd(text: string, index: number): boolean {
+  const char = text[index];
+  if (char !== '.' && char !== '!' && char !== '?') return false;
+
+  const next = text[index + 1];
+  if (next !== undefined && !/\s/.test(next)) return false;
+
+  if (char !== '.') return true;
+
+  const tail = text.slice(Math.max(0, index - 4), index + 1).toLowerCase();
+  return !ABBREVIATIONS.some((abbreviation) => tail.endsWith(abbreviation));
+}
+
+/**
  * 指定位置を含む文を抽出
  * @param text - 対象テキスト
  * @param position - キーワードの位置
@@ -19,17 +48,41 @@ import {
 export function extractSentence(text: string, position: number): string {
   // 文の開始を探す
   let start = position;
-  while (start > 0 && !/[.!?]\s/.test(text.substring(start - 1, start + 1))) {
+  while (start > 0 && !isSentenceEnd(text, start - 1)) {
     start--;
   }
 
   // 文の終了を探す
   let end = position;
-  while (end < text.length && !/[.!?]/.test(text[end])) {
+  while (end < text.length && !isSentenceEnd(text, end)) {
     end++;
   }
 
   return text.substring(start, end + 1).trim();
+}
+
+/**
+ * 節（clause）の終わりまでを切り出す。
+ *
+ * 条件節や要求アクションの取り出しに使う。従来は `[^,.]+` で「最初のカンマか
+ * ピリオドまで」としていたため、"this fails (e.g., the server's certificate …"
+ * が "this fails (e" になっていた。
+ *
+ * - 括弧の中のカンマでは切らない（"(e.g., ...)" を割らない）
+ * - ピリオドは {@link isSentenceEnd} が文末と認めたときだけ切る
+ */
+export function clipAtClauseEnd(text: string): string {
+  let depth = 0;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '(' || char === '[') depth++;
+    else if (char === ')' || char === ']') depth = Math.max(0, depth - 1);
+    else if (char === ',' && depth === 0) return text.slice(0, i).trim();
+    else if (isSentenceEnd(text, i)) return text.slice(0, i).trim();
+  }
+
+  return text.trim();
 }
 
 /**

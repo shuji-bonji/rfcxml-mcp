@@ -120,17 +120,30 @@ export function createExternalSectionRegexes(): Array<{
 }> {
   return [
     {
-      pattern: /[Ss]ections?\s+([\d.]+?)\.?\s+of\s+\[([^\]]+)\]/g,
+      pattern: /[Ss]ections?\s+(\d+(?:\.\d+)*)\s+of\s+\[([^\]]+)\]/g,
+      sectionGroup: 1,
+      documentGroup: 2,
+    },
+    // 地の文が文書名を書く形。`sectionFormat="bare"` の xref はこの形になる。
+    //   "GET_MAXSIZES in Section 3.4 of RFC 1122."
+    //   "as explained in RFC 6691, Section 3.1."
+    {
+      pattern: /[Ss]ections?\s+(\d+(?:\.\d+)*)\s+of\s+(RFC\s*\d+)/gi,
       sectionGroup: 1,
       documentGroup: 2,
     },
     {
-      pattern: /\[([^\]]+)\],\s+[Ss]ections?\s+([\d.]+?)\.?(?=[\s,.;)]|$)/g,
+      pattern: /(RFC\s*\d+),?\s+[Ss]ections?\s+(\d+(?:\.\d+)*)(?=[\s,.;)]|$)/gi,
       sectionGroup: 2,
       documentGroup: 1,
     },
     {
-      pattern: /\[([^\]]+)\]\s+\([Ss]ections?\s+([\d.]+?)\.?\)/g,
+      pattern: /\[([^\]]+)\],\s+[Ss]ections?\s+(\d+(?:\.\d+)*)(?=[\s,.;)]|$)/g,
+      sectionGroup: 2,
+      documentGroup: 1,
+    },
+    {
+      pattern: /\[([^\]]+)\]\s+\([Ss]ections?\s+(\d+(?:\.\d+)*)\)/g,
       sectionGroup: 2,
       documentGroup: 1,
     },

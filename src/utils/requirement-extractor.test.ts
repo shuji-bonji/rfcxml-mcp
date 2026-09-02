@@ -302,3 +302,49 @@ describe('要求 ID ラベルによる重複（RFC 1122 系）', () => {
     expect(requirements[0].text).not.toBe(requirements[1].text);
   });
 });
+
+describe('要件の構成要素が途中で切れないこと', () => {
+  const sectionOf = (content: string, position: number): Section[] => [
+    {
+      number: '5.1',
+      anchor: 'section-5.1',
+      title: 'Overview',
+      content: [
+        {
+          type: 'text',
+          content,
+          requirements: [{ level: 'MUST', position }],
+          crossReferences: [],
+        },
+      ],
+      subsections: [],
+    },
+  ];
+
+  it('action が節番号のピリオドで切れない', () => {
+    const content =
+      'a client MUST mask all frames that it sends to the server (see Section 5.3 for further details).  (Note that masking is done.)';
+    const [requirement] = extractRequirementsFromSections(
+      sectionOf(content, content.indexOf('MUST'))
+    );
+
+    expect(requirement.text).toBe(
+      'a client MUST mask all frames that it sends to the server (see Section 5.3 for further details).'
+    );
+    expect(requirement.action).toBe(
+      'mask all frames that it sends to the server (see Section 5.3 for further details)'
+    );
+  });
+
+  it('condition が括弧内のカンマで切れない', () => {
+    const content =
+      "If this fails (e.g., the server's certificate could not be verified), then the client MUST fail the connection.";
+    const [requirement] = extractRequirementsFromSections(
+      sectionOf(content, content.indexOf('MUST'))
+    );
+
+    expect(requirement.condition).toBe(
+      "this fails (e.g., the server's certificate could not be verified)"
+    );
+  });
+});
