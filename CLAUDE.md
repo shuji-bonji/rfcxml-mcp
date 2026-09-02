@@ -135,6 +135,28 @@ XML の `anchor`（`section-3.5`）と `number`（`3.5`）が混在する。`src
 
 RFC 8650 (2019年12月) 以降は RFCXML v3 が確実に利用可能。それ以前はテキストフォールバック（`src/config.ts` の `RFC_CONFIG.xmlAvailableFrom`）。
 
+### 要求 ID ラベルと重複排除
+
+RFC 1122 の系譜を引く RFC（RFC 9293 など）は本文に `(MUST-14)` `(MAY-3)` という
+要求 ID ラベルを埋め込む。`\bMUST\b` はハイフンの直前でも単語境界が成立するため、
+キーワード走査はラベルにも一致する。**これは意図した挙動である**。
+RFC 9293 §3.7.1 の MUST-67 のように、BCP 14 キーワードを持たずラベルだけで要求を
+示す文があり、ラベルを除外するとこれを取りこぼす。
+
+代わりに `extractRequirementsFromSections`（`src/utils/requirement-extractor.ts`）で
+「セクション + レベル + 要件文」を鍵に重複を排除する。文が同一なら要件としても
+同一なので、最初の 1 件だけを残す。新しい抽出経路を足すときはこの不変条件を壊さないこと。
+
+### `validate_statement` は判定器ではない
+
+- `isValid` は三値（`true` / `false` / `null`）。最上位マッチのスコアが
+  `MATCHING_LIMITS.MIN_SCORE_FOR_VERDICT` に届かなければ `null` を返す。
+  `true` を準拠の証明として扱わないこと。
+- 矛盾検出は要件文全体ではなく `requiredActionOf()`（キーワードより後ろ）だけを見る。
+  条件節の否定を要求アクションと取り違えないための不変条件である。
+- `NEGATION_PAIRS` に一般的な動詞（send / receive など）を足すときは `generic: true` を
+  付ける。動詞以外に共通する語を 1 つ以上求めるようになり、誤検出を抑えられる。
+
 ### `<references>` の入れ子
 
 `collectReferenceSections()` で再帰的にフラット化して normative/informative を分離する。

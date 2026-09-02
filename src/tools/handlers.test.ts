@@ -15,6 +15,7 @@ import {
   clearParseCache,
 } from './handlers.js';
 import { clearCache } from '../services/rfc-fetcher.js';
+import { MATCHING_LIMITS } from '../utils/statement-matcher.js';
 
 // モック用のサンプル XML
 const mockRFCXML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -599,8 +600,34 @@ describe('handleValidateStatement', () => {
 
     expect(result.rfc).toBe(9999);
     expect(result.statement).toBeDefined();
-    expect(typeof result.isValid).toBe('boolean');
+    // isValid は三値。判断できるだけの一致が無ければ null を返す
+    expect([true, false, null]).toContain(result.isValid);
     expect(Array.isArray(result.matchingRequirements)).toBe(true);
+  });
+
+  it('should return isValid=null when nothing matches', async () => {
+    const result = await handleValidateStatement({
+      rfc: 9999,
+      statement: 'サーバは受信したフレームをそのまま返す',
+    });
+
+    // 一致が無いのに「準拠している」と主張してはならない
+    expect(result.matchingRequirements).toHaveLength(0);
+    expect(result.isValid).toBeNull();
+    expect(result._verdictNote).toContain('not a statement of compliance');
+  });
+
+  it('should return isValid=null when the only matches are weak', async () => {
+    const result = await handleValidateStatement({
+      rfc: 9999,
+      statement: 'data',
+    });
+
+    if (result.matchingRequirements.length > 0) {
+      const topScore = result.matchingRequirements[0]._matchScore;
+      expect(topScore).toBeLessThan(MATCHING_LIMITS.MIN_SCORE_FOR_VERDICT);
+    }
+    expect(result.isValid).toBeNull();
   });
 
   it('should find matching requirements', async () => {

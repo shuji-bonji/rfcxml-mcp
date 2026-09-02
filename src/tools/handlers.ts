@@ -23,7 +23,7 @@ import type {
   ContentBlock,
   ReferencedByEntry,
 } from '../types/index.js';
-import { matchStatement } from '../utils/statement-matcher.js';
+import { matchStatement, MATCHING_LIMITS } from '../utils/statement-matcher.js';
 
 // Re-export clearParseCache for testing
 export { clearParseCache };
@@ -366,10 +366,22 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
     { maxResults: 10 }
   );
 
+  // 判定を下してよいだけの根拠があるか。
+  // 一致が無い、または最上位の一致が弱いときは true/false を主張しない。
+  const topScore = matches.length > 0 ? matches[0].score : 0;
+  const hasVerdictEvidence = topScore >= MATCHING_LIMITS.MIN_SCORE_FOR_VERDICT;
+  const isValid: boolean | null = hasVerdictEvidence ? conflicts.length === 0 : null;
+
   // Build suggestions
   const suggestions: string[] = [];
   if (matches.length === 0) {
-    suggestions.push('No matching requirements found. Try different keywords.');
+    suggestions.push(
+      "No matching requirements found. Matching is English keyword based; try the RFC's own wording."
+    );
+  } else if (!hasVerdictEvidence) {
+    suggestions.push(
+      'Matches are too weak to judge. Name the subject (e.g., "client", "server") and the action verb.'
+    );
   }
   if (conflicts.length > 0) {
     suggestions.push(
@@ -389,7 +401,11 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
       detectedLevel: statementLevel,
       detectedSubject: statementSubject,
     },
-    isValid: conflicts.length === 0,
+    isValid,
+    _verdictNote:
+      isValid === null
+        ? 'isValid is null: no requirement matched strongly enough to judge. This is not a statement of compliance.'
+        : undefined,
     matchingRequirements: matches.map((m) => ({
       ...m.requirement,
       _matchScore: m.score,

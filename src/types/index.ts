@@ -247,7 +247,11 @@ export interface ValidateStatementArgs {
 }
 
 export interface ValidationResult {
-  isValid: boolean;
+  /**
+   * 判定結果。`null` は「判断できるだけの一致が無かった」を表す。
+   * `true` を準拠の証明として扱わないこと（本サーバは適合判定器ではない）。
+   */
+  isValid: boolean | null;
   matchingRequirements: Requirement[];
   conflicts: Requirement[];
   suggestions?: string[];

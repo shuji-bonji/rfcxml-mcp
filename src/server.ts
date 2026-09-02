@@ -26,7 +26,8 @@ import { PACKAGE_INFO } from './config.js';
  *
  * 1. このサーバが「適合判定器」だと読まれること。
  *    `validate_statement` は RFC 本文中の BCP 14 キーワードと文を突き合わせるだけで、
- *    実装が適合しているかどうかの判定は返さない。
+ *    実装が適合しているかどうかの判定は返さない。`isValid` が三値であること
+ *    （null = 判断できるだけの一致が無い）もここで宣言する。
  * 2. 空の結果が「そのような規定は存在しない」と読まれること。
  *    RFC 8650 より前の RFC には公式 XML がなくテキストにフォールバックするため、
  *    取得できる範囲がツールごとに変わる。
@@ -36,7 +37,7 @@ import { PACKAGE_INFO } from './config.js';
 const INSTRUCTIONS = `This server is a structured READER of published RFCs. It is not a conformance judge and not a web search.
 
 It does NOT do the following:
-- It does not decide whether an implementation conforms to an RFC. \`validate_statement\` matches a sentence against the BCP 14 keywords found in the RFC text and returns the matched requirements; the verdict is yours.
+- It does not decide whether an implementation conforms to an RFC. \`validate_statement\` matches a sentence against the BCP 14 keywords found in the RFC text and returns the matched requirements; the verdict is yours. Its \`isValid\` is three-valued: \`null\` means no requirement matched strongly enough to judge, and \`true\` means only that no contradiction was detected among the matches — neither is a statement of compliance.
 - It does not cover Internet-Drafts or non-RFC documents. Only published RFCs are reachable.
 - It does not fetch arbitrary URLs. Sources are fixed to rfc-editor.org and the IETF Datatracker API.
 
@@ -45,6 +46,7 @@ For keyword search across IETF documents and for Internet-Drafts, use the ietf M
 An empty result means "this RFC's text did not yield a match in the requested scope", NOT "no such requirement exists". In particular:
 - RFCs numbered below 8650 usually have no official RFCXML. The text parser is used instead: \`get_related_sections\` is limited, and \`get_rfc_dependencies\` may return placeholder titles/anchors. Every result carries \`_source\` and, where relevant, \`_sourceNote\` — read them before concluding.
 - Requirement extraction is keyword-based (RFC 2119 / RFC 8174). A requirement written without those keywords is not reported.
+- Matching is English keyword based. \`validate_statement\` will not match a statement written in another language; phrase it in the RFC's own wording.
 
 Costly options: \`includeAuthors=true\` on \`get_rfc_structure\` adds 1+N Datatracker requests, and \`includeContent=true\` returns the full section bodies.`;
 
