@@ -2,6 +2,61 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-09-02
+
+v0.6.0 を実機で試用して見つかった 2 件の不具合を修正した。どちらも SDK 移行とは
+無関係で、以前から存在していた抽出・判定ロジックの問題である。
+
+### Fixed
+
+- **同じ要件が二重に出る問題** (`get_requirements` / `generate_checklist` /
+  `validate_statement`):
+  - 1 つの文に同じレベルのキーワードが 2 回現れると、マーカーが 2 個立って
+    同じ文が 2 件の要件として出力されていた。RFC 1122 の系譜を引く RFC は本文に
+    `(MUST-14)` `(MAY-3)` という要求 ID ラベルを埋め込むため、`\bMUST\b` が
+    ラベル内の MUST にも一致してこれが常時起きていた。
+  - `extractRequirementsFromSections` に「セクション + レベル + 要件文」を鍵とする
+    重複排除を入れた。文が同一なら要件としても同一なので、最初の 1 件だけを残す。
+  - 実測 (全文): RFC 9293 199 件 → 126 件（MUST 112 → 58）、
+    RFC 6455 204 件 → 199 件、RFC 9110 438 件 → 436 件。
+    RFC 9293 §3.7.1 のチェックリストは 10 項目 → 6 項目。
+  - **ラベルをキーワード走査から除外する方法は採らなかった**。RFC 9293 §3.7.1 の
+    MUST-67 のように、BCP 14 キーワードを持たずラベルだけで要求を示す文があり、
+    除外するとこれを取りこぼす。ラベルは拾ったうえで重複排除する。
+- **`validate_statement` が根拠なしに判定を主張する問題**:
+  - `isValid` を `boolean` から `boolean | null` へ変更した。最上位マッチのスコアが
+    `MATCHING_LIMITS.MIN_SCORE_FOR_VERDICT` (7) に届かないときは `null` を返す。
+    以前は一致が 0 件でも `conflicts.length === 0` から `isValid: true` を返しており、
+    「該当なし」が「準拠している」と読めてしまっていた。`isValid` が `null` のときは
+    `_verdictNote` でその旨を明示する。
+  - 矛盾検出が要件文全体を見ていたため、条件節の無関係な否定を要求アクションと
+    取り違えていた。RFC 6455 §5.1 に準拠する
+    "The server sends unmasked frames to the client" が、§4.2.1 の条件節
+    "finds that the client did not send a handshake" と衝突したと報告されていた。
+    キーワードより後ろ（`requiredActionOf`）だけを見るように変更した。
+  - `send` / `receive` / `include` のような一般的な動詞では、動詞が一致しただけの
+    当たりを落とすようにした（動詞以外に共通する語を 1 つ以上求める）。
+    `mask` / `encrypt` / `validate` のように動詞自体が具体的なものには課さない。
+  - 矛盾の理由文が定型だったのを、「主張側のどの否定表現が、要求側のどの動詞に
+    反するか」を名指しする形に変えた。
+
+### Changed
+
+- **`instructions` と `validate_statement` の説明を更新**: `isValid` が三値であること、
+  マッチングが英語キーワードベースであることを明記した。日本語で書いた主張は
+  一致しない。
+- **`Requirement.action` に依存しない矛盾検出**: `requiredActionOf()` を追加。
+  `action` は「キーワード直後から最初の句読点まで」を狙う正規表現で作られるが、
+  RFC 本文は 72 桁で折り返されるため改行に阻まれ、テキスト経路では大半が
+  `undefined` になっていた。
+
+### Added
+
+- **テストを 184 件から 198 件へ**: 要求 ID ラベル、ラベルのみの要求、同一文の重複、
+  条件節の誤検出、一般的な動詞の誤検出、`requiredActionOf` の各ケース。
+- **E2E テストを 19 件から 23 件へ**: 誤検出しないこと、一致が無いとき `isValid` が
+  `null` になること、`get_requirements` と `generate_checklist` に重複が無いこと。
+
 ## [0.6.0] - 2026-09-02
 
 MCP SDK を v1 (`@modelcontextprotocol/sdk`) から v2 (`@modelcontextprotocol/server` /

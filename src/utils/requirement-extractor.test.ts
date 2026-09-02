@@ -4,7 +4,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { extractRequirementsFromSections } from './requirement-extractor.js';
-import type { Section } from '../types/index.js';
+import { createRequirementRegex } from '../constants.js';
+import type { RequirementLevel, Section } from '../types/index.js';
 
 // テスト用セクションデータ
 const testSections: Section[] = [
@@ -169,5 +170,135 @@ describe('extractRequirementsFromSections', () => {
     });
     expect(result1.length).toBe(result2.length);
     expect(result1[0]?.level).toBe(result2[0]?.level);
+  });
+});
+
+describe('要求 ID ラベルによる重複（RFC 1122 系）', () => {
+  /**
+   * RFC 9293 §3.7.1 の実文。`(MUST-14)` というラベルが本文に埋め込まれている。
+   * v0.6.0 以前は `\bMUST\b` がラベル内の MUST にも一致し、マーカーが 2 個立って
+   * 同じ文が 2 件の要件として出力されていた。
+   */
+  const labelledText =
+    'TCP endpoints MUST implement both sending and receiving the MSS Option (MUST-14).';
+
+  it('キーワード走査はラベルも拾う（ラベルのみで示される要求を残すため）', () => {
+    const regex = createRequirementRegex();
+    const levels = [...labelledText.matchAll(regex)].map((m) => m[1]);
+
+    // 本文の MUST と (MUST-14) の 2 個。重複排除は後段で行う
+    expect(levels).toEqual(['MUST', 'MUST']);
+  });
+
+  it('ラベルだけで示される要求を落とさない', () => {
+    // RFC 9293 §3.7.1 の MUST-67。この文に BCP 14 キーワードは無く、
+    // ラベルだけが要求であることを示している。
+    const labelOnly =
+      'where MMS_R is the maximum size for a transport-layer message that can be received (MUST-67).';
+    const sections: Section[] = [
+      {
+        number: 'section-3.7.1',
+        anchor: 'section-3.7.1',
+        title: 'Maximum Segment Size Option',
+        content: [
+          {
+            type: 'text',
+            content: labelOnly,
+            requirements: [...labelOnly.matchAll(createRequirementRegex())].map((m) => ({
+              level: m[1] as RequirementLevel,
+              position: m.index,
+            })),
+            crossReferences: [],
+          },
+        ],
+        subsections: [],
+      },
+    ];
+
+    const requirements = extractRequirementsFromSections(sections);
+
+    expect(requirements).toHaveLength(1);
+    expect(requirements[0].level).toBe('MUST');
+  });
+
+  it('ラベル付きの文から要件が 1 件だけ出る', () => {
+    const sections: Section[] = [
+      {
+        number: 'section-3.7.1',
+        anchor: 'section-3.7.1',
+        title: 'Maximum Segment Size Option',
+        content: [
+          {
+            type: 'text',
+            content: labelledText,
+            requirements: [...labelledText.matchAll(createRequirementRegex())].map((m) => ({
+              level: m[1] as RequirementLevel,
+              position: m.index,
+            })),
+            crossReferences: [],
+          },
+        ],
+        subsections: [],
+      },
+    ];
+
+    const requirements = extractRequirementsFromSections(sections);
+
+    expect(requirements).toHaveLength(1);
+    expect(requirements[0].level).toBe('MUST');
+  });
+
+  it('同じ文に同レベルのマーカーが 2 個立っても 1 件に畳む', () => {
+    // パーサ側をすり抜けた場合の保険。マーカーを直接 2 個与える。
+    const sections: Section[] = [
+      {
+        number: 'section-3.7.1',
+        anchor: 'section-3.7.1',
+        title: 'Maximum Segment Size Option',
+        content: [
+          {
+            type: 'text',
+            content: labelledText,
+            requirements: [
+              { level: 'MUST', position: 14 },
+              { level: 'MUST', position: 70 },
+            ],
+            crossReferences: [],
+          },
+        ],
+        subsections: [],
+      },
+    ];
+
+    const requirements = extractRequirementsFromSections(sections);
+
+    expect(requirements).toHaveLength(1);
+  });
+
+  it('別の文であれば同レベルでも畳まない', () => {
+    const content = 'The client MUST send data. The client MUST close the connection.';
+    const sections: Section[] = [
+      {
+        number: '5',
+        title: 'Framing',
+        content: [
+          {
+            type: 'text',
+            content,
+            requirements: [...content.matchAll(createRequirementRegex())].map((m) => ({
+              level: m[1] as RequirementLevel,
+              position: m.index,
+            })),
+            crossReferences: [],
+          },
+        ],
+        subsections: [],
+      },
+    ];
+
+    const requirements = extractRequirementsFromSections(sections);
+
+    expect(requirements).toHaveLength(2);
+    expect(requirements[0].text).not.toBe(requirements[1].text);
   });
 });

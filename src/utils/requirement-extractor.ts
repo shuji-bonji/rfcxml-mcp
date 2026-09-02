@@ -75,6 +75,22 @@ export function extractRequirementsFromSections(
   const requirements: Requirement[] = [];
   let idCounter = 1;
 
+  /**
+   * 出力済みの要件を記録する。キーは「セクション + レベル + 要件文」。
+   *
+   * 1 つの文に同じレベルのキーワードが 2 回現れると（例: 要求 ID ラベルや
+   * "MUST X and MUST Y"）、マーカーが 2 個立って同じ文が 2 件出力される。
+   * 文が同一なら要件としても同一なので、最初の 1 件だけを残す。
+   */
+  const seen = new Set<string>();
+
+  function isDuplicate(sectionId: string, level: string, text: string): boolean {
+    const key = `${sectionId}\u0000${level}\u0000${text}`;
+    if (seen.has(key)) return true;
+    seen.add(key);
+    return false;
+  }
+
   function processSection(section: Section, path: string) {
     const sectionId = section.number || section.anchor || path;
 
@@ -91,6 +107,10 @@ export function extractRequirementsFromSections(
             }
 
             const sentence = extractSentence(block.content, marker.position);
+            if (isDuplicate(sectionId, marker.level, sentence.trim())) {
+              continue;
+            }
+
             const components = options.parseComponents
               ? parseRequirementComponents(sentence, marker.level)
               : {};
@@ -112,6 +132,10 @@ export function extractRequirementsFromSections(
           for (const item of block.items) {
             for (const marker of item.requirements) {
               if (filter?.level && marker.level !== filter.level) {
+                continue;
+              }
+
+              if (isDuplicate(sectionId, marker.level, item.content.trim())) {
                 continue;
               }
 

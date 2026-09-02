@@ -387,6 +387,110 @@ async function testValidateStatement(client) {
   } catch (e) {
     logResult(toolName, 'Compliant statement', 'FAIL', { error: e.message });
   }
+
+  // 7-c: 条件節の無関係な否定で矛盾を誤検出しないこと
+  // RFC 6455 §5.1 は "A server MUST NOT mask any frames that it sends to the client"。
+  // つまりこの文は準拠側。以前は §4.2.1 の条件節 "did not send" を拾って
+  // isValid=false を返していた。
+  try {
+    const res = await callTool(client, toolName, {
+      rfc: 6455,
+      statement: 'The server sends unmasked frames to the client',
+    });
+    const noConflicts = (res.conflicts?.length ?? 0) === 0;
+
+    logResult(toolName, 'No false conflict (server unmasked)', noConflicts ? 'PASS' : 'FAIL', {
+      note: `isValid=${res.isValid}, conflicts=${res.conflicts?.length}, matchingReqs=${res.matchingRequirements?.length}`,
+    });
+  } catch (e) {
+    logResult(toolName, 'No false conflict (server unmasked)', 'FAIL', { error: e.message });
+  }
+
+  // 7-d: 一致が無いときに準拠を主張しないこと
+  try {
+    const res = await callTool(client, toolName, {
+      rfc: 6455,
+      statement: 'サーバは受信したフレームをマスクせずにクライアントへ送信する',
+    });
+    const ok = res.isValid === null && (res.matchingRequirements?.length ?? 0) === 0;
+
+    logResult(toolName, 'isValid is null when nothing matches', ok ? 'PASS' : 'FAIL', {
+      note: `isValid=${res.isValid}, matchingReqs=${res.matchingRequirements?.length}, note=${res._verdictNote ? 'present' : 'absent'}`,
+    });
+  } catch (e) {
+    logResult(toolName, 'isValid is null when nothing matches', 'FAIL', { error: e.message });
+  }
+}
+
+// ========================================
+// Requirement Deduplication (RFC 1122 系ラベル)
+// ========================================
+
+/**
+ * 11. 要求 ID ラベルによる重複
+ *
+ * RFC 9293 §3.7.1 は `(MUST-14)` 等のラベルを本文に持つ。ラベル内の MUST を
+ * 拾って同じ文が 2 件出ていた回帰を、実データで確認する。
+ */
+async function testRequirementDeduplication(client) {
+  const toolName = 'dedup';
+
+  try {
+    const res = await callTool(client, 'get_requirements', { rfc: 9293, section: '3.7.1' });
+    const texts = (res.requirements || []).map((r) => `${r.level}\u0000${r.text}`);
+    const unique = new Set(texts);
+
+    logResult(
+      toolName,
+      'get_requirements has no duplicates',
+      texts.length === unique.size ? 'PASS' : 'FAIL',
+      {
+        note: `total=${texts.length}, unique=${unique.size}`,
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'get_requirements has no duplicates', 'FAIL', { error: e.message });
+  }
+
+  try {
+    const res = await callTool(client, 'generate_checklist', {
+      rfc: 9293,
+      role: 'server',
+      sections: ['3.7.1'],
+    });
+    // 見出し（MUST / SHOULD / MAY）ごとに重複を見る。
+    // 1 つの文が SHLD-5 と MAY-3 の両方を含む場合、SHOULD 節と MAY 節の
+    // 双方に出るのは正しい挙動なので、節をまたいだ重複は数えない。
+    const groups = new Map();
+    let heading = '(none)';
+    for (const line of (res.markdown || '').split('\n')) {
+      if (line.startsWith('## ')) {
+        heading = line.slice(3).trim();
+        groups.set(heading, []);
+      } else if (line.startsWith('- [ ] ')) {
+        if (!groups.has(heading)) groups.set(heading, []);
+        groups.get(heading).push(line);
+      }
+    }
+
+    const duplicated = [];
+    let total = 0;
+    for (const [name, items] of groups) {
+      total += items.length;
+      if (new Set(items).size !== items.length) duplicated.push(name);
+    }
+
+    logResult(
+      toolName,
+      'generate_checklist has no duplicates',
+      duplicated.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note: `items=${total}, duplicatedIn=[${duplicated.join(' / ')}], stats=${JSON.stringify(res.stats)}`,
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'generate_checklist has no duplicates', 'FAIL', { error: e.message });
+  }
 }
 
 // ========================================
@@ -525,6 +629,10 @@ async function main() {
 
     console.log('--- 10. input validation ---');
     await testInputValidation(client);
+    console.log('');
+
+    console.log('--- 11. requirement deduplication ---');
+    await testRequirementDeduplication(client);
     console.log('');
   } catch (e) {
     console.error('Fatal error:', e.message);

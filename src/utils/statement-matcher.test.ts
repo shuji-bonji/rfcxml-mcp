@@ -10,6 +10,7 @@ import {
   scoreRequirementMatch,
   detectConflicts,
   matchStatement,
+  requiredActionOf,
 } from './statement-matcher.js';
 import type { Requirement } from '../types/index.js';
 
@@ -271,7 +272,53 @@ describe('detectConflicts - semantic analysis', () => {
 
     expect(conflicts.length).toBeGreaterThan(0);
     expect(conflicts[0].requirement.level).toBe('MUST');
-    expect(conflicts[0].reason).toContain('contradicts');
+    // 理由文は「主張側のどの否定表現が、要求側のどの動詞に反するか」を名指しする
+    expect(conflicts[0].reason).toContain('unmask');
+    expect(conflicts[0].reason).toContain('requires "mask"');
+  });
+
+  it('should not flag a conflict from an incidental negation inside the requirement text', () => {
+    // RFC 6455 §4.2.1 の形。条件節に "did not send" があるが、要求アクションは
+    // "stop processing ..." であって「送る」ことではない。
+    // 以前は req.text 全体を見ていたため、"sends" を含む主張と誤って矛盾した。
+    const requirements: Requirement[] = [
+      {
+        level: 'MUST',
+        text: 'If the server finds that the client did not send a handshake that matches the description below, the server MUST stop processing the handshake and return an HTTP response with an appropriate error code.',
+        section: '4.2.1',
+        fullContext: '',
+        subject: 'server',
+        action:
+          'stop processing the handshake and return an HTTP response with an appropriate error code',
+      },
+    ];
+
+    const conflicts = detectConflicts(
+      'The server sends unmasked frames to the client',
+      requirements
+    );
+
+    expect(conflicts).toHaveLength(0);
+  });
+
+  it('should not flag a conflict when the requirement has no parsed action', () => {
+    // action を解析できなかった要件は、否定表現の実一致を判定できないので対象外
+    const requirements: Requirement[] = [
+      {
+        level: 'MUST',
+        text: 'If the server finds that the client did not send a handshake, processing stops.',
+        section: '4.2.1',
+        fullContext: '',
+        subject: 'server',
+      },
+    ];
+
+    const conflicts = detectConflicts(
+      'The server sends unmasked frames to the client',
+      requirements
+    );
+
+    expect(conflicts).toHaveLength(0);
   });
 
   it('should detect conflict when statement does what MUST NOT forbids (masks vs MUST NOT mask)', () => {
@@ -367,5 +414,83 @@ describe('matchStatement with semantic conflicts', () => {
     // Conflicts array indicates validity issues
     const hasConflict = result.conflicts.length > 0;
     expect(hasConflict).toBe(true);
+  });
+});
+
+describe('一般的な動詞での誤検出', () => {
+  it('動詞が send で一致しただけの矛盾を報告しない', () => {
+    // RFC 6455 §4 の形。禁止されているのは「Sec-WebSocket-Protocol ヘッダを送り返す」
+    // ことであって、フレームを送ること一般ではない。
+    const requirements: Requirement[] = [
+      {
+        level: 'MUST NOT',
+        text: 'The server MUST NOT send back a |Sec-WebSocket-Protocol| header field in its response.',
+        section: '4',
+        fullContext: '',
+        subject: 'server',
+        action: 'send back a |Sec-WebSocket-Protocol| header field in its response',
+      },
+    ];
+
+    const conflicts = detectConflicts(
+      'The server sends unmasked frames to the client',
+      requirements
+    );
+
+    expect(conflicts).toHaveLength(0);
+  });
+
+  it('動詞が具体的なら目的語が共通していなくても矛盾を報告する', () => {
+    // "validate" は動詞自体が具体的なので、目的語の共通は求めない
+    const requirements: Requirement[] = [
+      {
+        level: 'MUST',
+        text: 'The client MUST validate all input.',
+        section: '2',
+        fullContext: '',
+        subject: 'client',
+        action: 'validate all input',
+      },
+    ];
+
+    const conflicts = detectConflicts('The client skips validation for performance', requirements);
+
+    expect(conflicts.length).toBeGreaterThan(0);
+  });
+});
+
+describe('requiredActionOf', () => {
+  it('action が無いときはキーワード直後を切り出す', () => {
+    const requirement: Requirement = {
+      level: 'MUST',
+      // RFC 本文は折り返されるため action の解析が失敗しやすい
+      text: 'discussed in Section 10.3, a client MUST mask all frames that it\n   sends to the server.',
+      section: '5.1',
+      fullContext: '',
+    };
+
+    expect(requiredActionOf(requirement)).toBe('mask all frames that it\n   sends to the server.');
+  });
+
+  it('MUST は MUST NOT の一部を指さない', () => {
+    const requirement: Requirement = {
+      level: 'MUST',
+      text: 'A server MUST NOT mask frames, and a client MUST mask them.',
+      section: '5.1',
+      fullContext: '',
+    };
+
+    expect(requiredActionOf(requirement)).toBe('mask them.');
+  });
+
+  it('キーワードが見つからなければ null', () => {
+    const requirement: Requirement = {
+      level: 'MUST',
+      text: 'This sentence has no keyword.',
+      section: '1',
+      fullContext: '',
+    };
+
+    expect(requiredActionOf(requirement)).toBeNull();
   });
 });

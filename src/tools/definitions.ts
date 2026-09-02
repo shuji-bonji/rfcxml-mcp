@@ -174,7 +174,8 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'validate_statement',
-    description: 'Validate if a statement complies with RFC requirements.',
+    description:
+      "Find the RFC requirements that bear on a statement, and report detected contradictions. This does NOT decide conformance: `isValid` is three-valued (`null` = nothing matched strongly enough to judge, `false` = a contradiction was detected, `true` = none was detected among the matches). Matching is English keyword based; write the statement in the RFC's own wording.",
     inputSchema: {
       type: 'object',
       properties: {

@@ -45,6 +45,13 @@ export const REQUIREMENT_KEYWORDS: RequirementLevel[] = [
 /**
  * Create a new requirement regex instance
  * Safe for use in loops with exec() - avoids lastIndex state issues
+ *
+ * NOTE: RFC 1122 の系譜を引く RFC（RFC 9293 など）は本文に `(MUST-14)` `(MAY-3)`
+ * という要求 ID ラベルを埋め込む。`\bMUST\b` はハイフンの直前でも単語境界が
+ * 成立するため、ラベルもキーワードとして一致する。これは意図した挙動である。
+ * ラベルだけで要求を示す文（RFC 9293 §3.7.1 の MUST-67 など）を取りこぼさないため、
+ * ここでは除外しない。同じ文が二重に出る問題は
+ * `extractRequirementsFromSections` の重複排除で解決している。
  */
 export function createRequirementRegex(): RegExp {
   return new RegExp(`\\b(${REQUIREMENT_KEYWORDS.join('|')})\\b`, 'g');
