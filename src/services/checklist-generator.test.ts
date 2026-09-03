@@ -120,3 +120,64 @@ describe('role の絞り込みは複数形も見る', () => {
     expect(filterByRole(requirements, 'server').map((r) => r.id)).toEqual(['R1']);
   });
 });
+
+describe('指示語で始まる要件', () => {
+  const make = (text: string, fullContext: string) => ({
+    id: 'R-4.1-1',
+    level: 'MUST' as const,
+    section: '4.1',
+    sectionTitle: 'Client Requirements',
+    text,
+    fullContext,
+  });
+
+  it('直前の文を足す', () => {
+    // チェックリストはレベルごとに並べ替えるので、原文で隣にあった文が離れる。
+    // 「この値」が何を指すのか読めなくなる。
+    const requirement = make(
+      'The value of this header field MUST be 13.',
+      'The request MUST include a header field with the name |Sec-WebSocket-Version|. The value of this header field MUST be 13.'
+    );
+    const markdown = generateChecklistMarkdown(generateChecklist(6455, 'Test', [requirement]));
+
+    expect(markdown).toContain(
+      '|Sec-WebSocket-Version|. The value of this header field MUST be 13.'
+    );
+  });
+
+  it('案内だけの文は足さない', () => {
+    // RFC 9110 §7.1。指すものはさらに前の段落にあるので、足しても分からない。
+    const requirement = make(
+      'These forms MUST NOT be used with other methods.',
+      'See the respective method definitions for details. These forms MUST NOT be used with other methods.'
+    );
+    const markdown = generateChecklistMarkdown(generateChecklist(9110, 'Test', [requirement]));
+
+    expect(markdown).toContain('**MUST** These forms MUST NOT be used with other methods.');
+    expect(markdown).not.toContain('See the respective method definitions');
+  });
+
+  it('接続表現で始まる要件にも足す', () => {
+    // RFC 9110 §13.1.5。何でなければそうするのかが前の文にある。
+    const requirement = make(
+      'Otherwise, the recipient SHOULD process the Range header field as requested.',
+      'A recipient of an If-Range header field MUST ignore the Range header field if the validator does not match. Otherwise, the recipient SHOULD process the Range header field as requested.'
+    );
+    const markdown = generateChecklistMarkdown(generateChecklist(9110, 'Test', [requirement]));
+
+    expect(markdown).toContain(
+      'if the validator does not match. Otherwise, the recipient SHOULD process'
+    );
+  });
+
+  it('指示語で始まらない要件はそのまま', () => {
+    const requirement = make(
+      'A client MUST mask all frames.',
+      'Something else here. A client MUST mask all frames.'
+    );
+    const markdown = generateChecklistMarkdown(generateChecklist(6455, 'Test', [requirement]));
+
+    expect(markdown).toContain('**MUST** A client MUST mask all frames.');
+    expect(markdown).not.toContain('Something else here.');
+  });
+});

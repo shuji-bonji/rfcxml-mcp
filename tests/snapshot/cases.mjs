@@ -26,6 +26,13 @@ export const CASES = [
   },
   {
     // role の絞り込み。主語が取れない要件がどちらにも残っていた。
+    // 指示語で始まる要件に、直前の文が付くこと（§4.1 の
+    // "The value of this header field MUST be 13." など）。
+    name: 'checklist-6455-4.1',
+    tool: 'generate_checklist',
+    args: { rfc: 6455, sections: ['4.1'], role: 'client' },
+  },
+  {
     name: 'checklist-6455-client',
     tool: 'generate_checklist',
     args: { rfc: 6455, sections: ['5.1', '5.2', '5.3'], role: 'client' },

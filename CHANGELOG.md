@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.38] - 2026-09-03
+
+**チェックリストの項目に、何を指しているか分からないものがあった。**
+RFC 6455 のクライアントを実装するつもりでチェックリストを上から読んで見つけた。
+
+### Fixed
+
+- **指示語・接続表現で始まる項目が、単独では読めなかった**:
+  - チェックリストは**レベルごとに並べ替える**ので、原文で隣にあった文が離れる。
+    RFC 6455 §4.1 は
+
+    > The request MAY include a header field with the name |Sec-WebSocket-Protocol|.
+    > **The elements that comprise this value MUST be non-empty strings** …
+
+    と書く。前の文が MAY・この文が MUST なので、チェックリストでは別の節に
+    分かれ、**「この値」が何を指すのか読めなくなる**。
+  - 接続表現も同じ。`Otherwise, the recipient SHOULD process the Range header
+    field as requested.`（RFC 9110 §13.1.5）は、何でなければそうするのかが
+    前の文にある。`In this case, it MAY use the status code 1002`
+    （RFC 6455 §5.1）も同じ。
+  - 指示語・接続表現で始まる項目に、同じ段落の**直前の 1 文**を足す。
+  - **案内だけの文は足さない。** RFC 9110 §7.1 の
+    `These forms MUST NOT be used with other methods.` の直前は
+    `See the respective method definitions for details.` で、指すものはさらに
+    前の段落にある。足しても分からないので、そのまま出す。
+  - 実測（RFC 67 本・要件 9,870 件）: 指示語・接続表現で始まる要件 **126 件**、
+    うち **84 件**に前の文を足せた。残り 42 件は前の文が同じ段落に無いか、
+    案内だけの文だった。
+
+  **要件文そのもの（`text`）は書き換えていない。** RFC が書いた通りの文であり、
+  前の文を足すのは読み手のための編集だからである。`get_requirements` の
+  `text` と `validate_statement` の照合は変わらない。
+
+### Added
+
+- **出力見本を 32 本から 33 本へ**: `checklist-6455-4.1`。
+- **テストを 471 件から 475 件へ**。
+
+### 読んで、直さなかったもの
+
+RFC 6455 のクライアント側チェックリスト（§4.1 で 43 項目、§5.5〜7.1 で 41 項目）を
+実装者として上から読んだ。上の 1 件のほかは、そのまま作業に使える形だった。
+
+- `The client MUST validate the server's response as follows:` はコロンで終わるが、
+  続く 5 つの検査は独立した項目として並んでいる。v0.6.28 で「番号付きの項目は
+  取り込まない」と決めたためで、中身は落ちていない。
+- `The server MUST close the underlying TCP connection immediately; the client
+  SHOULD wait …` が client と server の両方に出る。1 つの文が両方の役割に
+  触れているためで、正しい。
+
 ## [0.6.37] - 2026-09-03
 
 **不具合は出なかった。** 代わりに、直近 3 版を見つけた調べ方を関門にした。

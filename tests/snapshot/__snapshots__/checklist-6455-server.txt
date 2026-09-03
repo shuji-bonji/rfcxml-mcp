@@ -29,7 +29,7 @@ Generated: <generatedAt>
 
 ## Optional Requirements (MAY / OPTIONAL)
 
-- [ ] **MAY** In this case, a server MAY send a Close frame with a status code of 1002 (protocol error) as defined in Section 7.4.1. (§5.1)
+- [ ] **MAY** (Note that masking is done whether or not the WebSocket Protocol is running over TLS.) The server MUST close the connection upon receiving a frame that is not masked. In this case, a server MAY send a Close frame with a status code of 1002 (protocol error) as defined in Section 7.4.1. (§5.1)
 - [ ] **MAY** A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1). (§5.1)
 - [ ] **MAY** The first fragment MAY also be the final fragment. (§5.2)
 

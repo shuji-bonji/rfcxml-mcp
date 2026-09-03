@@ -52,7 +52,7 @@ npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
 npm run audit         # 実物の RFC 67 本に不変条件 46 種を当てる
 npm run crosscheck    # 7 つのツールの出力が互いに矛盾しないかを見る
-npm run snapshot      # 代表的な出力 32 本を固定し、差分を見る
+npm run snapshot      # 代表的な出力 33 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
 npm start             # MCP サーバー起動
@@ -70,11 +70,11 @@ publish の前に、次を順に通す。
 
 | 手順 | 見るもの |
 |---|---|
-| `npm test` | 書いた条件の取りこぼし（471 件） |
+| `npm test` | 書いた条件の取りこぼし（475 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
 | `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 46 種） |
 | `npm run crosscheck` | 出力どうしの食い違い（RFC 67 本 × 10 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 32 本） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 33 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -828,6 +828,26 @@ RFC 6455 §5.1 は
 91.8% → 85.2%。`role` の絞り込みは `subject` が無ければ本文を見るので影響しない。
 
 残る短い主語（`ua` 35 件、`ca` 6 件、`tu` 4 件、`dn` 3 件）は本物の略語である。
+
+### チェックリストは並べ替えるので、指示語の指すものが離れる
+
+チェックリストはレベルごとに並べ替える。原文で隣にあった文が別の節に分かれ、
+**指示語が何を指すのか読めなくなる**。
+
+| 例 | 何が分からないか |
+|---|---|
+| `The elements that comprise this value MUST be non-empty strings`（RFC 6455 §4.1） | 前の文が MAY なので別の節に行き、「この値」が何か分からない |
+| `Otherwise, the recipient SHOULD process the Range header field as requested.`（RFC 9110 §13.1.5） | 何でなければそうするのか |
+| `In this case, it MAY use the status code 1002`（RFC 6455 §5.1） | どの場合か |
+
+`withAntecedent()` が、同じ段落の直前の 1 文を足す。**案内だけの文は足さない** —
+RFC 9110 §7.1 の直前は `See the respective method definitions for details.` で、
+指すものはさらに前の段落にある。
+
+実測（RFC 67 本）: 指示語・接続表現で始まる要件 126 件、うち 84 件に足せた。
+
+**要件文そのもの（`text`）は書き換えない。** RFC が書いた通りの文であり、前の文を
+足すのは読み手のための編集である。`validate_statement` の照合は変わらない。
 
 ### `generate_checklist` に同じ文が 2 回出るのは正しい
 

@@ -104,9 +104,70 @@ export function generateChecklist(
  * ついての項目なのか読み取れなかった。
  */
 function renderChecklistItem(item: ChecklistItem): string {
-  const { level, text, section } = item.requirement;
-  return `- [ ] **${level}** ${text} (§${section})`;
+  const { level, section } = item.requirement;
+  return `- [ ] **${level}** ${withAntecedent(item.requirement)} (§${section})`;
 }
+
+/**
+ * 指示語で始まる要件文に、直前の文を足す。
+ *
+ * チェックリストはレベルごとに並べ替えるので、原文で隣にあった文が離れる。
+ * RFC 6455 §4.1 の
+ *
+ * > The request MAY include a header field with the name |Sec-WebSocket-Protocol|.
+ * > **The elements that comprise this value MUST be non-empty strings** …
+ *
+ * は、前の文が MAY・この文が MUST なので、チェックリストでは別の節に分かれる。
+ * **「この値」が何を指すのか読めなくなる。** RFC 9110 §7.1 の
+ * `These forms MUST NOT be used with other methods.` も同じで、
+ * 「これらの形式」が何かは前の文にある。
+ *
+ * 実測（RFC 67 本・要件 9,870 件）: 指示語で始まる要件は 57 件。
+ *
+ * 要件文そのもの（`text`）は書き換えない。RFC が書いた通りの文であり、
+ * 前の文を足すのは読み手のための編集だからである。ここは表示だけを直す。
+ */
+function withAntecedent(requirement: Requirement): string {
+  const text = requirement.text.trim();
+  if (!DEICTIC_OPENER.test(text)) return text;
+
+  const context = requirement.fullContext ?? '';
+  const at = context.indexOf(text);
+  if (at <= 0) return text;
+
+  const before = context.slice(0, at).trim();
+  const previous = lastSentence(before);
+  if (!previous || previous.length > ANTECEDENT_MAX_LENGTH) return text;
+  // 案内の文を足しても指すものは分からない。RFC 9110 §7.1 の
+  // `These forms MUST NOT be used with other methods.` の直前は
+  // "See the respective method definitions for details." で、指すものは
+  // さらに前の段落にある。足さずに、そのまま出す。
+  if (POINTER_SENTENCE.test(previous)) return text;
+
+  return `${previous} ${text}`;
+}
+
+/** 直前の 1 文を返す。取れなければ空文字。 */
+function lastSentence(text: string): string {
+  const parts = text.split(/(?<=[.!?])\s+/).filter((part) => part.trim().length > 0);
+  return parts.length > 0 ? parts[parts.length - 1].trim() : '';
+}
+
+/**
+ * 指示語・接続表現で始まる書き出し。これで始まる文は、単独では何を指すか読めない。
+ *
+ * `Otherwise, the recipient SHOULD process the Range header field as requested.`
+ * は、何でなければそうするのかが前の文にある（RFC 9110 §13.1.5）。
+ * 実測（RFC 67 本）: 指示語 50 件、接続表現 76 件。
+ */
+const DEICTIC_OPENER =
+  /^(?:The (?:value|elements|contents|format|length|meaning|syntax|name|type|order|result)s?\s+(?:of\s+)?(?:that|this|these|those|it|its)\b|This\s+(?:value|field|header|parameter|option|attribute|element|version|rule|requirement)\b|These\s+(?:values|fields|elements|forms|rules)\b|Such\b|To do so\b|In (?:this|that|such) cases?\b|In this case\b|Otherwise\b|To that end\b|If so\b)/i;
+
+/** 案内だけの文。足しても指すものが分からない。 */
+const POINTER_SENTENCE = /^(?:See|Refer|For (?:more|further|details|the)|Note that)\b/i;
+
+/** 足す前の文の長さの上限。長い文を足すと、項目が読めなくなる。 */
+const ANTECEDENT_MAX_LENGTH = 200;
 
 /**
  * 同じ行が 2 度出ないようにする。
