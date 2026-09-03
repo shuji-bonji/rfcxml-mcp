@@ -1,0 +1,614 @@
+# structure-8446
+
+tool: get_rfc_structure
+args: {"rfc":8446}
+
+--- json ---
+{
+  "metadata": {
+    "title": "The Transport Layer Security (TLS) Protocol Version 1.3",
+    "number": 8446,
+    "date": "2018-08",
+    "category": "std",
+    "stream": "IETF",
+    "abstract": "This document specifies version 1.3 of the Transport Layer Security (TLS) protocol. TLS allows client/server applications to communicate over the Internet in a way that is designed to prevent eavesdropping, tampering, and message forgery.\n\n This document updates RFCs 5705 and 6066, and obsoletes RFCs 5077, 5246, and 6961. This document also specifies new requirements for TLS 1.2 implementations."
+  },
+  "sections": [
+    {
+      "number": "1",
+      "title": "Introduction",
+      "subsections": [
+        {
+          "number": "1.1",
+          "title": "Conventions and Terminology"
+        },
+        {
+          "number": "1.2",
+          "title": "Major Differences from TLS 1.2"
+        },
+        {
+          "number": "1.3",
+          "title": "Updates Affecting TLS 1.2"
+        }
+      ]
+    },
+    {
+      "number": "2",
+      "title": "Protocol Overview",
+      "subsections": [
+        {
+          "number": "2.1",
+          "title": "Incorrect DHE Share"
+        },
+        {
+          "number": "2.2",
+          "title": "Resumption and Pre-Shared Key (PSK)"
+        },
+        {
+          "number": "2.3",
+          "title": "0-RTT Data"
+        }
+      ]
+    },
+    {
+      "number": "3",
+      "title": "Presentation Language",
+      "subsections": [
+        {
+          "number": "3.1",
+          "title": "Basic Block Size"
+        },
+        {
+          "number": "3.2",
+          "title": "Miscellaneous"
+        },
+        {
+          "number": "3.3",
+          "title": "Numbers"
+        },
+        {
+          "number": "3.4",
+          "title": "Vectors"
+        },
+        {
+          "number": "3.5",
+          "title": "Enumerateds"
+        },
+        {
+          "number": "3.6",
+          "title": "Constructed Types"
+        },
+        {
+          "number": "3.7",
+          "title": "Constants"
+        },
+        {
+          "number": "3.8",
+          "title": "Variants"
+        }
+      ]
+    },
+    {
+      "number": "4",
+      "title": "Handshake Protocol",
+      "subsections": [
+        {
+          "number": "4.1",
+          "title": "Key Exchange Messages",
+          "subsections": [
+            {
+              "number": "4.1.1",
+              "title": "Cryptographic Negotiation"
+            },
+            {
+              "number": "4.1.2",
+              "title": "Client Hello"
+            },
+            {
+              "number": "4.1.3",
+              "title": "Server Hello"
+            },
+            {
+              "number": "4.1.4",
+              "title": "Hello Retry Request"
+            }
+          ]
+        },
+        {
+          "number": "4.2",
+          "title": "Extensions",
+          "subsections": [
+            {
+              "number": "4.2.1",
+              "title": "Supported Versions"
+            },
+            {
+              "number": "4.2.2",
+              "title": "Cookie"
+            },
+            {
+              "number": "4.2.3",
+              "title": "Signature Algorithms"
+            },
+            {
+              "number": "4.2.4",
+              "title": "Certificate Authorities"
+            },
+            {
+              "number": "4.2.5",
+              "title": "OID Filters"
+            },
+            {
+              "number": "4.2.6",
+              "title": "Post-Handshake Client Authentication"
+            },
+            {
+              "number": "4.2.7",
+              "title": "Supported Groups"
+            },
+            {
+              "number": "4.2.8",
+              "title": "Key Share",
+              "subsections": [
+                {
+                  "number": "4.2.8.1",
+                  "title": "Diffie-Hellman Parameters"
+                },
+                {
+                  "number": "4.2.8.2",
+                  "title": "ECDHE Parameters"
+                }
+              ]
+            },
+            {
+              "number": "4.2.9",
+              "title": "Pre-Shared Key Exchange Modes"
+            },
+            {
+              "number": "4.2.10",
+              "title": "Early Data Indication"
+            },
+            {
+              "number": "4.2.11",
+              "title": "Pre-Shared Key Extension",
+              "subsections": [
+                {
+                  "number": "4.2.11.1",
+                  "title": "Ticket Age"
+                },
+                {
+                  "number": "4.2.11.2",
+                  "title": "PSK Binder"
+                },
+                {
+                  "number": "4.2.11.3",
+                  "title": "Processing Order"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "number": "4.3",
+          "title": "Server Parameters",
+          "subsections": [
+            {
+              "number": "4.3.1",
+              "title": "Encrypted Extensions"
+            },
+            {
+              "number": "4.3.2",
+              "title": "Certificate Request"
+            }
+          ]
+        },
+        {
+          "number": "4.4",
+          "title": "Authentication Messages",
+          "subsections": [
+            {
+              "number": "4.4.1",
+              "title": "The Transcript Hash"
+            },
+            {
+              "number": "4.4.2",
+              "title": "Certificate",
+              "subsections": [
+                {
+                  "number": "4.4.2.1",
+                  "title": "OCSP Status and SCT Extensions"
+                },
+                {
+                  "number": "4.4.2.2",
+                  "title": "Server Certificate Selection"
+                },
+                {
+                  "number": "4.4.2.3",
+                  "title": "Client Certificate Selection"
+                },
+                {
+                  "number": "4.4.2.4",
+                  "title": "Receiving a Certificate Message"
+                }
+              ]
+            },
+            {
+              "number": "4.4.3",
+              "title": "Certificate Verify"
+            },
+            {
+              "number": "4.4.4",
+              "title": "Finished"
+            }
+          ]
+        },
+        {
+          "number": "4.5",
+          "title": "End of Early Data"
+        },
+        {
+          "number": "4.6",
+          "title": "Post-Handshake Messages",
+          "subsections": [
+            {
+              "number": "4.6.1",
+              "title": "New Session Ticket Message"
+            },
+            {
+              "number": "4.6.2",
+              "title": "Post-Handshake Authentication"
+            },
+            {
+              "number": "4.6.3",
+              "title": "Key and Initialization Vector Update"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "5",
+      "title": "Record Protocol",
+      "subsections": [
+        {
+          "number": "5.1",
+          "title": "Record Layer"
+        },
+        {
+          "number": "5.2",
+          "title": "Record Payload Protection"
+        },
+        {
+          "number": "5.3",
+          "title": "Per-Record Nonce"
+        },
+        {
+          "number": "5.4",
+          "title": "Record Padding"
+        },
+        {
+          "number": "5.5",
+          "title": "Limits on Key Usage"
+        }
+      ]
+    },
+    {
+      "number": "6",
+      "title": "Alert Protocol",
+      "subsections": [
+        {
+          "number": "6.1",
+          "title": "Closure Alerts"
+        },
+        {
+          "number": "6.2",
+          "title": "Error Alerts"
+        }
+      ]
+    },
+    {
+      "number": "7",
+      "title": "Cryptographic Computations",
+      "subsections": [
+        {
+          "number": "7.1",
+          "title": "Key Schedule"
+        },
+        {
+          "number": "7.2",
+          "title": "Updating Traffic Secrets"
+        },
+        {
+          "number": "7.3",
+          "title": "Traffic Key Calculation"
+        },
+        {
+          "number": "7.4",
+          "title": "(EC)DHE Shared Secret Calculation",
+          "subsections": [
+            {
+              "number": "7.4.1",
+              "title": "Finite Field Diffie-Hellman"
+            },
+            {
+              "number": "7.4.2",
+              "title": "Elliptic Curve Diffie-Hellman"
+            }
+          ]
+        },
+        {
+          "number": "7.5",
+          "title": "Exporters"
+        }
+      ]
+    },
+    {
+      "number": "8",
+      "title": "0-RTT and Anti-Replay",
+      "subsections": [
+        {
+          "number": "8.1",
+          "title": "Single-Use Tickets"
+        },
+        {
+          "number": "8.2",
+          "title": "Client Hello Recording"
+        },
+        {
+          "number": "8.3",
+          "title": "Freshness Checks"
+        }
+      ]
+    },
+    {
+      "number": "9",
+      "title": "Compliance Requirements",
+      "subsections": [
+        {
+          "number": "9.1",
+          "title": "Mandatory-to-Implement Cipher Suites"
+        },
+        {
+          "number": "9.2",
+          "title": "Mandatory-to-Implement Extensions"
+        },
+        {
+          "number": "9.3",
+          "title": "Protocol Invariants"
+        }
+      ]
+    },
+    {
+      "number": "10",
+      "title": "Security Considerations"
+    },
+    {
+      "number": "11",
+      "title": "IANA Considerations"
+    },
+    {
+      "number": "12",
+      "title": "References",
+      "subsections": [
+        {
+          "number": "12.1",
+          "title": "Normative References"
+        },
+        {
+          "number": "12.2",
+          "title": "Informative References"
+        }
+      ]
+    },
+    {
+      "number": "A",
+      "title": "State Machine",
+      "subsections": [
+        {
+          "number": "A.1",
+          "title": "Client"
+        },
+        {
+          "number": "A.2",
+          "title": "Server"
+        }
+      ]
+    },
+    {
+      "number": "B",
+      "title": "Protocol Data Structures and Constant Values",
+      "subsections": [
+        {
+          "number": "B.1",
+          "title": "Record Layer"
+        },
+        {
+          "number": "B.2",
+          "title": "Alert Messages"
+        },
+        {
+          "number": "B.3",
+          "title": "Handshake Protocol",
+          "subsections": [
+            {
+              "number": "B.3.1",
+              "title": "Key Exchange Messages",
+              "subsections": [
+                {
+                  "number": "B.3.1.1",
+                  "title": "Version Extension"
+                },
+                {
+                  "number": "B.3.1.2",
+                  "title": "Cookie Extension"
+                },
+                {
+                  "number": "B.3.1.3",
+                  "title": "Signature Algorithm Extension"
+                },
+                {
+                  "number": "B.3.1.4",
+                  "title": "Supported Groups Extension"
+                }
+              ]
+            },
+            {
+              "number": "B.3.2",
+              "title": "Server Parameters Messages"
+            },
+            {
+              "number": "B.3.3",
+              "title": "Authentication Messages"
+            },
+            {
+              "number": "B.3.4",
+              "title": "Ticket Establishment"
+            },
+            {
+              "number": "B.3.5",
+              "title": "Updating Keys"
+            }
+          ]
+        },
+        {
+          "number": "B.4",
+          "title": "Cipher Suites"
+        }
+      ]
+    },
+    {
+      "number": "C",
+      "title": "Implementation Notes",
+      "subsections": [
+        {
+          "number": "C.1",
+          "title": "Random Number Generation and Seeding"
+        },
+        {
+          "number": "C.2",
+          "title": "Certificates and Authentication"
+        },
+        {
+          "number": "C.3",
+          "title": "Implementation Pitfalls"
+        },
+        {
+          "number": "C.4",
+          "title": "Client Tracking Prevention"
+        },
+        {
+          "number": "C.5",
+          "title": "Unauthenticated Operation"
+        }
+      ]
+    },
+    {
+      "number": "D",
+      "title": "Backward Compatibility",
+      "subsections": [
+        {
+          "number": "D.1",
+          "title": "Negotiating with an Older Server"
+        },
+        {
+          "number": "D.2",
+          "title": "Negotiating with an Older Client"
+        },
+        {
+          "number": "D.3",
+          "title": "0-RTT Backward Compatibility"
+        },
+        {
+          "number": "D.4",
+          "title": "Middlebox Compatibility Mode"
+        },
+        {
+          "number": "D.5",
+          "title": "Security Restrictions Related to Backward Compatibility"
+        }
+      ]
+    },
+    {
+      "number": "E",
+      "title": "Overview of Security Properties",
+      "subsections": [
+        {
+          "number": "E.1",
+          "title": "Handshake",
+          "subsections": [
+            {
+              "number": "E.1.1",
+              "title": "Key Derivation and HKDF"
+            },
+            {
+              "number": "E.1.2",
+              "title": "Client Authentication"
+            },
+            {
+              "number": "E.1.3",
+              "title": "0-RTT"
+            },
+            {
+              "number": "E.1.4",
+              "title": "Exporter Independence"
+            },
+            {
+              "number": "E.1.5",
+              "title": "Post-Compromise Security"
+            },
+            {
+              "number": "E.1.6",
+              "title": "External References"
+            }
+          ]
+        },
+        {
+          "number": "E.2",
+          "title": "Record Layer",
+          "subsections": [
+            {
+              "number": "E.2.1",
+              "title": "External References"
+            }
+          ]
+        },
+        {
+          "number": "E.3",
+          "title": "Traffic Analysis"
+        },
+        {
+          "number": "E.4",
+          "title": "Side-Channel Attacks"
+        },
+        {
+          "number": "E.5",
+          "title": "Replay Attacks on 0-RTT",
+          "subsections": [
+            {
+              "number": "E.5.1",
+              "title": "Replay and Exporters"
+            }
+          ]
+        },
+        {
+          "number": "E.6",
+          "title": "PSK Identity Exposure"
+        },
+        {
+          "number": "E.7",
+          "title": "Sharing PSKs"
+        },
+        {
+          "number": "E.8",
+          "title": "Attacks on Static RSA"
+        }
+      ]
+    }
+  ],
+  "referenceCount": {
+    "normative": 27,
+    "informative": 70
+  },
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Accuracy may be limited."
+}

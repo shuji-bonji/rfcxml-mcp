@@ -635,6 +635,74 @@ function looksLikeTitleCase(title: string): boolean {
   return capitalized * 2 >= words.length;
 }
 
+/**
+ * 付録の見出しか。番号と題名を返す。付録でなければ `null`。
+ *
+ * RFC は付録に文字を振る。数字だけを見ていたため、**付録が 1 つも
+ * 構造に出ていなかった。** テキスト経路で付録を持つ corpus の RFC 20 本すべてで
+ * 0 個だった。RFC 8446 は 46 個、RFC 5246 は 37 個、RFC 7489 は 22 個ある。
+ *
+ * 付録の中身は直前の節に吸い込まれる。RFC 8446 では付録 A〜E の 381 ブロックが
+ * §12.2「Informative References」の中身になっていた。
+ *
+ * ```
+ * Appendix A.  State Machine
+ * A.1.  Client
+ * B.  Protocol Data Structures
+ * ```
+ *
+ * 1 文字の大文字 + 句点は本文にも出る（著者名の "J. Postel" など）。
+ * **順番で見分ける。** 付録は A から始まり 1 つずつ進む。
+ */
+function appendixHeader(
+  line: string,
+  previousLetter: string | null
+): { number: string; title: string } | null {
+  // 下位の付録はわずかに字下げすることがある（RFC 1521 の "   E.1  …"）。
+  const indent = line.length - line.trimStart().length;
+  if (indent > APPENDIX_MAX_INDENT) return null;
+
+  const match = APPENDIX_HEADER_PATTERN.exec(line.trim());
+  if (!match) return null;
+
+  const [, explicit, letter, digits, title] = match;
+  const trimmed = title.trim();
+  if (trimmed.length < 3) return null;
+  if (containsSentenceBreak(trimmed)) return null;
+
+  // 深い段（A.1、A.1.2）は親の文字と同じであること。
+  // 親の文字が一致していれば十分なので、題名の先頭は問わない。
+  // RFC 6749 の `A.1.  "client_id" Syntax`、RFC 5321 の `F.4.  #-literals`、
+  // RFC 7489 の `B.5.  mailto Transport Example` のように、引用符・記号・
+  // 小文字で始まる題名がある。
+  if (digits) {
+    if (previousLetter !== letter) return null;
+    return { number: `${letter}${digits}`, title: trimmed };
+  }
+
+  // 1 段目は字下げしない
+  if (indent > 0) return null;
+  if (!/^["'([]?[A-Z0-9]/.test(trimmed)) return null;
+
+  // 1 段目は A から始まり、1 つずつ進む
+  const expected = previousLetter ? String.fromCharCode(previousLetter.charCodeAt(0) + 1) : 'A';
+  if (letter !== expected) return null;
+  // `Appendix` と書いていない 1 文字の見出しは、A から始まるものだけ認める。
+  // 本文の "B. Smith" のような行を拾わないため。
+  if (!explicit && !previousLetter && letter !== 'A') return null;
+
+  return { number: letter, title: trimmed };
+}
+
+/**
+ * `Appendix A.  Title` / `A.1.  Title` / `Appendix A - Title` に当たる。
+ */
+const APPENDIX_HEADER_PATTERN =
+  /^(Appendix\s+)?([A-Z])((?:\.\d+)*)\.?(?:\s*[-–]+\s*|\s{1,3})(\S.*)$/;
+
+/** 下位の付録に許す字下げ。 */
+const APPENDIX_MAX_INDENT = 3;
+
 /** 1 段目の節番号に許す飛び。RFC には欠番がある。 */
 const MAX_SECTION_NUMBER_GAP = 5;
 
@@ -869,6 +937,9 @@ function acceptsSectionNumber(
 ): boolean {
   if (state.seen.has(candidate)) return false;
 
+  // 付録は文字で番号を振る。数字の単調増加の検査は当てはまらない。
+  if (/^[A-Z]/.test(candidate)) return true;
+
   const topLevel = Number(candidate.split('.')[0]);
   if (!Number.isInteger(topLevel)) return false;
   if (state.seen.size > 0 && topLevel < state.maxTopLevel) return false;
@@ -890,6 +961,8 @@ function extractTextSections(lines: string[]): Section[] {
   let lastSectionNumber: string | null = null;
   /** すでに節として出した番号と、1 段目の最大値。 */
   const numbering = { seen: new Set<string>(), maxTopLevel: 0 };
+  /** 直前に出した付録の文字。付録が A から 1 つずつ進むことの確認に使う。 */
+  let lastAppendixLetter: string | null = null;
 
   const claimSectionNumber = (number: string): void => {
     numbering.seen.add(number);
@@ -934,6 +1007,25 @@ function extractTextSections(lines: string[]): Section[] {
     // 52 件が節番号の重複だった）。番号だけが同じ「節」がいくつも並ぶと
     // `findSection` がどれを引くか定まらず、要件の `sectionTitle` にも本文の
     // 1 行目が出る。
+    // 付録は文字で番号を振る。数字の見出しを試す前に見る。
+    const appendix = appendixHeader(line, lastAppendixLetter);
+    if (appendix && acceptsSectionNumber(numbering, appendix.number)) {
+      if (currentSection) {
+        currentSection.content = createTextBlocks(currentContent.join('\n'));
+        sections.push(currentSection);
+      }
+      currentSection = {
+        number: appendix.number,
+        title: appendix.title,
+        content: [],
+        subsections: [],
+      };
+      numbering.seen.add(appendix.number);
+      lastAppendixLetter = appendix.number[0];
+      currentContent = [];
+      continue;
+    }
+
     const match = line.replace(/\s+$/, '').match(SECTION_HEADER_PATTERN);
 
     if (match) {

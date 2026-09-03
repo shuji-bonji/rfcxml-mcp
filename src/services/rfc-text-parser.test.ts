@@ -1506,3 +1506,89 @@ describe('行幅いっぱいの題名', () => {
     expect(parseRFCText(text, 9999).metadata.title).toBeUndefined();
   });
 });
+
+describe('付録の見出し', () => {
+  const numbers = (sections: Section[]): string[] =>
+    sections.flatMap((s) => [s.number ?? '', ...numbers(s.subsections)]);
+
+  const body = [
+    '1.  Introduction',
+    '',
+    '   Text.',
+    '',
+    '2.  References',
+    '',
+    '2.1.  Normative References',
+    '',
+    '   [RFC2119]  Bradner, S., "Key words", RFC 2119, March 1997.',
+    '',
+  ];
+
+  it('Appendix A から始まり 1 つずつ進むものを拾う', () => {
+    // 数字だけを見ていたため、付録が 1 つも構造に出ていなかった。
+    // corpus のテキスト経路で付録を持つ RFC 20 本すべてで 0 個だった。
+    // 中身は直前の節に吸い込まれ、RFC 8446 では付録 A〜E の 381 ブロックが
+    // §12.2「Informative References」の中身になっていた。
+    const text = [
+      ...body,
+      'Appendix A.  State Machine',
+      '',
+      '   Text.',
+      '',
+      'A.1.  Client',
+      '',
+      '   Text.',
+      '',
+      'Appendix B.  Protocol Data Structures',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 8446);
+
+    expect(numbers(parsed.sections)).toEqual(['1', '2', '2.1', 'A', 'A.1', 'B']);
+  });
+
+  it('区切りが "-" や "--" のものも拾う', () => {
+    // RFC 3550 の "Appendix A - Algorithms"、RFC 1521 の "Appendix A -- ..."
+    const text = [...body, 'Appendix A - Algorithms', '', '   Text.', ''].join('\n');
+
+    expect(numbers(parseRFCText(text, 3550).sections)).toContain('A');
+  });
+
+  it('下位の付録は題名の先頭を問わない', () => {
+    // RFC 6749 の `A.1.  "client_id" Syntax`、RFC 5321 の `F.4.  #-literals`、
+    // RFC 7489 の `B.5.  mailto Transport Example`
+    const text = [
+      ...body,
+      'Appendix A.  Augmented Backus-Naur Form',
+      '',
+      '   Text.',
+      '',
+      'A.1.  "client_id" Syntax',
+      '',
+      '   Text.',
+      '',
+      'A.2.  #-literals',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+
+    expect(numbers(parseRFCText(text, 6749).sections)).toEqual([
+      '1',
+      '2',
+      '2.1',
+      'A',
+      'A.1',
+      'A.2',
+    ]);
+  });
+
+  it('著者名のような 1 文字 + 句点を付録にしない', () => {
+    // 付録は A から始まり 1 つずつ進む。本文の "J. Postel" は当たらない。
+    const text = [...body, 'J. Postel and J. Reynolds wrote the original.', ''].join('\n');
+
+    expect(numbers(parseRFCText(text, 9999).sections).filter((n) => /^[A-Z]/.test(n))).toEqual([]);
+  });
+});

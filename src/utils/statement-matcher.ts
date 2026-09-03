@@ -1181,6 +1181,50 @@ export function findProhibitionViolation(
   return { verb: matchedVerb, sharedTerms };
 }
 
+/** 受動態の行為。`MUST NOT` の直後が "be 過去分詞" になっている。 */
+const PASSIVE_ACTION_PATTERN = /^be\s+[a-z]+(?:ed|n|t)\b/;
+
+/**
+ * 受動態で書かれた禁止のうち、違反しているかを機械で決められないものを返す。
+ *
+ * 矛盾検出は、文の主語が禁じられた動詞を実行しているかを見る
+ * （`statementPerformsVerb`）。要件が "A reference identity of type CN-ID
+ * MUST NOT be used by clients." のように受動態で書かれていると、禁じられた
+ * 行為に実行者がいない。文が "The client uses the cn-id identifier type."
+ * でも矛盾は出ず、`conflicts` は空になる。
+ *
+ * 空の `conflicts` をそのまま `isValid: true` にすると、違反している文に
+ * 「矛盾なし」と返す。ここで拾って `null`（判断できない）にする。
+ *
+ * 実測（RFC 9110/9111/9112/9113/9114/6455/8446/5280 の `MUST NOT` から機械で
+ * 作った受動態の違反文 40 件）: `isValid` は `true` が 13 件、`null` が 27 件、
+ * `false` は 0 件だった。この 13 件が誤解を招く形である。
+ */
+export function findUndecidablePassiveProhibition(
+  statement: string,
+  matches: MatchResult[]
+): Requirement | null {
+  const lower = statement.toLowerCase();
+
+  // 文自身が否定なら、準拠していると述べている。判断を取り下げる必要はない。
+  if (/\b(?:not|never|no|cannot)\b/.test(lower)) return null;
+
+  for (const match of matches) {
+    const req = match.requirement;
+    if (!NEGATIVE_LEVELS.has(req.level)) continue;
+
+    const action = (requiredActionOf(req) ?? '')
+      .replace(/must not|shall not|should not|not recommended/gi, '')
+      .trim()
+      .toLowerCase();
+    if (!PASSIVE_ACTION_PATTERN.test(action)) continue;
+    if (!describesSameAct(lower, req, action)) continue;
+    return req;
+  }
+
+  return null;
+}
+
 /**
  * Detect conflicts between statement and requirements
  */

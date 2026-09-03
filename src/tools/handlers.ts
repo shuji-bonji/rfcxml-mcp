@@ -23,7 +23,12 @@ import type {
   ContentBlock,
   ReferencedByEntry,
 } from '../types/index.js';
-import { matchStatement, isSubjectTerm, MATCHING_LIMITS } from '../utils/statement-matcher.js';
+import {
+  matchStatement,
+  isSubjectTerm,
+  findUndecidablePassiveProhibition,
+  MATCHING_LIMITS,
+} from '../utils/statement-matcher.js';
 
 // Re-export clearParseCache for testing
 export { clearParseCache };
@@ -387,7 +392,15 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
   const hasVerdictEvidence =
     topScore >= MATCHING_LIMITS.MIN_SCORE_FOR_VERDICT &&
     contentKeywords.length >= MATCHING_LIMITS.MIN_CONTENT_KEYWORDS_FOR_VERDICT;
-  const isValid: boolean | null = hasVerdictEvidence ? conflicts.length === 0 : null;
+  // 受動態で書かれた禁止（"MUST NOT be used"）は、矛盾検出が行為の実行者を
+  // 見つけられない。conflicts が空のまま true を返すと、違反している文に
+  // 「矛盾なし」と答えることになる。該当したら判断を取り下げる。
+  const undecidable =
+    hasVerdictEvidence && conflicts.length === 0
+      ? findUndecidablePassiveProhibition(args.statement, matches)
+      : null;
+  const isValid: boolean | null =
+    hasVerdictEvidence && !undecidable ? conflicts.length === 0 : null;
 
   // Build suggestions
   const suggestions: string[] = [];
@@ -403,6 +416,11 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
   if (conflicts.length > 0) {
     suggestions.push(
       'Potential conflicts detected. Review the requirement levels (MUST/SHOULD/MAY) carefully.'
+    );
+  }
+  if (undecidable) {
+    suggestions.push(
+      `Cannot judge: requirement ${undecidable.id} is written in the passive voice ("${undecidable.level} ${undecidable.action ?? ''}"), so the text names no actor. Read that requirement and decide.`
     );
   }
   if (statementLevel && !statementSubject) {

@@ -1,0 +1,198 @@
+# validate-6455-passive
+
+tool: validate_statement
+args: {"rfc":6455,"statement":"The fragments of one message are interleaved between the fragments of another message."}
+
+--- json ---
+{
+  "rfc": 6455,
+  "statement": "The fragments of one message are interleaved between the fragments of another message.",
+  "analysis": {
+    "detectedLevel": null,
+    "detectedSubject": null
+  },
+  "isValid": null,
+  "_verdictNote": "isValid is null: no requirement matched strongly enough to judge. This is not a statement of compliance.",
+  "matchingRequirements": [
+    {
+      "id": "R-5.4-88",
+      "level": "MUST NOT",
+      "text": "The fragments of one message MUST NOT be interleaved between the fragments of another message unless an extension has been negotiated that can interpret the interleaving.",
+      "section": "5.4",
+      "sectionTitle": "Fragmentation",
+      "fullContext": "The fragments of one message MUST NOT be interleaved between the fragments of another message unless an extension has been negotiated that can interpret the interleaving.",
+      "subject": "one message",
+      "exception": "an extension has been negotiated that can interpret the interleaving",
+      "action": "be interleaved between the fragments of another message unless an extension has been negotiated that can interpret the interleaving",
+      "_matchScore": 8,
+      "_matchedKeywords": [
+        "fragments",
+        "message",
+        "interleaved",
+        "another"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-5.2-73",
+      "level": "MAY",
+      "text": "The first fragment MAY also be the final fragment.",
+      "section": "5.2",
+      "sectionTitle": "Base Framing Protocol",
+      "fullContext": "FIN: 1 bit Indicates that this is the final fragment in a message. The first fragment MAY also be the final fragment.",
+      "subject": "first fragment",
+      "action": "also be the final fragment",
+      "_matchScore": 6,
+      "_matchedKeywords": [
+        "fragments",
+        "message"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-5.4-85",
+      "level": "MAY",
+      "text": "Control frames (see Section 5.5) MAY be injected in the middle of a fragmented message.",
+      "section": "5.4",
+      "sectionTitle": "Fragmentation",
+      "fullContext": "Control frames (see Section 5.5) MAY be injected in the middle of a fragmented message. Control frames themselves MUST NOT be fragmented.",
+      "action": "be injected in the middle of a fragmented message",
+      "_matchScore": 6,
+      "_matchedKeywords": [
+        "fragments",
+        "message"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-5.4-86",
+      "level": "MUST NOT",
+      "text": "Control frames themselves MUST NOT be fragmented.",
+      "section": "5.4",
+      "sectionTitle": "Fragmentation",
+      "fullContext": "Control frames (see Section 5.5) MAY be injected in the middle of a fragmented message. Control frames themselves MUST NOT be fragmented.",
+      "subject": "frames themselves",
+      "action": "be fragmented",
+      "_matchScore": 6,
+      "_matchedKeywords": [
+        "fragments",
+        "message"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-5.4-87",
+      "level": "MUST",
+      "text": "Message fragments MUST be delivered to the recipient in the order sent by the sender.",
+      "section": "5.4",
+      "sectionTitle": "Fragmentation",
+      "fullContext": "Message fragments MUST be delivered to the recipient in the order sent by the sender.",
+      "subject": "message fragments",
+      "action": "be delivered to the recipient in the order sent by the sender",
+      "_matchScore": 6,
+      "_matchedKeywords": [
+        "fragments",
+        "message"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-5.4-89",
+      "level": "MUST",
+      "text": "An endpoint MUST be capable of handling control frames in the middle of a fragmented message.",
+      "section": "5.4",
+      "sectionTitle": "Fragmentation",
+      "fullContext": "An endpoint MUST be capable of handling control frames in the middle of a fragmented message.",
+      "subject": "endpoint",
+      "action": "be capable of handling control frames in the middle of a fragmented message",
+      "_matchScore": 6,
+      "_matchedKeywords": [
+        "fragments",
+        "message"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-5.4-90",
+      "level": "MAY",
+      "text": "A sender MAY create fragments of any size for non-control messages.",
+      "section": "5.4",
+      "sectionTitle": "Fragmentation",
+      "fullContext": "A sender MAY create fragments of any size for non-control messages.",
+      "subject": "sender",
+      "action": "create fragments of any size for non-control messages",
+      "_matchScore": 6,
+      "_matchedKeywords": [
+        "fragments",
+        "message"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-5.4-91",
+      "level": "MUST",
+      "text": "Clients and servers MUST support receiving both fragmented and unfragmented messages.",
+      "section": "5.4",
+      "sectionTitle": "Fragmentation",
+      "fullContext": "Clients and servers MUST support receiving both fragmented and unfragmented messages.",
+      "subject": "and servers",
+      "action": "support receiving both fragmented and unfragmented messages",
+      "_matchScore": 6,
+      "_matchedKeywords": [
+        "fragments",
+        "message"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-5.4-93",
+      "level": "MUST NOT",
+      "text": "An intermediary MUST NOT change the fragmentation of a message if any reserved bit values are used and the meaning of these values is not known to the intermediary.",
+      "section": "5.4",
+      "sectionTitle": "Fragmentation",
+      "fullContext": "An intermediary MUST NOT change the fragmentation of a message if any reserved bit values are used and the meaning of these values is not known to the intermediary.",
+      "subject": "intermediary",
+      "condition": "any reserved bit values are used and the meaning of these values is not known to the intermediary",
+      "action": "change the fragmentation of a message if any reserved bit values are used and the meaning of these values is not known to the intermediary",
+      "_matchScore": 6,
+      "_matchedKeywords": [
+        "fragments",
+        "message"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-5.4-94",
+      "level": "MUST NOT",
+      "text": "An intermediary MUST NOT change the fragmentation of any message in the context of a connection where extensions have been negotiated and the intermediary is not aware of the semantics of the negotiated extensions.",
+      "section": "5.4",
+      "sectionTitle": "Fragmentation",
+      "fullContext": "An intermediary MUST NOT change the fragmentation of any message in the context of a connection where extensions have been negotiated and the intermediary is not aware of the semantics of the negotiated extensions. Similarly, an intermediary that didn't see the WebSocket handshake (and wasn't notified about its content) that resulted in a WebSocket connection MUST NOT change the fragmentation of any message of such connection.",
+      "subject": "intermediary",
+      "condition": "extensions have been negotiated and the intermediary is not aware of the semantics of the negotiated extensions",
+      "action": "change the fragmentation of any message in the context of a connection where extensions have been negotiated and the intermediary is not aware of the semantics of the negotiated extensions",
+      "_matchScore": 6,
+      "_matchedKeywords": [
+        "fragments",
+        "message"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    }
+  ],
+  "conflicts": [],
+  "suggestions": [
+    "Cannot judge: requirement R-5.4-86 is written in the passive voice (\"MUST NOT be fragmented\"), so the text names no actor. Read that requirement and decide."
+  ],
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Validation accuracy may be limited."
+}

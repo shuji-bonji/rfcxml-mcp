@@ -120,6 +120,13 @@ export const CASES = [
     args: { rfc: 2068 },
   },
   {
+    // 付録が 46 個ある。文字の番号を見ていなかったため 0 個で、中身は
+    // §12.2「Informative References」に吸い込まれていた。
+    name: 'structure-8446',
+    tool: 'get_rfc_structure',
+    args: { rfc: 8446 },
+  },
+  {
     // 節に番号が無い（1980 年代）。番号を頼りにすると 1 つも取れない。
     name: 'structure-854',
     tool: 'get_rfc_structure',
@@ -175,6 +182,17 @@ export const CASES = [
     args: {
       rfc: 6455,
       statement: 'The client sends unmasked frames to the server.',
+    },
+  },
+  {
+    // 受動態で書かれた禁止。実行者が本文に無いので矛盾検出は当たらない。
+    // isValid は true ではなく null（判断できない）になること。
+    name: 'validate-6455-passive',
+    tool: 'validate_statement',
+    args: {
+      rfc: 6455,
+      statement:
+        'The fragments of one message are interleaved between the fragments of another message.',
     },
   },
 ];

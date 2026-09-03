@@ -51,7 +51,7 @@ npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
 npm run audit         # 実物の RFC 64 本に不変条件 37 種を当てる
-npm run snapshot      # 代表的な出力 14 本を固定し、差分を見る
+npm run snapshot      # 代表的な出力 26 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
 npm start             # MCP サーバー起動
@@ -69,10 +69,10 @@ publish の前に、次を順に通す。
 
 | 手順 | 見るもの |
 |---|---|
-| `npm test` | 書いた条件の取りこぼし（367 件） |
+| `npm test` | 書いた条件の取りこぼし（422 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
 | `npm run audit` | 想定していない書式で破れる場所（RFC 64 本 × 37 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 24 本） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 26 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -402,6 +402,27 @@ How to apply: 新しい抽出で「最初のピリオドまで」を書きたく
 読点を必須にしていたため、この形が「RFC 6749 の §3.4」になり、
 `get_related_sections` が実在しない節を返していた（RFC 6749 に §3.4 は無い）。
 
+### 付録の見出しは、順番で見分ける
+
+テキスト経路は `1.` `2.1` のような数字の節しか拾っていなかった。RFC 8446 の
+Appendix A〜E、RFC 6455 の Appendix A のように、**付録は文字で番号を振る**。
+実測: 64 本のうち **20 本で付録が丸ごと落ちていた**。落ちた分の本文は直前の節に
+繰り込まれるので、参考文献の欄から 147 件の「要件」が出ていた。
+
+`A.` の形は本文にも出る。著者名（`J. Postel`）、箇条書きの項目、表の行が同じ形になる。
+**順番で見分ける。** 付録は A から始まり 1 つずつ進む。`B` の次に `D` は来ない。
+`Appendix` の語が明示されていない場合、最初の 1 つは `A` でなければならない。
+
+- 1 段目（`A.`）は字下げしない。深い段（`A.1`）は親の文字と同じであること。
+- 題名は 3 文字以上で、文の切れ目（`isSentenceEnd`）を含まない。
+- 番号と題名の区切りは `Appendix A - Algorithms` の形もある。`\s*[-–]+\s*` を
+  `\s{1,3}` より**先**に試すこと。順を逆にすると題名が `- Algorithms` になる。
+- `acceptsSectionNumber()` の「数字が単調に増える」検査は文字の番号に当てはまらない。
+  先頭が大文字なら通す。
+
+実測: 節 4,754 件 → **4,992 件**。参考文献の欄から出ていた要件 147 件 → **0 件**。
+RFC 8446 は付録 46 件を拾う。
+
 ### 節番号は一度しか使われない
 
 `SECTION_HEADER_PATTERN` は「数字 + 空白 + 何か」に当たるので、本文の中の
@@ -707,6 +728,17 @@ Datatracker の `document.time` は**レコードの最終更新時刻**であ�
   `findProhibitionViolation()` が矛盾を検出しない。検出しないことは `isValid: true` の
   意味（矛盾が見つからなかった）と一致しており、準拠の主張ではない。表を広げるときは、
   主動詞・否定なし・内容語 3 語以上という 3 条件を緩めないこと。
+
+- **受動態で書かれた禁止では判定しない**。`A reference identity of type CN-ID MUST NOT be
+  used by clients.` の禁じられた行為は `be used by clients` で、行為の実行者が本文に無い。
+  矛盾検出は「主張の主語がその動詞を実行しているか」を見るので、実行している主張を
+  出しても `conflicts` は空になる。空の `conflicts` をそのまま `true` にすると、
+  違反している主張に「矛盾なし」と答える。`findUndecidablePassiveProhibition()` が
+  `MUST NOT be <過去分詞>` の一致を拾い、`isValid` を `null` にして
+  `suggestions` に該当要件の ID を出す。主張自身が否定（`not` / `never` / `no` /
+  `cannot`）なら準拠を述べているので取り下げない。
+  実測（機械生成した受動態の違反文 40 件）: `true` **13 件 → 4 件**。
+  要件どおりの文 179 件のうち取り下げたのは 1 件。
 
 #### 「固有の名前」は RFC の書き方に合わせる
 

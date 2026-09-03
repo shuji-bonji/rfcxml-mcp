@@ -13,6 +13,7 @@ import {
   matchStatement,
   requiredActionOf,
   isSubjectTerm,
+  findUndecidablePassiveProhibition,
 } from './statement-matcher.js';
 import type { Requirement } from '../types/index.js';
 
@@ -972,5 +973,56 @@ describe('行為が短い禁止', () => {
     const result = matchStatement('Clients show it to end users.', [requirement]);
 
     expect(result.conflicts.length).toBeGreaterThan(0);
+  });
+});
+
+describe('受動態で書かれた禁止', () => {
+  // RFC 6125 §6.4.4。禁止の行為 "be used by clients" に実行者がいないため、
+  // 実行している文を出しても `conflicts` は空になる。
+  const passive: Requirement = {
+    id: 'R-6.4.4-1',
+    level: 'MUST NOT',
+    section: '6.4.4',
+    sectionTitle: 'Checking of Common Names',
+    text: 'A reference identity of type CN-ID MUST NOT be used by clients.',
+    fullContext: '',
+    subject: 'reference identity',
+    action: 'be used by clients',
+  };
+
+  it('矛盾が出ないことをまず確かめる', () => {
+    const result = matchStatement('The client uses a reference identity of type CN-ID.', [passive]);
+    expect(result.conflicts).toEqual([]);
+  });
+
+  it('判断を取り下げるべき一致として拾う', () => {
+    const result = matchStatement('The client uses a reference identity of type CN-ID.', [passive]);
+    const found = findUndecidablePassiveProhibition(
+      'The client uses a reference identity of type CN-ID.',
+      result.matches
+    );
+    expect(found?.id).toBe('R-6.4.4-1');
+  });
+
+  it('文が否定なら取り下げない', () => {
+    const statement = 'The client does not use a reference identity of type CN-ID.';
+    const result = matchStatement(statement, [passive]);
+    expect(findUndecidablePassiveProhibition(statement, result.matches)).toBeNull();
+  });
+
+  it('能動態で書かれた禁止は取り下げない', () => {
+    const active: Requirement = {
+      id: 'R-5.1-69',
+      level: 'MUST NOT',
+      section: '5.1',
+      sectionTitle: 'Overview',
+      text: 'A server MUST NOT mask any frames that it sends to the client.',
+      fullContext: '',
+      subject: 'server',
+      action: 'mask any frames that it sends to the client',
+    };
+    const statement = 'The server sends unmasked frames to the client.';
+    const result = matchStatement(statement, [active]);
+    expect(findUndecidablePassiveProhibition(statement, result.matches)).toBeNull();
   });
 });

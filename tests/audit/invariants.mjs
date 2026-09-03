@@ -121,7 +121,7 @@ export const INVARIANTS = [
   },
   {
     id: 'A6',
-    description: '目次にある節が構造にある',
+    description: '目次にある節と付録が構造にある',
     check: ({ kind, source, parsed }) => {
       // 目次を持つのはテキスト経路だけ。RFCXML には目次の行が無い。
       if (kind !== 'text') return [];
@@ -132,7 +132,11 @@ export const INVARIANTS = [
       // 目次の行「番号 題名 …… ページ」から番号を拾う
       const toc = new Map();
       for (const line of source.split('\n')) {
-        const match = /^\s{0,15}(\d+(?:\.\d+)*)\.?\s+(\S.*?)\s*(?:\.\s?){3,}\s*\d+\s*$/.exec(line);
+        // 数字の節と、文字の付録（`Appendix A.` / `A.1.`）の両方を拾う
+        const match =
+          /^\s{0,15}(?:Appendix\s+)?(\d+(?:\.\d+)*|[A-Z](?:\.\d+)*)\.?\s+(\S.*?)\s*(?:\.\s?){3,}\s*\d+\s*$/.exec(
+            line
+          );
         if (match) toc.set(match[1], match[2]);
       }
       // 目次が短いものは、目次ではなく本文の並びを拾っている
