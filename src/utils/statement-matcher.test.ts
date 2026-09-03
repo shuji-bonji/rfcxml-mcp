@@ -900,3 +900,57 @@ describe('否定の言い回しは動詞ごとに揃える', () => {
     expect(conflicts).toHaveLength(0);
   });
 });
+
+describe('限定句を挟んだ主張', () => {
+  const requirement = {
+    id: 'R-6.6.1-76',
+    level: 'MUST NOT' as const,
+    section: '6.6.1',
+    sectionTitle: 'Date',
+    text: 'An origin server without a clock MUST NOT generate a Date header field.',
+    fullContext: '',
+    subject: 'origin server',
+    action: 'generate a Date header field',
+  };
+
+  it('要件の条件を書き写した主張を違反として挙げる', () => {
+    // 主語と動詞のあいだに "without a clock" が入る。文全体で否定を探すと、
+    // この "without" を行為の否定と取って違反を見逃していた。
+    const result = matchStatement(
+      'An origin server without a clock generates a Date header field.',
+      [requirement]
+    );
+
+    expect(result.conflicts).toHaveLength(1);
+    expect(result.conflicts[0].requirement.id).toBe('R-6.6.1-76');
+  });
+
+  it('条件が違う主張は違反にしない', () => {
+    const result = matchStatement('An origin server with a clock generates a Date header field.', [
+      requirement,
+    ]);
+
+    expect(result.conflicts).toEqual([]);
+  });
+
+  it('目的語の中の語を動詞と取り違えない', () => {
+    // "The server removes masking …" の "masking" を動詞と取ると、
+    // 「サーバはマスクしてはならない」に違反していると誤って報告する。
+    const masking = {
+      id: 'R-5.1-69',
+      level: 'MUST NOT' as const,
+      section: '5.1',
+      sectionTitle: 'Overview',
+      text: 'A server MUST NOT mask any frames that it sends to the client.',
+      fullContext: '',
+      subject: 'server',
+      action: 'mask any frames that it sends to the client',
+    };
+    const result = matchStatement(
+      'The server removes masking for data frames received from a client.',
+      [masking]
+    );
+
+    expect(result.conflicts).toEqual([]);
+  });
+});

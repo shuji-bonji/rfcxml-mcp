@@ -200,6 +200,14 @@ export const INVARIANTS = [
         .map((r) => `${r.id}: ${JSON.stringify(r.text)}`),
   },
   {
+    id: 'B14',
+    description: '主語に冠詞が入っていない',
+    check: ({ requirements }) =>
+      requirements
+        .filter((r) => /^(?:the|a|an|each|every|all)\s/.test(r.subject ?? ''))
+        .map((r) => `${r.id}: subject=${JSON.stringify(r.subject)}`),
+  },
+  {
     id: 'B3',
     description: '要件文が 1 行（改行と 4 個以上の連続空白が無い）',
     check: ({ requirements }) =>

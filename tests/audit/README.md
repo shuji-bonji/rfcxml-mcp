@@ -1,6 +1,6 @@
 # 監査（`npm run audit`）
 
-実物の RFC 64 本に不変条件 35 種を当てる。
+実物の RFC 64 本に不変条件 36 種を当てる。
 
 ```sh
 npm run build && npm run audit

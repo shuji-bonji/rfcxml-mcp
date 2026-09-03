@@ -238,9 +238,30 @@ function parseRequirementComponents(text: string, level: RequirementLevel): Part
   const result: Partial<Requirement> = {};
 
   // 主語の抽出（"The client MUST" → "client"）
-  const subjectMatch = text.match(/^(?:The\s+)?(\w+(?:\s+\w+)?)\s+(?:MUST|SHALL|SHOULD|MAY)/i);
+  //
+  // **文頭に固定しない。** RFC の要件文は前置きから始まることが多い。
+  //
+  // - `(Note that masking is done …) The server MUST close the connection …`
+  // - `In this case, a server MAY send a Close frame …`
+  // - `Because of the potential for trailer fields to be discarded, a server …`
+  //
+  // 文頭で探すと、これらの主語が取れない。実測（RFC 64 本・要件 9,684 件）で
+  // `subject` が付くのは 27.9% だけだった。キーワードの直前から取ると 91.8%。
+  //
+  // `subject` は `generate_checklist` の `role` の絞り込みにも使う。取れないと
+  // 絞り込みが効かず、`role: "client"` にサーバの要件が 865 件（8.9%）残っていた。
+  const subjectMatch = new RegExp(
+    `\\b(?:The|A|An|Each|Every|All)?\\s*([A-Za-z][\\w-]*(?:\\s+[A-Za-z][\\w-]*)?)\\s+${level.replace(' ', '\\s+')}\\b`,
+    'i'
+  ).exec(text);
   if (subjectMatch) {
-    result.subject = subjectMatch[1].toLowerCase();
+    // 冠詞は主語ではない。`(?:The|A|An)?` は任意なので、2 語の取り込みが
+    // 冠詞ごと拾うことがある（"A client MUST" → "a client"）。
+    const subject = subjectMatch[1]
+      .toLowerCase()
+      .replace(/^(?:the|a|an|each|every|all)\s+/, '')
+      .trim();
+    if (subject) result.subject = subject;
   }
 
   // 条件の抽出（"if", "when", "where", "in case"）

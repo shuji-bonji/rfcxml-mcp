@@ -25,6 +25,17 @@ export const CASES = [
     args: { rfc: 9110, sections: ['9.3.5'] },
   },
   {
+    // role の絞り込み。主語が取れない要件がどちらにも残っていた。
+    name: 'checklist-6455-client',
+    tool: 'generate_checklist',
+    args: { rfc: 6455, sections: ['5.1', '5.2', '5.3'], role: 'client' },
+  },
+  {
+    name: 'checklist-6455-server',
+    tool: 'generate_checklist',
+    args: { rfc: 6455, sections: ['5.1', '5.2', '5.3'], role: 'server' },
+  },
+  {
     // 2 ページにわたる表がある。1 項目 2,000 文字の「要件」が出ていた節。
     name: 'checklist-2131-4.3.1',
     tool: 'generate_checklist',

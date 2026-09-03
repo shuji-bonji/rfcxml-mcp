@@ -713,3 +713,48 @@ describe('キーワードだけの要件文を出さない', () => {
     expect(result).toEqual([]);
   });
 });
+
+describe('主語の抽出', () => {
+  const sectionWith = (content: string, level: string) => [
+    {
+      number: '6.6.1',
+      title: 'Date',
+      content: [
+        {
+          type: 'text',
+          content,
+          requirements: [{ level, position: content.indexOf(level) }],
+          crossReferences: [],
+        },
+      ],
+      subsections: [],
+    },
+  ];
+
+  const subjectOf = (text: string, level = 'MUST') =>
+    extractRequirementsFromSections(sectionWith(text, level) as never, undefined, {
+      parseComponents: true,
+    })[0]?.subject;
+
+  it('前置きから始まる文でも主語を取る', () => {
+    // 文頭に固定していたため、実測（RFC 64 本・要件 9,684 件）で subject が
+    // 付くのは 27.9% だけだった。`generate_checklist` の role の絞り込みが
+    // 効かず、`role: "client"` にサーバの要件が 865 件（8.9%）残っていた。
+    expect(subjectOf('In this case, a server MAY send a Close frame.', 'MAY')).toBe('server');
+    expect(
+      subjectOf('(Note that masking is done over TLS.) The server MUST close the connection.')
+    ).toBe('server');
+  });
+
+  it('冠詞は主語に含めない', () => {
+    expect(subjectOf('A client MUST close a connection if it detects a masked frame.')).toBe(
+      'client'
+    );
+  });
+
+  it('2 語の主語はそのまま取る', () => {
+    expect(subjectOf('An origin server MUST generate an Allow header field.')).toBe(
+      'origin server'
+    );
+  });
+});

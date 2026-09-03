@@ -41,11 +41,19 @@ export function filterByRole(
   }
 
   return requirements.filter((r) => {
-    const subject = r.subject?.toLowerCase() || '';
-    if (role === 'client') {
-      return subject.includes('client') || !subject.includes('server');
-    }
-    return subject.includes('server') || !subject.includes('client');
+    // 主語が取れないときは要件文そのものを見る。主語だけを見ていたため
+    // `role: "client"` に「サーバの話だけを書いた要件」が 865 件（8.9%）
+    // 残っていた（RFC 64 本・要件 9,684 件）。
+    const subject = r.subject?.toLowerCase() ?? '';
+    const haystack = subject || (r.text ?? '').toLowerCase();
+
+    const mentionsClient = /\bclient\b|\buser agent\b/.test(haystack);
+    const mentionsServer = /\bserver\b|\bproxy\b|\bgateway\b/.test(haystack);
+
+    // どちらにも触れないものは、どちらの実装にも関わりうるので残す
+    if (!mentionsClient && !mentionsServer) return true;
+
+    return role === 'client' ? mentionsClient : mentionsServer;
   });
 }
 

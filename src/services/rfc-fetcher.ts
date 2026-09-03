@@ -605,14 +605,28 @@ export class RFCXMLNotAvailableError extends Error {
   constructor(rfcNumber: number, originalErrors: string[] = []) {
     const threshold = RFC_CONFIG.xmlAvailableFrom;
     const isOldRFC = rfcNumber < threshold;
-    const suggestion = isOldRFC
-      ? `RFC ${rfcNumber} was published before RFCXML v3 format, XML may not be available. ` +
-        `Consider using text format (use ietf MCP get_ietf_doc).`
-      : `Failed to fetch RFC ${rfcNumber} XML. Check network connection.`;
+
+    // すべての取得元が 404 を返したなら、その番号の RFC は公開されていない。
+    // 「Check network connection」と案内すると、利用者は無いものを探しに行く。
+    const allNotFound =
+      originalErrors.length > 0 && originalErrors.every((error) => /\b404\b/.test(error));
+
+    const reason = allNotFound
+      ? 'No RFC with that number is published'
+      : isOldRFC
+        ? `Old RFC (< ${threshold}), XML may not be available`
+        : 'Network error';
+
+    const suggestion = allNotFound
+      ? `Every source returned 404 for RFC ${rfcNumber}. Check the RFC number.`
+      : isOldRFC
+        ? `RFC ${rfcNumber} was published before RFCXML v3 format, XML may not be available. ` +
+          `Consider using text format (use ietf MCP get_ietf_doc).`
+        : `Failed to fetch RFC ${rfcNumber} XML. Check network connection.`;
 
     super(
       `Could not fetch RFC ${rfcNumber} XML.\n` +
-        `Reason: ${isOldRFC ? `Old RFC (< ${threshold}), XML may not be available` : 'Network error'}\n` +
+        `Reason: ${reason}\n` +
         `Suggestion: ${suggestion}` +
         (originalErrors.length > 0 ? `\nDetails: ${originalErrors.join(', ')}` : '')
     );

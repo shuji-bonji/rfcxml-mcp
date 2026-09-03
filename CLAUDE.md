@@ -50,7 +50,7 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 64 本に不変条件 35 種を当てる
+npm run audit         # 実物の RFC 64 本に不変条件 36 種を当てる
 npm run snapshot      # 代表的な出力 14 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
@@ -71,8 +71,8 @@ publish の前に、次を順に通す。
 |---|---|
 | `npm test` | 書いた条件の取りこぼし（367 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 64 本 × 35 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 22 本） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 64 本 × 36 種） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 24 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -530,6 +530,50 @@ RFC 8259 §3 は取りうる値を字下げして並べる。
 要件文が "false null true The literal names MUST be lowercase." になっていた。
 `looksLikeDiagram` は当たらない。ABNF の規則でも罫線でもなく、空白で桁を
 揃えてもいない、ただの短い語の並びである。`looksLikeDisplayBlock` で落とす。
+
+### 主語は文頭ではなくキーワードの直前から取る
+
+RFC の要件文は前置きから始まることが多い。
+
+- `(Note that masking is done …) The server MUST close the connection …`
+- `In this case, a server MAY send a Close frame …`
+- `Because of the potential for trailer fields to be discarded, a server …`
+
+文頭で探すと主語が取れない。実測（RFC 64 本・要件 9,684 件）で `subject` が
+付くのは **27.9%** だけだった。キーワードの直前から取ると **94.2%**。
+
+`subject` は `get_requirements` の出力であると同時に、`generate_checklist` の
+`role` の絞り込みにも使う。取れないと絞り込みが効かず、**`role: "client"` に
+サーバの話だけを書いた要件が 865 件（8.9%）残っていた。**
+
+`filterByRole` は主語が取れないときに要件文そのものを見る。どちらにも触れない
+要件は、どちらの実装にも関わりうるので両方に残す。冠詞は主語ではない。
+
+### 否定は動詞に付いたものだけを見る
+
+`validate_statement` の違反検出は、主張の文全体から否定語を探していた。
+要件の条件をそのまま書き写した主張が、そこで落ちていた。
+
+```
+要件: An origin server without a clock MUST NOT generate a Date header field.
+主張: An origin server without a clock generates a Date header field.
+```
+
+この `without` は行為を否定していない。条件を書き写しただけで、これは違反
+そのものである。動詞の直前 2 語だけを見る。
+
+**主語と動詞のあいだの限定句は飛ばす。ただし限定句だけ。** 語なら何でも
+飛ばすと、目的語の中の語を動詞と取り違える。
+
+```
+主張: The server removes masking for data frames received from a client.
+```
+
+`masking` を動詞と取ると「サーバはマスクしてはならない」に違反していると
+誤って報告する。実際はマスクを外す側の話である。飛ばしてよいのは
+`SUBJECT_QUALIFIER_WORDS`（with / without / that / a / the …）と、その次の 1 語だけ。
+
+実測（準拠 10 文・違反 5 文）: 誤検出 0 件、検出 5 / 5。
 
 ### ASN.1 の型定義は散文ではない
 

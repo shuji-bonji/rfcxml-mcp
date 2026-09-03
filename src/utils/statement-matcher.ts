@@ -887,16 +887,95 @@ export function statementMainVerb(statement: string, subject: string | null): st
 }
 
 /** 主張が実際にその動詞の行為を述べているか（主動詞で見る）。 */
+/** 主語と動詞の間に挟まる限定句を、何語まで飛ばすか。 */
+const SUBJECT_TO_VERB_GAP = 8;
+
+/**
+ * 主張の中でその行為を述べている動詞の位置を返す。無ければ `null`。
+ *
+ * 主語の**直後**だけを見ると、限定句を挟む主張で動詞が見つからない。
+ *
+ * - `An origin server without a clock generates a Date header field.`
+ *   → 主語 "server" の次は "without" で、動詞ではない
+ *
+ * 主語から数語のあいだを見て、その行為の動詞（同義語を含む）を探す。
+ */
+function findStatementVerb(
+  statement: string,
+  subject: string | null,
+  verb: string
+): { index: number; words: string[]; matched: string } | null {
+  if (!subject) return null;
+
+  const words = statement
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.replace(/[^a-z']/g, ''))
+    .filter(Boolean);
+
+  const start = words.findIndex((word) => singular(word) === subject);
+  if (start === -1) return null;
+
+  const group = VERB_SYNONYMS.find((synonyms) => synonyms.includes(verb)) ?? [verb];
+  const limit = Math.min(words.length, start + 1 + SUBJECT_TO_VERB_GAP);
+
+  // 飛ばしてよいのは、主語のすぐあとに続く限定句だけである。
+  // 語なら何でも飛ばすと、目的語の中の語を動詞と取り違える。
+  //
+  //   "The server removes masking for data frames received from a client."
+  //
+  // ここで "masking" を動詞と取ると、「サーバはマスクしてはならない」に
+  // 違反していると誤って報告する（実際はマスクを外す側の話である）。
+  let previousWasQualifier = false;
+
+  for (let index = start + 1; index < limit; index++) {
+    const word = words[index];
+    if (group.some((synonym) => word.startsWith(synonym))) {
+      return { index, words, matched: word };
+    }
+
+    const isQualifier = SUBJECT_QUALIFIER_WORDS.has(word);
+    if (!isQualifier && !previousWasQualifier) return null;
+    previousWasQualifier = isQualifier;
+  }
+
+  return null;
+}
+
+/**
+ * 主語と動詞の間に挟まってよい語。
+ *
+ * 「限定句のすぐ次の 1 語」も飛ばす（"without **a clock** generates" の "clock"）。
+ */
+const SUBJECT_QUALIFIER_WORDS = new Set([
+  'with',
+  'without',
+  'that',
+  'which',
+  'who',
+  'has',
+  'have',
+  'having',
+  'no',
+  'a',
+  'an',
+  'the',
+  'of',
+  'in',
+  'on',
+  'for',
+  'its',
+  'their',
+  'and',
+  'or',
+]);
+
 export function statementPerformsVerb(
   statement: string,
   subject: string | null,
   verb: string
 ): boolean {
-  const main = statementMainVerb(statement, subject);
-  if (!main) return false;
-
-  const group = VERB_SYNONYMS.find((synonyms) => synonyms.includes(verb)) ?? [verb];
-  return group.some((synonym) => main.startsWith(synonym));
+  return findStatementVerb(statement, subject, verb) !== null;
 }
 
 /**
@@ -989,8 +1068,15 @@ const VERB_SYNONYMS: string[][] = [
  * 否定を含む主張は、禁止に従っていることを述べている見込みが高いので、
  * 「禁止された行為をしている」検査の対象から外す。
  */
-function hasNegation(text: string): boolean {
-  return /\b(?:not|never|cannot|without|refrain|neither|nor)\b|n't\b/.test(text.toLowerCase());
+/** 動詞に否定が付いているか。直前の 2 語だけを見る。 */
+const NEGATION_WORD = /^(?:not|never|cannot|without|refrain|neither|nor|no)$|n't$/;
+
+function isNegatedVerb(words: string[], verbIndex: number): boolean {
+  for (let offset = 1; offset <= 2; offset++) {
+    const word = words[verbIndex - offset];
+    if (word && NEGATION_WORD.test(word)) return true;
+  }
+  return false;
 }
 
 /**
@@ -1047,16 +1133,26 @@ export function findProhibitionViolation(
   subject: string | null
 ): { verb: string; sharedTerms: string[] } | null {
   const statementLower = statement.toLowerCase();
-  if (hasNegation(statementLower)) return null;
 
   const verb = headVerbOf(forbiddenAction);
   if (!verb) return null;
 
   // 主張の主動詞がその行為であること。文中のどこかに動詞が現れるだけでは、
   // 別の行為を述べている見込みがある。
-  if (!statementPerformsVerb(statementLower, subject, verb)) return null;
+  const found = findStatementVerb(statementLower, subject, verb);
+  if (!found) return null;
 
-  const matchedVerb = statementMainVerb(statementLower, subject) ?? verb;
+  // 否定は**動詞に付いたもの**だけを見る。文全体を見ると、要件の条件を
+  // そのまま書き写した主張が落ちる。
+  //
+  //   "An origin server without a clock generates a Date header field."
+  //
+  // この "without" は行為を否定していない。要件
+  // "An origin server without a clock MUST NOT generate a Date header field."
+  // の条件を書き写しただけで、これは違反そのものである。
+  if (isNegatedVerb(found.words, found.index)) return null;
+
+  const matchedVerb = found.matched;
 
   const sharedTerms: string[] = [];
   const seen = new Set<string>();

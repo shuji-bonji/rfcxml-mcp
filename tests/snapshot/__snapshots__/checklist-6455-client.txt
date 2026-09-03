@@ -1,0 +1,49 @@
+# checklist-6455-client
+
+tool: generate_checklist
+args: {"rfc":6455,"sections":["5.1","5.2","5.3"],"role":"client"}
+
+--- markdown ---
+# RFC 6455 Implementation Checklist
+
+**The WebSocket Protocol**
+
+Role: client
+
+Generated: <generatedAt>
+
+## Mandatory Requirements (MUST / REQUIRED / SHALL)
+
+- [ ] **MUST** To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details). (§5.1)
+- [ ] **MUST** A client MUST close a connection if it detects a masked frame. (§5.1)
+- [ ] **MUST** RSV1, RSV2, RSV3: 1 bit each MUST be 0 unless an extension is negotiated that defines meanings for non-zero values. (§5.2)
+- [ ] **MUST** If a nonzero value is received and none of the negotiated extensions defines the meaning of such a nonzero value, the receiving endpoint MUST _Fail the WebSocket Connection_. (§5.2)
+- [ ] **MUST** If an unknown opcode is received, the receiving endpoint MUST _Fail the WebSocket Connection_. (§5.2)
+- [ ] **MUST** If 127, the following 8 bytes interpreted as a 64-bit unsigned integer (the most significant bit MUST be 0) are the payload length. (§5.2)
+- [ ] **MUST** Note that in all cases, the minimal number of bytes MUST be used to encode the length, for example, the length of a 124-byte-long string can't be encoded as the sequence 126, 0, 124. (§5.2)
+- [ ] **MUST** Any extension MUST specify the length of the "Extension data", or how that length may be calculated, and how the extension use MUST be negotiated during the opening handshake. (§5.2)
+- [ ] **MUST** 1 bit in length, MUST be 0 unless negotiated otherwise (§5.2)
+- [ ] **MUST** A masked frame MUST have the field frame-masked set to 1, as defined in Section 5.2. (§5.3)
+- [ ] **MUST** When preparing a masked frame, the client MUST pick a fresh masking key from the set of allowed 32-bit values. (§5.3)
+- [ ] **MUST** The masking key needs to be unpredictable; thus, the masking key MUST be derived from a strong source of entropy, and the masking key for a given frame MUST NOT make it simple for a server/proxy to predict the masking key for a subsequent frame. (§5.3)
+- [ ] **MUST NOT** The masking key needs to be unpredictable; thus, the masking key MUST be derived from a strong source of entropy, and the masking key for a given frame MUST NOT make it simple for a server/proxy to predict the masking key for a subsequent frame. (§5.3)
+
+## Optional Requirements (MAY / OPTIONAL)
+
+- [ ] **MAY** In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1. (§5.1)
+- [ ] **MAY** A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1). (§5.1)
+- [ ] **MAY** The first fragment MAY also be the final fragment. (§5.2)
+
+--- json ---
+{
+  "rfc": 6455,
+  "role": "client",
+  "stats": {
+    "must": 13,
+    "should": 0,
+    "may": 3,
+    "total": 16
+  },
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Checklist accuracy may be limited."
+}

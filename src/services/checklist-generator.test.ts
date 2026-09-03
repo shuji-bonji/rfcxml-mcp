@@ -4,7 +4,11 @@
 
 import { describe, it, expect } from 'vitest';
 import type { Requirement } from '../types/index.js';
-import { generateChecklist, generateChecklistMarkdown } from './checklist-generator.js';
+import {
+  filterByRole,
+  generateChecklist,
+  generateChecklistMarkdown,
+} from './checklist-generator.js';
 
 const requirement = (level: Requirement['level'], text: string, section = '5.3'): Requirement => ({
   id: `R-${section}-${level}`,
@@ -59,5 +63,36 @@ describe('generateChecklistMarkdown', () => {
     const items = markdown.split('\n').filter((l) => l.trim() && !l.startsWith('#'));
 
     expect(items.every((l) => l.startsWith('- [ ]') || !l.startsWith(' '))).toBe(true);
+  });
+});
+
+describe('role の絞り込み', () => {
+  const make = (id: string, text: string, subject?: string) => ({
+    id,
+    level: 'MUST' as const,
+    text,
+    section: '5.1',
+    sectionTitle: 'Overview',
+    fullContext: text,
+    subject,
+  });
+
+  const requirements = [
+    make('R1', 'A client MUST mask all frames that it sends to the server.', 'client'),
+    make('R2', 'The server MUST close the connection upon receiving an unmasked frame.'),
+    make('R3', 'The endpoint MUST use the minimal number of bytes to encode the length.'),
+  ];
+
+  it('主語が取れない要件も本文で振り分ける', () => {
+    // 主語だけを見ていたため、R2 が client にも残っていた。
+    const client = filterByRole(requirements, 'client').map((r) => r.id);
+    const server = filterByRole(requirements, 'server').map((r) => r.id);
+
+    expect(client).toEqual(['R1', 'R3']);
+    expect(server).toEqual(['R2', 'R3']);
+  });
+
+  it('both は絞り込まない', () => {
+    expect(filterByRole(requirements, 'both')).toHaveLength(3);
   });
 });

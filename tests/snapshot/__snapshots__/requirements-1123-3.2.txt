@@ -28,6 +28,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.1",
       "sectionTitle": "Option Negotiation: RFC-854, pp. 2-3",
       "fullContext": "Every Telnet implementation MUST include option negotiation and subnegotiation machinery [TELNET:2].",
+      "subject": "telnet implementation",
       "action": "include option negotiation and subnegotiation machinery [TELNET:2]"
     },
     {
@@ -37,7 +38,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.1",
       "sectionTitle": "Option Negotiation: RFC-854, pp. 2-3",
       "fullContext": "A host MUST carefully follow the rules of RFC-854 to avoid option-negotiation loops. A host MUST refuse (i.e, reply WONT/DONT to a DO/WILL) an unsupported option. Option negotiation SHOULD continue to function (even if all requests are refused) throughout the lifetime of a Telnet connection.",
-      "subject": "a host",
+      "subject": "host",
       "action": "carefully follow the rules of RFC-854 to avoid option-negotiation loops"
     },
     {
@@ -47,7 +48,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.1",
       "sectionTitle": "Option Negotiation: RFC-854, pp. 2-3",
       "fullContext": "A host MUST carefully follow the rules of RFC-854 to avoid option-negotiation loops. A host MUST refuse (i.e, reply WONT/DONT to a DO/WILL) an unsupported option. Option negotiation SHOULD continue to function (even if all requests are refused) throughout the lifetime of a Telnet connection.",
-      "subject": "a host",
+      "subject": "host",
       "action": "refuse (i.e, reply WONT/DONT to a DO/WILL) an unsupported option"
     },
     {
@@ -68,6 +69,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.1",
       "sectionTitle": "Option Negotiation: RFC-854, pp. 2-3",
       "fullContext": "If all option negotiations fail, a Telnet implementation MUST default to, and support, an NVT.",
+      "subject": "telnet implementation",
       "condition": "all option negotiations fail, a Telnet implementation MUST default to, and support",
       "action": "default to"
     },
@@ -78,6 +80,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.2",
       "sectionTitle": "Telnet Go-Ahead Function: RFC-854, p. 5, and RFC-858",
       "fullContext": "On a host that never sends the Telnet command Go Ahead (GA), the Telnet Server MUST attempt to negotiate the Suppress Go Ahead option (i.e., send \"WILL Suppress Go Ahead\"). A User or Server Telnet MUST always accept negotiation of the Suppress Go Ahead option.",
+      "subject": "telnet server",
       "action": "attempt to negotiate the Suppress Go Ahead option (i.e., send \"WILL Suppress Go Ahead\")"
     },
     {
@@ -87,6 +90,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.2",
       "sectionTitle": "Telnet Go-Ahead Function: RFC-854, p. 5, and RFC-858",
       "fullContext": "On a host that never sends the Telnet command Go Ahead (GA), the Telnet Server MUST attempt to negotiate the Suppress Go Ahead option (i.e., send \"WILL Suppress Go Ahead\"). A User or Server Telnet MUST always accept negotiation of the Suppress Go Ahead option.",
+      "subject": "server telnet",
       "action": "always accept negotiation of the Suppress Go Ahead option"
     },
     {
@@ -96,6 +100,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.2",
       "sectionTitle": "Telnet Go-Ahead Function: RFC-854, p. 5, and RFC-858",
       "fullContext": "When it is driving a full-duplex terminal for which GA has no meaning, a User Telnet implementation MAY ignore GA commands.",
+      "subject": "telnet implementation",
       "condition": "it is driving a full-duplex terminal for which GA has no meaning",
       "action": "ignore GA commands"
     },
@@ -106,6 +111,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.3",
       "sectionTitle": "Control Functions: RFC-854, pp. 7-8",
       "fullContext": "Both User and Server Telnets MAY support the control functions EOR, EC, EL, and Break, and MUST support AO, AYT, DM, IP, NOP, SB, and SE.",
+      "subject": "server telnets",
       "action": "support the control functions EOR"
     },
     {
@@ -115,6 +121,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.3",
       "sectionTitle": "Control Functions: RFC-854, pp. 7-8",
       "fullContext": "Both User and Server Telnets MAY support the control functions EOR, EC, EL, and Break, and MUST support AO, AYT, DM, IP, NOP, SB, and SE.",
+      "subject": "nd",
       "action": "support AO"
     },
     {
@@ -124,7 +131,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.3",
       "sectionTitle": "Control Functions: RFC-854, pp. 7-8",
       "fullContext": "A host MUST be able to receive and ignore any Telnet control functions that it does not support.",
-      "subject": "a host",
+      "subject": "host",
       "action": "be able to receive and ignore any Telnet control functions that it does not support"
     },
     {
@@ -134,6 +141,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.4",
       "sectionTitle": "Telnet \"Synch\" Signal: RFC-854, pp. 8-10",
       "fullContext": "When it receives \"urgent\" TCP data, a User or Server Telnet MUST discard all data except Telnet commands until the DM (and end of urgent) is reached.",
+      "subject": "server telnet",
       "condition": "it receives \"urgent\" TCP data",
       "exception": "Telnet commands until the DM (and end of urgent) is reached",
       "action": "discard all data except Telnet commands until the DM (and end of urgent) is reached"
@@ -145,6 +153,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.4",
       "sectionTitle": "Telnet \"Synch\" Signal: RFC-854, pp. 8-10",
       "fullContext": "When it sends Telnet IP (Interrupt Process), a User Telnet SHOULD follow it by the Telnet \"Synch\" sequence, i.e., send as TCP urgent data the sequence \"IAC IP IAC DM\". The TCP urgent pointer points to the DM octet.",
+      "subject": "user telnet",
       "condition": "it sends Telnet IP (Interrupt Process)",
       "action": "follow it by the Telnet \"Synch\" sequence"
     },
@@ -155,6 +164,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.4",
       "sectionTitle": "Telnet \"Synch\" Signal: RFC-854, pp. 8-10",
       "fullContext": "When it receives a Telnet IP command, a Server Telnet MAY send a Telnet \"Synch\" sequence back to the user, to flush the output stream. The choice ought to be consistent with the way the server operating system behaves when a local user interrupts a process.",
+      "subject": "server telnet",
       "condition": "it receives a Telnet IP command",
       "action": "send a Telnet \"Synch\" sequence back to the user"
     },
@@ -165,6 +175,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.4",
       "sectionTitle": "Telnet \"Synch\" Signal: RFC-854, pp. 8-10",
       "fullContext": "When it receives a Telnet AO command, a Server Telnet MUST send a Telnet \"Synch\" sequence back to the user, to flush the output stream.",
+      "subject": "server telnet",
       "condition": "it receives a Telnet AO command",
       "action": "send a Telnet \"Synch\" sequence back to the user"
     },
@@ -175,6 +186,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.4",
       "sectionTitle": "Telnet \"Synch\" Signal: RFC-854, pp. 8-10",
       "fullContext": "A User Telnet SHOULD have the capability of flushing output when it sends a Telnet IP; see also Section 3.4.5.",
+      "subject": "user telnet",
       "condition": "it sends a Telnet IP; see also Section 3.4.5",
       "action": "have the capability of flushing output when it sends a Telnet IP; see also Section 3.4.5"
     },
@@ -185,6 +197,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.5",
       "sectionTitle": "NVT Printer and Keyboard: RFC-854, p. 11",
       "fullContext": "In NVT mode, a Telnet SHOULD NOT send characters with the high-order bit 1, and MUST NOT send it as a parity bit. Implementations that pass the high-order bit to applications SHOULD negotiate binary mode (see Section 3.2.6).",
+      "subject": "telnet",
       "action": "send characters with the high-order bit 1"
     },
     {
@@ -194,6 +207,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.5",
       "sectionTitle": "NVT Printer and Keyboard: RFC-854, p. 11",
       "fullContext": "In NVT mode, a Telnet SHOULD NOT send characters with the high-order bit 1, and MUST NOT send it as a parity bit. Implementations that pass the high-order bit to applications SHOULD negotiate binary mode (see Section 3.2.6).",
+      "subject": "nd",
       "action": "send it as a parity bit"
     },
     {
@@ -203,6 +217,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.5",
       "sectionTitle": "NVT Printer and Keyboard: RFC-854, p. 11",
       "fullContext": "In NVT mode, a Telnet SHOULD NOT send characters with the high-order bit 1, and MUST NOT send it as a parity bit. Implementations that pass the high-order bit to applications SHOULD negotiate binary mode (see Section 3.2.6).",
+      "subject": "to applications",
       "action": "negotiate binary mode (see Section 3.2.6)"
     },
     {
@@ -211,7 +226,8 @@ args: {"rfc":1123,"section":"3.2"}
       "text": "For this reason, the requirements on the high-order bit are stated as SHOULD, not MUST.",
       "section": "3.2.5",
       "sectionTitle": "NVT Printer and Keyboard: RFC-854, p. 11",
-      "fullContext": "However, there exist applications that really need an 8- bit NVT mode, which is currently not defined, and these existing applications do set the high-order bit during part or all of the life of a Telnet connection. Note that binary mode is not the same as 8-bit NVT mode, since binary mode turns off end-of-line processing. For this reason, the requirements on the high-order bit are stated as SHOULD, not MUST."
+      "fullContext": "However, there exist applications that really need an 8- bit NVT mode, which is currently not defined, and these existing applications do set the high-order bit during part or all of the life of a Telnet connection. Note that binary mode is not the same as 8-bit NVT mode, since binary mode turns off end-of-line processing. For this reason, the requirements on the high-order bit are stated as SHOULD, not MUST.",
+      "subject": "stated as"
     },
     {
       "id": "R-3.2.5-21",
@@ -219,7 +235,8 @@ args: {"rfc":1123,"section":"3.2"}
       "text": "For this reason, the requirements on the high-order bit are stated as SHOULD, not MUST.",
       "section": "3.2.5",
       "sectionTitle": "NVT Printer and Keyboard: RFC-854, p. 11",
-      "fullContext": "However, there exist applications that really need an 8- bit NVT mode, which is currently not defined, and these existing applications do set the high-order bit during part or all of the life of a Telnet connection. Note that binary mode is not the same as 8-bit NVT mode, since binary mode turns off end-of-line processing. For this reason, the requirements on the high-order bit are stated as SHOULD, not MUST."
+      "fullContext": "However, there exist applications that really need an 8- bit NVT mode, which is currently not defined, and these existing applications do set the high-order bit during part or all of the life of a Telnet connection. Note that binary mode is not the same as 8-bit NVT mode, since binary mode turns off end-of-line processing. For this reason, the requirements on the high-order bit are stated as SHOULD, not MUST.",
+      "subject": "not"
     },
     {
       "id": "R-3.2.6-22",
@@ -228,7 +245,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.6",
       "sectionTitle": "Telnet Command Structure: RFC-854, p. 13",
       "fullContext": "Since options may appear at any point in the data stream, a Telnet escape character (known as IAC, with the value 255) to be sent as data MUST be doubled.",
-      "subject": "since options",
+      "subject": "as data",
       "action": "be doubled"
     },
     {
@@ -238,6 +255,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.7",
       "sectionTitle": "Telnet Binary Option: RFC-856",
       "fullContext": "When the Binary option has been successfully negotiated, arbitrary 8-bit characters are allowed. However, the data stream MUST still be scanned for IAC characters, any embedded Telnet commands MUST be obeyed, and data bytes equal to IAC MUST be doubled. Other character processing (e.g., replacing CR by CR NUL or by CR LF) MUST NOT be done. In particular, there is no end-of-line convention (see Section 3.3.1) in binary mode.",
+      "subject": "data stream",
       "action": "still be scanned for IAC characters, any embedded Telnet commands MUST be obeyed, and data bytes equal to IAC MUST be doubled"
     },
     {
@@ -256,6 +274,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.8",
       "sectionTitle": "Telnet Terminal-Type Option: RFC-1091",
       "fullContext": "The Terminal-Type option MUST use the terminal type names officially defined in the Assigned Numbers RFC [INTRO:5], when they are available for the particular terminal. However, the receiver of a Terminal-Type option MUST accept any name.",
+      "subject": "terminal-type option",
       "condition": "they are available for the particular terminal. However",
       "action": "use the terminal type names officially defined in the Assigned Numbers RFC [INTRO:5]"
     }

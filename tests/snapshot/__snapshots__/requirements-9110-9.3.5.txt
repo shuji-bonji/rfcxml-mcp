@@ -25,6 +25,7 @@ args: {"rfc":9110,"section":"9.3.5"}
       "section": "9.3.5",
       "sectionTitle": "DELETE",
       "fullContext": "If a DELETE method is successfully applied, the origin server SHOULD send a 202 (Accepted) status code if the action will likely succeed but has not yet been enacted, a 204 (No Content) status code if the action has been enacted and no further information is to be supplied, or a 200 (OK) status code if the action has been enacted and the response message includes a representation describing the status.",
+      "subject": "origin server",
       "condition": "a DELETE method is successfully applied",
       "action": "send a 202 (Accepted) status code if the action will likely succeed but has not yet been enacted"
     },
@@ -35,7 +36,7 @@ args: {"rfc":9110,"section":"9.3.5"}
       "section": "9.3.5",
       "sectionTitle": "DELETE",
       "fullContext": "Although request message framing is independent of the method used, content received in a DELETE request has no generally defined semantics, cannot alter the meaning or target of the request, and might lead some implementations to reject the request and close the connection because of its potential as a request smuggling attack (Section 11.2 of [HTTP/1.1]). A client SHOULD NOT generate content in a DELETE request unless it is made directly to an origin server that has previously indicated, in or out of band, that such a request has a purpose and will be adequately supported. An origin server SHOULD NOT rely on private agreements to receive content, since participants in HTTP communication are often unaware of intermediaries along the request chain.",
-      "subject": "a client",
+      "subject": "client",
       "exception": "it is made directly to an origin server that has previously indicated",
       "action": "generate content in a DELETE request unless it is made directly to an origin server that has previously indicated"
     },
@@ -46,6 +47,7 @@ args: {"rfc":9110,"section":"9.3.5"}
       "section": "9.3.5",
       "sectionTitle": "DELETE",
       "fullContext": "Although request message framing is independent of the method used, content received in a DELETE request has no generally defined semantics, cannot alter the meaning or target of the request, and might lead some implementations to reject the request and close the connection because of its potential as a request smuggling attack (Section 11.2 of [HTTP/1.1]). A client SHOULD NOT generate content in a DELETE request unless it is made directly to an origin server that has previously indicated, in or out of band, that such a request has a purpose and will be adequately supported. An origin server SHOULD NOT rely on private agreements to receive content, since participants in HTTP communication are often unaware of intermediaries along the request chain.",
+      "subject": "origin server",
       "action": "rely on private agreements to receive content"
     }
   ],

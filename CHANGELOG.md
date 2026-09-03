@@ -2,6 +2,83 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.22] - 2026-09-03
+
+**パーサではなくツール層を試して 4 件。`role` の絞り込みがほとんど効いていなかった。**
+
+パーサは 3 版続けて「残る破れはすべて原文の側」に収束した。そこで今回は、
+これまで手薄だったツールの引数まわり（絞り込み・`role`・入力検査・
+`validate_statement`）を当たった。
+
+### Fixed
+
+- **`role` の絞り込みがほとんど効いていなかった**（最も影響が大きい）:
+  - `generate_checklist` の `role: "client"` に、サーバだけの要件が並んでいた。
+
+    ```
+    Role: client
+    - [ ] **MUST** … The server MUST close the connection upon receiving a frame that is not masked.
+    - [ ] **MAY** In this case, a server MAY send a Close frame …
+    ```
+
+  - 原因は `subject` が取れていないことだった。主語を**文頭に固定**して
+    探していたため、前置きから始まる要件文で取れない。RFC の要件文は
+    `(Note that …) The server MUST …` や `In this case, a server MAY …` の形が多い。
+  - 実測（RFC 64 本・要件 9,684 件）: `subject` が付くのは **27.9%** だけだった。
+    キーワードの直前から取るようにして **94.2%**。
+  - `filterByRole` も直した。主語が取れないときは要件文そのものを見る。
+    どちらにも触れない要件は両方に残す。実測: `role: "client"` に残っていた
+    「サーバの話だけの要件」**865 件（8.9%）→ 50 件（0.5%）**。
+  - あわせて主語から冠詞を落とした（`"a client"` → `"client"`）。
+
+- **要件の条件を書き写した主張を、違反として挙げていなかった**:
+  - `validate_statement` は主張の**文全体**から否定語を探していた。
+
+    ```
+    要件: An origin server without a clock MUST NOT generate a Date header field.
+    主張: An origin server without a clock generates a Date header field.
+    ```
+
+    この `without` は行為を否定していない。要件の条件を書き写しただけで、
+    これは違反そのものである。それを否定と読んで見逃していた。
+  - 否定は動詞の直前 2 語だけを見る。
+
+- **主語と動詞のあいだの限定句で、動詞を見失っていた**:
+  - `An origin server without a clock generates …` の主語 "server" の次は
+    "without" で、動詞ではない。主語の直後 1 語しか見ていなかった。
+  - 限定句を飛ばす。**ただし限定句だけ。** 語なら何でも飛ばすと、目的語の中の
+    語を動詞と取り違える（`The server removes masking …` の `masking` を動詞と
+    取ると、「サーバはマスクしてはならない」に違反していると誤って報告する）。
+  - 実測（準拠 10 文・違反 5 文）: 誤検出 **0 件**、検出 **5 / 5**。
+
+- **存在しない RFC 番号に「ネットワークを確認してください」と案内していた**:
+  - `rfc: 99999` で `Reason: Network error` `Suggestion: Check network connection.`
+    と返していた。利用者は無いものを探しに行く。
+  - すべての取得元が 404 を返したなら、その番号の RFC は公開されていない。
+    `Reason: No RFC with that number is published` と返す。
+
+### 入力の検査（確認しただけ、変更なし）
+
+| 入力 | 返り |
+|---|---|
+| `rfc: 0` / `-5` / `1.5` | それぞれ「正の数」「整数」を求めるエラー |
+| 存在しない `section` | 0 件（エラーにしない） |
+| `level` + `section` の併用 | 正しく絞り込む |
+| 見つからない `term` | 0 件 |
+| 空の `statement` | `isValid: null` |
+
+### Added
+
+- **不変条件を 1 種**（35 種 → 36 種）: B14「主語に冠詞が入っていない」。
+- **出力見本を 22 本から 24 本へ**: `checklist-6455-client` と
+  `checklist-6455-server`。同じ節から役割ごとに違う項目が出ることを固定する。
+- **テストを 403 件から 411 件へ**。
+
+### 監査の結果
+
+RFC 64 本・節 4,754・要件 9,684・定義 4,596 に不変条件 36 種を当てて、
+残る破れは 11 件。すべて原文の側の問題である（前版と同じ）。
+
 ## [0.6.21] - 2026-09-03
 
 **走査を 37 本から 84 本に広げて 5 件。ASN.1 の型定義から要件が出ていた。**
