@@ -1605,6 +1605,45 @@ const LIST_ITEM_MIN_CONTENT = 3;
 /** 箇条書きの項目の始まり。`o` は語と紛れるので空白 2 個を求める。 */
 const LIST_ITEM_START = /^\s*(?:o\s{2}|[-*+•]\s|\(\d+\)\s|\d+[.)]\s|[a-z][.)]\s)/;
 
+/**
+ * 直前の塊が「表示のための塊」かどうかを、字下げの深さで決める。
+ *
+ * RFC 7230 §6.7 の例示の中の
+ *
+ * ```
+ *      [... data stream switches to HTTP/2.0 with an appropriate response
+ *      (as defined by new protocol) to the "GET /hello.txt" request ...]
+ *
+ *    When Upgrade is sent, the sender MUST also send a Connection header
+ * ```
+ *
+ * は 6 桁目から始まり、続く地の文は 4 桁目から始まる。語数が多いので
+ * `looksLikeDisplayBlock` では当たらず、要件文が例示から始まっていた。
+ *
+ * 2 つ外す。
+ *
+ * - **箇条書きの項目**。RFC 2068 §8.2 は地の文を 4 桁目、項目を 3 桁目から
+ *   書く（`   No matter what the server version, if an error status is
+ *   received, the client` / `  o  MUST NOT continue and`）。字下げだけで
+ *   決めると、項目が本文から切り離される。
+ * - **小文字で始まる続きの文**。RFC 2616 §14.10 の `      Connection: close`
+ *   は、続く `   in either the request or the response header fields
+ *   indicates that …` の主語である。切ると `in` から始まる断片になる。
+ *
+ * 実測（RFC 67 本）: 例示が要件文の頭に付いていたもの **44 件**。
+ */
+function isDisplayByIndent(previous: string, paragraph: string): boolean {
+  if (indentOf(previous) <= indentOf(paragraph)) return false;
+  if (LIST_ITEM_START.test(paragraph)) return false;
+  return !/^\s*[a-z]/.test(paragraph);
+}
+
+/** 塊の字下げ。空でない最初の行で測る。 */
+function indentOf(block: string): number {
+  const line = block.split('\n').find((candidate) => candidate.trim() !== '') ?? '';
+  return line.length - line.trimStart().length;
+}
+
 function joinUnterminatedParagraphs(paragraphs: string[]): string[] {
   const joined: string[] = [];
   const joinCount: number[] = [];
@@ -1632,6 +1671,7 @@ function joinUnterminatedParagraphs(paragraphs: string[]): string[] {
       (completesWithList || !/[.!?:;]\s*$/.test(previous)) &&
       !looksLikeDiagram(previous) &&
       !looksLikeDisplayBlock(previous) &&
+      !isDisplayByIndent(previous, paragraph) &&
       // 項目のあとに地の文が来たら、そこで切る。項目のあとに項目が来るなら、
       // 箇条書きが 1 つの文を作っている途中なので繋ぐ。
       !(endsWithListItem(previous) && !LIST_ITEM_START.test(paragraph)) &&

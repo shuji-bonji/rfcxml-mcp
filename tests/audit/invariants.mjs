@@ -622,6 +622,25 @@ export const INVARIANTS = [
     },
   },
   {
+    id: 'B20',
+    description: '索引の節から要件が出ていない',
+    // 索引は語の並びであって文ではない。RFC 9051 の付録 H は
+    // `MUST (specification requirement term)` のような項目を並べており、
+    // これを本文として読んで `R-H-1` … `R-H-9` の 9 件を立てていた。
+    // 要件文は `M MAX (search result option) … MUST (specification
+    // requirement term) …` である。索引の節を持つ RFC は 67 本中 6 本
+    // （9110 / 9111 / 9112 / 9114 / 9051 / 2616）。
+    check: ({ sections, requirements }) => {
+      const index = new Set(
+        sections.filter((section) => /^index$/i.test((section.title ?? '').trim())).map((s) => s.number)
+      );
+      if (index.size === 0) return [];
+      return requirements
+        .filter((requirement) => index.has(requirement.section))
+        .map((requirement) => `${requirement.id} が索引の節 §${requirement.section} から出ている`);
+    },
+  },
+  {
     id: 'E8',
     description: '同じ目印の参照が 2 度出ていない',
     // 参考文献の欄が付録に入り込んだまま読み続け、付録の中の

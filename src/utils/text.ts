@@ -43,6 +43,16 @@ export function isSentenceEnd(text: string, index: number): boolean {
 
   if (char !== '.') return true;
 
+  // 三点リーダ（`...`）は文末ではない。RFC 9051 §2.3.1.1 の
+  // `… message texts (all BODY[...] fetch data items) MUST never change.` は
+  // `...` の最後の `.` の次が `]`、その次が空白なので文末と読まれ、要件文が
+  // **`fetch data items) MUST never change.`** と括弧の途中から始まっていた。
+  //
+  // 3 つ目以降の点だけを外す。2 つ並んだ点は打ち間違いで、最後の点は文末である。
+  // RFC 2068 §8.2 は `… the choice of retrying the request..` と点が 2 つ続く。
+  // これを文末から外すと、次の文が丸ごとつながる。
+  if (text[index - 1] === '.' && text[index - 2] === '.') return false;
+
   const tail = text.slice(Math.max(0, index - 4), index + 1).toLowerCase();
   return !ABBREVIATIONS.some((abbreviation) => tail.endsWith(abbreviation));
 }

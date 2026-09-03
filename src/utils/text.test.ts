@@ -106,6 +106,24 @@ describe('文末の判定', () => {
     expect(isSentenceEnd(text, text.indexOf('5.') + 1)).toBe(false);
     expect(isSentenceEnd(text, text.length - 1)).toBe(true);
   });
+
+  it('括弧の中の三点リーダでは切らない', () => {
+    // RFC 9051 §2.3.1.1。`...` の最後の `.` の次が `]`、その次が空白なので
+    // 文末と読まれ、要件文が `fetch data items) MUST never change.` だった。
+    const text =
+      'In particular, the message texts (all BODY[...] fetch data items) MUST never change.';
+
+    expect(extractSentence(text, text.indexOf('MUST'))).toBe(text);
+    expect(isSentenceEnd(text, text.indexOf('...') + 2)).toBe(false);
+  });
+
+  it('点が 2 つ続くときは最後の点で切る', () => {
+    // RFC 2068 §8.2 は `… the choice of retrying the request..` と書く。
+    // 三点リーダと同じに扱うと、次の文が丸ごとつながる。
+    const text = 'Other methods MUST NOT be retried.. If the client does retry, it waits.';
+
+    expect(extractSentence(text, text.indexOf('MUST'))).toBe('Other methods MUST NOT be retried..');
+  });
 });
 
 describe('clipAtClauseEnd', () => {

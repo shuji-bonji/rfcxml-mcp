@@ -2,6 +2,62 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.41] - 2026-09-04
+
+**要件文の頭に、例示・図・16 進ダンプ・数式が付いていた。索引の節から要件が
+出ていた。** 全 RFC の要件文を「小文字で始まるもの」「文末記号で終わらない
+もの」で並べて読み、見つけた。
+
+### Fixed
+
+- **深く字下げした塊を、続く地の文に繋いでいた**:
+  - 段落を繋ぐかどうかは、直前の塊が文末記号で終わっているかで決めていた。
+    例示の塊は文末記号を持たないので、続く地の文に繋がっていた。語数が多い
+    ものは `looksLikeDisplayBlock` に当たらない。
+  - RFC 2616 §14.13 の要件文は
+    `Content-Length: 3495 Applications SHOULD use this field to indicate …`、
+    RFC 6455 §9.1 は
+    `Sec-WebSocket-Extensions: foo, bar; baz=2 Any extension-token used MUST …`
+    だった。
+  - **直前の塊のほうが深く字下げされていたら繋がない。** ただし 2 つ外す。
+    - 箇条書きの項目。RFC 2068 §8.2 は地の文を 4 桁目、項目を 3 桁目から書く。
+    - 小文字で始まる続きの文。RFC 2616 §14.10 の `Connection: close` は、
+      続く `in either the request …` の主語である。
+  - 実測（RFC 67 本）: 要件文の頭から例示が落ちたもの **36 件**。
+    RFC 8446 §4.1.3 の 16 進ダンプ、RFC 3550 §6.4.1 の数式、RFC 4253 §7.1 の
+    パケット構造、RFC 7540 §3.2 の HTTP メッセージ、RFC 5321 §4.2.1 の
+    複数行応答、RFC 3261 §17.1.1.2 と RFC 7540 §5.3.1 の図の題名など。
+
+- **三点リーダを文の切れ目と読んでいた**:
+  - v0.6.39 で句点のあとの閉じ括弧を読み飛ばすようにしたため、`[...]` の
+    最後の `.` が「次が `]`、その次が空白」となり文末になった。
+  - RFC 9051 §2.3.1.1 の
+    `… message texts (all BODY[...] fetch data items) MUST never change.` は
+    要件文が **`fetch data items) MUST never change.`** だった。
+    §4.3.1 の `BINARY.PEEK[...]/BINARY[...] FETCH` も同じ。
+    RFC 9000 §22.3 の `(that is, 27, 58, 89, ...)` も同じ。
+  - **3 つ目以降の点だけを外す。** 2 つ並んだ点は打ち間違いで、最後の点は
+    文末である。RFC 2068 §8.2 は `… the choice of retrying the request..` と
+    書いており、これを外すと次の文が丸ごとつながる。
+  - 実測（RFC 67 本）: 3 件。
+
+- **索引の節から要件を出していた**:
+  - 索引は語の並びであって文ではない。RFC 9051 の付録 H は
+    `MUST (specification requirement term)` のような項目を並べており、
+    `R-H-1` … `R-H-9` の 9 件の要件が立っていた。要件文は
+    `M MAX (search result option) MAX (search return item name)
+    MAY (specification requirement term) …` である。
+  - 題名が `Index` の節は、中身を空にする。節そのものは目次に残す。
+  - 索引の節を持つ RFC は 67 本中 6 本（9110 / 9111 / 9112 / 9114 / 9051 /
+    2616）。要件が出ていたのは RFC 9051 だけで 9 件。
+
+### Added
+
+- **監査の条件を 1 つ足した**（49 → 50）: `B20` 索引の節から要件が出ていない
+- **見本を 2 つ足した**（33 → 35）: `requirements-6455-9.1`（例示が頭に付かない）、
+  `requirements-9051-2.3.1.1`（三点リーダで切らない）
+- **テストを 7 つ足した**（482 → 489）
+
 ## [0.6.40] - 2026-09-03
 
 **`get_rfc_dependencies` が、付録の本文と JSON の断片を参照として返していた。**

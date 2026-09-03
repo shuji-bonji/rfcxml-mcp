@@ -1054,3 +1054,41 @@ describe('箇条書きの中の段落の節番号', () => {
     expect(definition?.section).toBe('7.1');
   });
 });
+
+describe('索引の節', () => {
+  // RFC 9051 の付録 H。索引の項目 `MUST (specification requirement term)` を
+  // 本文として読み、`R-H-1` … `R-H-9` の 9 件の要件を立てていた。
+  const withIndex = `<?xml version="1.0" encoding="UTF-8"?>
+<rfc number="9051" docName="draft-test-01">
+  <front><title>Test</title></front>
+  <middle>
+    <section anchor="s1" pn="section-1">
+      <name>Introduction</name>
+      <t>The client MUST send a request.</t>
+    </section>
+  </middle>
+  <back>
+    <section anchor="index" pn="section-h">
+      <name>Index</name>
+      <t>M MAX (search result option) MAY (specification requirement term) MUST (specification requirement term) MUST NOT (specification requirement term)</t>
+    </section>
+  </back>
+</rfc>`;
+
+  it('節そのものは残す', () => {
+    const parsed = parseRFCXML(withIndex);
+    const index = parsed.sections.find((section) => section.title === 'Index');
+
+    expect(index).toBeDefined();
+  });
+
+  it('索引から要件を出さない', () => {
+    const parsed = parseRFCXML(withIndex);
+    const index = parsed.sections.find((section) => section.title === 'Index');
+
+    expect(index?.content).toEqual([]);
+    expect(extractRequirements(parsed.sections).map((r) => r.text)).toEqual([
+      'The client MUST send a request.',
+    ]);
+  });
+});

@@ -87,6 +87,21 @@ export const CASES = [
     args: { rfc: 1123, section: '3.2' },
   },
   {
+    // 例示の塊が要件文の頭に付いていないこと。§9.1 は
+    // `      Sec-WebSocket-Extensions: foo, bar; baz=2` を挟んで
+    // `   Any extension-token used MUST be a registered token …` と続く。
+    name: 'requirements-6455-9.1',
+    tool: 'get_requirements',
+    args: { rfc: 6455, section: '9.1' },
+  },
+  {
+    // 三点リーダを文末と読まないこと。§2.3.1.1 の
+    // `… (all BODY[...] fetch data items) MUST never change.`
+    name: 'requirements-9051-2.3.1.1',
+    tool: 'get_requirements',
+    args: { rfc: 9051, section: '2.3.1.1' },
+  },
+  {
     name: 'requirements-9110-9.3.5',
     tool: 'get_requirements',
     args: { rfc: 9110, section: '9.3.5' },

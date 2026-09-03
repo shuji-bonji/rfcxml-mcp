@@ -370,20 +370,30 @@ function extractReferenceSections(references: XmlNode | XmlNode[]): Section[] {
   );
 }
 
+/** 索引の節。中身は語の並びであって文ではない。 */
+const INDEX_SECTION_TITLE = /^index$/i;
+
 function extractSections(sections: XmlNode | XmlNode[]): Section[] {
   if (!sections) return [];
 
   const sectionArray = Array.isArray(sections) ? sections : [sections];
 
-  return sectionArray.map(
-    (sec): Section => ({
+  return sectionArray.map((sec): Section => {
+    const title = extractProse(sec.name) || 'Untitled Section';
+    return {
       anchor: sec['@_anchor'],
       number: sec['@_pn'] || sec['@_numbered'],
-      title: extractProse(sec.name) || 'Untitled Section',
-      content: extractContent(sec),
+      title,
+      // 索引は語の並びであって文ではない。RFC 9051 の付録 H は
+      // `MUST (specification requirement term)` のような項目を並べており、
+      // これを本文として読み、`R-H-1` … `R-H-9` の 9 件の要件を立てていた。
+      // 要件文は `M MAX (search result option) MAX (search return item name)
+      // MAY (specification requirement term) …` である。
+      // 節そのものは目次に残す。中身だけを空にする。
+      content: INDEX_SECTION_TITLE.test(title) ? [] : extractContent(sec),
       subsections: extractSections(sec.section),
-    })
-  );
+    };
+  });
 }
 
 /**

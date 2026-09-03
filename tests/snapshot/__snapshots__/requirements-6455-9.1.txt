@@ -1,0 +1,98 @@
+# requirements-6455-9.1
+
+tool: get_requirements
+args: {"rfc":6455,"section":"9.1"}
+
+--- json ---
+{
+  "rfc": 6455,
+  "filter": {
+    "section": "9.1",
+    "level": "all"
+  },
+  "stats": {
+    "total": 7,
+    "byLevel": {
+      "MUST": 4,
+      "MAY": 2,
+      "MUST NOT": 1
+    }
+  },
+  "requirements": [
+    {
+      "id": "R-9.1-1",
+      "level": "MUST",
+      "text": "If a value is received by either the client or the server during negotiation that does not conform to the ABNF below, the recipient of such malformed data MUST immediately _Fail the WebSocket Connection_.",
+      "section": "9.1",
+      "sectionTitle": "Negotiating Extensions",
+      "fullContext": "A client requests extensions by including a |Sec-WebSocket- Extensions| header field, which follows the normal rules for HTTP header fields (see [RFC2616], Section 4.2) and the value of the header field is defined by the following ABNF [RFC2616]. Note that this section is using ABNF syntax/rules from [RFC2616], including the \"implied *LWS rule\". If a value is received by either the client or the server during negotiation that does not conform to the ABNF below, the recipient of such malformed data MUST immediately _Fail the WebSocket Connection_.",
+      "subject": "malformed data",
+      "condition": "a value is received by either the client or the server during negotiation that does not conform to the ABNF below",
+      "action": "immediately _Fail the WebSocket Connection_"
+    },
+    {
+      "id": "R-9.1-2",
+      "level": "MUST",
+      "text": "When using the quoted-string syntax variant, the value after quoted-string unescaping MUST conform to the 'token' ABNF.",
+      "section": "9.1",
+      "sectionTitle": "Negotiating Extensions",
+      "fullContext": "Sec-WebSocket-Extensions = extension-list extension-list = 1#extension extension = extension-token *( \";\" extension-param ) extension-token = registered-token registered-token = token extension-param = token [ \"=\" (token | quoted-string) ] ;When using the quoted-string syntax variant, the value ;after quoted-string unescaping MUST conform to the ;'token' ABNF.",
+      "subject": "quoted-string unescaping",
+      "condition": "using the quoted-string syntax variant",
+      "action": "conform to the 'token' ABNF"
+    },
+    {
+      "id": "R-9.1-3",
+      "level": "MAY",
+      "text": "Note that like other HTTP header fields, this header field MAY be split or combined across multiple lines.",
+      "section": "9.1",
+      "sectionTitle": "Negotiating Extensions",
+      "fullContext": "Note that like other HTTP header fields, this header field MAY be split or combined across multiple lines. Ergo, the following are equivalent:",
+      "subject": "header field",
+      "action": "be split or combined across multiple lines"
+    },
+    {
+      "id": "R-9.1-4",
+      "level": "MUST",
+      "text": "Any extension-token used MUST be a registered token (see Section 11.4).",
+      "section": "9.1",
+      "sectionTitle": "Negotiating Extensions",
+      "fullContext": "Any extension-token used MUST be a registered token (see Section 11.4). The parameters supplied with any given extension MUST be defined for that extension. Note that the client is only offering to use any advertised extensions and MUST NOT use them unless the server indicates that it wishes to use the extension.",
+      "subject": "extension-token used",
+      "action": "be a registered token (see Section 11.4)"
+    },
+    {
+      "id": "R-9.1-5",
+      "level": "MUST",
+      "text": "The parameters supplied with any given extension MUST be defined for that extension.",
+      "section": "9.1",
+      "sectionTitle": "Negotiating Extensions",
+      "fullContext": "Any extension-token used MUST be a registered token (see Section 11.4). The parameters supplied with any given extension MUST be defined for that extension. Note that the client is only offering to use any advertised extensions and MUST NOT use them unless the server indicates that it wishes to use the extension.",
+      "subject": "given extension",
+      "action": "be defined for that extension"
+    },
+    {
+      "id": "R-9.1-6",
+      "level": "MUST NOT",
+      "text": "Note that the client is only offering to use any advertised extensions and MUST NOT use them unless the server indicates that it wishes to use the extension.",
+      "section": "9.1",
+      "sectionTitle": "Negotiating Extensions",
+      "fullContext": "Any extension-token used MUST be a registered token (see Section 11.4). The parameters supplied with any given extension MUST be defined for that extension. Note that the client is only offering to use any advertised extensions and MUST NOT use them unless the server indicates that it wishes to use the extension.",
+      "subject": "extensions",
+      "exception": "the server indicates that it wishes to use the extension",
+      "action": "use them unless the server indicates that it wishes to use the extension"
+    },
+    {
+      "id": "R-9.1-7",
+      "level": "MAY",
+      "text": "Any interactions between multiple extensions MAY be defined in the documents defining the extensions.",
+      "section": "9.1",
+      "sectionTitle": "Negotiating Extensions",
+      "fullContext": "Note that the order of extensions is significant. Any interactions between multiple extensions MAY be defined in the documents defining the extensions. In the absence of such definitions, the interpretation is that the header fields listed by the client in its request represent a preference of the header fields it wishes to use, with the first options listed being most preferable. The extensions listed by the server in response represent the extensions actually in use for the connection. Should the extensions modify the data and/or framing, the order of operations on the data should be assumed to be the same as the order in which the extensions are listed in the server's response in the opening handshake.",
+      "subject": "multiple extensions",
+      "action": "be defined in the documents defining the extensions"
+    }
+  ],
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Requirement extraction accuracy may be limited."
+}

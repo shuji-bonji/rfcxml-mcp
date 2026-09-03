@@ -1346,6 +1346,64 @@ describe('値を並べた塊を要件文に繋がない', () => {
   });
 });
 
+describe('深く字下げした塊を要件文に含めないこと', () => {
+  const textsOf = (text: string, rfc: number) =>
+    extractTextRequirements(parseRFCText(text, rfc).sections).map(
+      (requirement) => requirement.text
+    );
+
+  it('例示のあとの地の文を、例示から始めない', () => {
+    // RFC 6455 §9.1。要件文が
+    // `Sec-WebSocket-Extensions: foo, bar; baz=2 Any extension-token used MUST …`
+    // になっていた。
+    const text = [
+      '9.  Extensions',
+      '',
+      '   For example,',
+      '',
+      '      Sec-WebSocket-Extensions: foo, bar; baz=2',
+      '',
+      '   Any extension-token used MUST be a registered token.',
+      '',
+    ].join('\n');
+
+    expect(textsOf(text, 6455)).toContain('Any extension-token used MUST be a registered token.');
+  });
+
+  it('浅く字下げした箇条書きは本文に繋ぐ', () => {
+    // RFC 2068 §8.2 は地の文を 4 桁目、項目を 3 桁目から書く。字下げだけで
+    // 決めると、`MUST NOT continue` が本文から切り離される。
+    const text = [
+      '8.  Connections',
+      '',
+      '   No matter what the server version, if an error status is received,',
+      '   the client',
+      '',
+      '  o  MUST NOT continue and',
+      '',
+      '  o  MUST close the connection.',
+      '',
+    ].join('\n');
+
+    expect(textsOf(text, 2068).join(' ')).toContain('if an error status is received');
+  });
+
+  it('小文字で続く文は例示に繋ぐ', () => {
+    // RFC 2616 §14.10 の `Connection: close` は、続く文の主語である。
+    const text = [
+      '14.  Header Field Definitions',
+      '',
+      '      Connection: close',
+      '',
+      '   in either the request or the response header fields indicates that',
+      '   the connection SHOULD NOT be considered persistent.',
+      '',
+    ].join('\n');
+
+    expect(textsOf(text, 2616).join(' ')).toContain('Connection: close');
+  });
+});
+
 describe('参照の題名', () => {
   const refsOf = (text: string, rfc: number) => parseRFCText(text, rfc).references.informative;
 
