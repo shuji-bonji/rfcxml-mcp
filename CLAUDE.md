@@ -51,6 +51,7 @@ npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
 npm run audit         # 実物の RFC 67 本に不変条件 46 種を当てる
+npm run crosscheck    # 7 つのツールの出力が互いに矛盾しないかを見る
 npm run snapshot      # 代表的な出力 32 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
@@ -72,6 +73,7 @@ publish の前に、次を順に通す。
 | `npm test` | 書いた条件の取りこぼし（471 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
 | `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 46 種） |
+| `npm run crosscheck` | 出力どうしの食い違い（RFC 67 本 × 10 種） |
 | `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 32 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
@@ -500,6 +502,35 @@ RFC 2131 §4.3.1 の Table 3 は 2 ページにわたるので、段落全体を
 要件文は `keyIdentifier [0] KeyIdentifier OPTIONAL,` になる。RFC 4253 §6.3 の
 暗号方式の表も同じ。実測（RFC 67 本）: 86 件、うち RFC 5280 が 46 件、
 RFC 4253 が 12 件、RFC 5652 が 12 件。**判断待ちである。**
+
+### 出力どうしを突き合わせる（`npm run crosscheck`）
+
+`npm run audit` は 1 本の RFC の 1 つの出力に条件を当てる。**同じものを違う呼び方で
+取ったときに答えが揃うか**は、それでは見えない。この形でしか見つからない不具合が
+3 版続けて出た。
+
+| 版 | 見つかったもの |
+|---|---|
+| v0.6.34 | XML 経路の構造に後付録が無いのに、定義は §A.2.5 を指していた |
+| v0.6.35 | 同じ RFC の目次が、XML 経路とテキスト経路で食い違っていた |
+| v0.6.36 | `validate_statement` が教えた id を `get_requirements` で引けなかった |
+
+10 種を当てる。
+
+| | 見ること |
+|---|---|
+| X1 / X2 | 要件の `section` と `sectionTitle` が構造と合う |
+| X3 | 定義の `section` が構造にある |
+| X4 | 要件の `action` / `condition` / `exception` が本文にある |
+| X5 | `generate_checklist` の件数が要件の数と合う |
+| X6 | 目印の 55% 以上が要件になる（静かに落ちていないか） |
+| X7 | 節を指定した取得が、全件のうちその節のものと **id を含めて** 一致する |
+| X8 | レベルを指定した取得が、全件のうちそのレベルのものと一致する |
+| X9 | 親節を指定すると下位節も入る |
+| X10 | `get_related_sections` が返す節が構造にある |
+
+X6 の下限 0.55 は、1 つの文に同じレベルのキーワードが 2 回あると 1 件に畳まれる
+ためである。実測の中央値は 0.95、最も低い RFC 9293 で 0.60 だった。
 
 ### 要件の id は節ごとに数える
 

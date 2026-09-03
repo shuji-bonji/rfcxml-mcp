@@ -1,6 +1,6 @@
 {
   "name": "@shuji-bonji/rfcxml-mcp",
-  "version": "0.6.36",
+  "version": "0.6.37",
   "description": "MCP server for structured understanding of RFC documents via RFCXML",
   "keywords": [
     "mcp",
@@ -40,7 +40,8 @@
     "lint": "eslint src",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "crosscheck": "node tests/crosscheck/run.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
