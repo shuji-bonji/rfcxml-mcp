@@ -760,7 +760,44 @@ describe('古い書式の参考文献', () => {
     const refs = parseRFCText(text, 1122).references.informative;
 
     expect(refs[0].rfcNumber).toBe(817);
-    expect(refs[0].title).toBe('Modularity and Efficiency in Protocol Implementation,');
+    // 題名の引用符の中に読点が入る。参照の題名としては落とす。
+    expect(refs[0].title).toBe('Modularity and Efficiency in Protocol Implementation');
+  });
+});
+
+describe('参照の番号を題名や注釈から拾わない', () => {
+  it('注釈の中の番号ではなく、引用の番号を採る', () => {
+    // RFC 1123 [DNS:1] は本体が RFC-1034 で、注釈が RFC-882 / 883 / 973 に
+    // 触れる。最後の番号を採ると 973 になり、別文書を指していた。
+    const text = [
+      '7.  REFERENCES',
+      '',
+      '   [DNS:1]  "Domain Names - Concepts and Facilities," P. Mockapetris,',
+      '        RFC-1034, November 1987.',
+      '',
+      '        This document and the following one obsolete RFC-882, RFC-883,',
+      '        and RFC-973.',
+      '',
+    ].join('\n');
+    const refs = parseRFCText(text, 1123).references.informative;
+
+    expect(refs[0].rfcNumber).toBe(1034);
+    expect(refs[0].title).toBe('Domain Names - Concepts and Facilities');
+  });
+
+  it('題名の中の番号を採らない', () => {
+    // RFC 1123 [SMTP:5b] は "Addendum to RFC-987" が題名で、番号は RFC-??? と
+    // 書かれている。題名の 987 を採ると別文書を指す。
+    const text = [
+      '7.  REFERENCES',
+      '',
+      '   [SMTP:5b]  "Addendum to RFC-987," S. Kille, RFC-???, September 1987.',
+      '',
+    ].join('\n');
+    const refs = parseRFCText(text, 1123).references.informative;
+
+    expect(refs[0].rfcNumber).toBeUndefined();
+    expect(refs[0].title).toBe('Addendum to RFC-987');
   });
 });
 
@@ -1306,5 +1343,72 @@ describe('値を並べた塊を要件文に繋がない', () => {
     // "false null true The literal names MUST be lowercase." になっていた
     expect(texts).not.toContain('false\nnull\ntrue The literal names');
     expect(texts).toContain('The literal names MUST be lowercase.');
+  });
+});
+
+describe('参照の題名', () => {
+  const refsOf = (text: string, rfc: number) => parseRFCText(text, rfc).references.informative;
+
+  it('引用符の中の読点を落とす', () => {
+    // 実測（テキスト経路の参照 859 件）で 121 件（14.1%）が読点で終わっていた。
+    const text = [
+      '7.  REFERENCES',
+      '',
+      '   [INTRO:5]  "Assigned Numbers," J. Reynolds and J. Postel, RFC-1010,',
+      '        May 1987.',
+      '',
+    ].join('\n');
+
+    expect(refsOf(text, 1123)[0].title).toBe('Assigned Numbers');
+  });
+
+  it('目印を 1 行に置く書き方で、引用を題名にする', () => {
+    // RFC 1305 は目印だけを 1 行に置き、引用を次の行から 1 桁目で書く。
+    // 1 桁目の行を落としていたため、48 件の題名が目印のままだった。
+    const text = [
+      'References',
+      '',
+      '[ABA89]',
+      '',
+      "Abate, et al. AT&T's new approach to the synchronization of",
+      'telecommunication networks. IEEE Communications Magazine (April 1989),',
+      '35-45.',
+      '',
+    ].join('\n');
+
+    expect(refsOf(text, 1305)[0].title).toBe(
+      "AT&T's new approach to the synchronization of telecommunication networks"
+    );
+  });
+
+  it('出典と日付の塊を題名にしない', () => {
+    // RFC 1305 [DAR81a]。最長の部分を採ると出典の塊になる。
+    const text = [
+      'References',
+      '',
+      '[DAR81a]',
+      '',
+      'Defense Advanced Research Projects Agency. Internet Protocol. DARPA',
+      'Network Working Group Report RFC-791, USC Information Sciences',
+      'Institute, September 1981.',
+      '',
+    ].join('\n');
+    const ref = refsOf(text, 1305)[0];
+
+    expect(ref.rfcNumber).toBe(791);
+    expect(ref.title).not.toContain('RFC-791');
+  });
+
+  it('題名の中に目印を残さない', () => {
+    const text = [
+      'References',
+      '',
+      '[BEL86]',
+      '',
+      'Digital Synchronization Network Plan.',
+      '',
+    ].join('\n');
+
+    expect(refsOf(text, 1305)[0].title).not.toMatch(/^\[/);
   });
 });

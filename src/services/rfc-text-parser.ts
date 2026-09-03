@@ -241,8 +241,22 @@ function extractTextReferences(lines: string[], currentRfcNumber: number): Parse
         if (headerMatch) {
           flush();
           bucket = null;
+          continue;
         }
       }
+
+      // 1 桁目から続く項目の本体。RFC 1305 は目印だけを 1 行に置き、
+      // 引用を次の行から 1 桁目で書く。
+      //
+      // ```
+      // [ABA89]
+      //
+      // Abate, et al. AT&T's new approach to the synchronization of
+      // telecommunication networks. IEEE Communications Magazine (April 1989).
+      // ```
+      //
+      // 落としていたため、48 件の題名が目印（`ABA89`）のままだった。
+      if (bucket && anchor) buffer.push(line);
       continue;
     }
 
@@ -271,19 +285,35 @@ function parseTextReference(
 ): RFCReference {
   const entry = rawEntry.replace(/\s+/g, ' ').trim();
 
+  const quoted = /"([^"]+)"/.exec(entry);
+
   let rfcNumber: number | undefined;
   const fromAnchor = /^RFC[\s-]*(\d+)$/i.exec(anchor);
   if (fromAnchor) {
     rfcNumber = parseInt(fromAnchor[1], 10);
   } else {
+    // 題名を外してから探す。
+    //
+    // RFC 1123 の `[SMTP:5b] "Addendum to RFC-987," S. Kille, RFC-???, …` は
+    // 題名の中の 987 を拾い、実在しない別文書を指していた。
+    //
+    // **最初の**番号を採る。項目のあとに注釈の段落が続く RFC があり、
+    // 最後の番号を採ると注釈の中の番号になる。RFC 1123 の
+    // `[DNS:1] "Domain Names - Concepts and Facilities," P. Mockapetris,
+    // RFC-1034, November 1987.` は、注釈の
+    // "obsolete RFC-882, RFC-883, RFC-973" から 973 を拾っていた。
+    const body = quoted ? entry.replace(quoted[0], ' ') : entry;
     // "RFC 2119" と "RFC-817"（古い RFC の書き方）の双方を拾う
-    const inline = [...entry.matchAll(/\bRFC[\s-]+(\d+)\b/g)];
-    if (inline.length > 0) {
-      rfcNumber = parseInt(inline[inline.length - 1][1], 10);
+    const inline = /\bRFC[\s-]+(\d+)\b/.exec(body);
+    if (inline) {
+      rfcNumber = parseInt(inline[1], 10);
     }
   }
 
-  const title = /"([^"]+)"/.exec(entry)?.[1].trim() || titleWithoutQuotes(entry);
+  // 題名の引用符の中に読点が入る（`"Assigned Numbers," J. Reynolds, …`）。
+  // 実測（テキスト経路の参照 859 件）で 121 件（14.1%）が読点で終わっていた。
+  const quotedTitle = quoted ? quoted[1].trim() : '';
+  const title = (quotedTitle || titleWithoutQuotes(entry) || '').replace(/[,;]$/, '');
 
   return {
     anchor,
@@ -312,17 +342,51 @@ const UNQUOTED_TITLE_MAX_LENGTH = 120;
  * 何も取れなければ呼び出し側が anchor に戻す。
  */
 function titleWithoutQuotes(entry: string): string | undefined {
-  const parts = entry
+  // 開き引用符だけがあって閉じていない項目がある。RFC 2131 の
+  // `[4] Braden, R., Editor, "Requirements for Internet Hosts --
+  //  Application and Support, STD 3, RFC 1123, …` は閉じ引用符が無い
+  //（原文の誤り）。開き引用符から、出典の切れ目までを題名とみなす。
+  const unbalanced = /"([^"]+?)(?:,\s*(?:STD|RFC|BCP|Work in Progress)\b|$)/.exec(entry);
+  if (unbalanced && (entry.match(/"/g) ?? []).length === 1) {
+    const candidate = unbalanced[1].trim();
+    if (candidate.length >= 12) return candidate.slice(0, UNQUOTED_TITLE_MAX_LENGTH);
+  }
+
+  // 目印は題名ではない。RFC 1305 は `[BEL86]` を 1 行に置き、次の行から
+  // 引用を書くため、繋いだ項目が目印で始まる。
+  const body = entry.replace(/^\[[^\]]+\]\s*/, '').trim();
+
+  const parts = body
     .split(/\.\s+/)
     .map((part) => part.replace(/\.$/, '').trim())
     .filter((part) => part.length > 0);
 
-  if (parts.length < 2) return undefined;
+  // 出典の部分は題名ではない。RFC 1305 の
+  // `Defense Advanced Research Projects Agency. Internet Protocol. DARPA
+  //  Network Working Group Report RFC-791, USC Information Sciences
+  //  Institute, September 1981.`
+  // で最長の部分を採ると、題名が出典と日付の塊になっていた。
+  // RFC 番号・西暦・ページ範囲を含む部分を落としてから選ぶ。
+  const withoutImprint = parts.filter(
+    (part) => !/\bRFC[\s-]*\d+\b|\b(?:19|20)\d{2}\b|\b\d+-{1,2}\d+\b/.test(part)
+  );
+  const candidates = withoutImprint.length > 0 ? withoutImprint : parts;
 
-  const longest = parts.reduce((best, part) => (part.length > best.length ? part : best), '');
-  if (longest.length < 12) return undefined;
+  const longest = candidates.reduce((best, part) => (part.length > best.length ? part : best), '');
+  if (longest.length >= 12 && parts.length >= 2) {
+    return longest.slice(0, UNQUOTED_TITLE_MAX_LENGTH).trim();
+  }
 
-  return longest.slice(0, UNQUOTED_TITLE_MAX_LENGTH).trim();
+  // 文の切れ目が無い引用がある。RFC 5246 の
+  // `[X680] ITU-T Recommendation X.680 (2002) | ISO/IEC 8824-1:2002,
+  //  Information technology - Abstract Syntax Notation One (ASN.1)…`
+  // は句点で割れない。目印を外した本文をそのまま題名にする。
+  // 落とすと、題名が目印（`X680`）のままになる。
+  if (body.length >= 12) {
+    return body.slice(0, UNQUOTED_TITLE_MAX_LENGTH).trim();
+  }
+
+  return undefined;
 }
 
 /**

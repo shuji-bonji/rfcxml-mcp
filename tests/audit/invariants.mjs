@@ -344,6 +344,44 @@ export const INVARIANTS = [
         .map((reference) => `${reference.anchor}`),
   },
   {
+    id: 'E3',
+    description: '参照の題名に読点が残っていない',
+    check: ({ parsed }) =>
+      [...parsed.references.normative, ...parsed.references.informative]
+        .filter((reference) => /[,;]$/.test(reference.title ?? ''))
+        .map((reference) => `[${reference.anchor}] "${reference.title}"`),
+  },
+  {
+    id: 'E4',
+    description: '参照の番号を題名から拾っていない',
+    check: ({ parsed }) =>
+      [...parsed.references.normative, ...parsed.references.informative]
+        .filter((reference) => {
+          if (!reference.rfcNumber || !reference.title) return false;
+          // 題名が取れなかったときの埋め草（`RFC 1123`）は誤りではない
+          if (reference.title === `RFC ${reference.rfcNumber}`) return false;
+          // 題名の中の "RFC-987" だけを根拠に番号を付けていないか
+          return new RegExp(`\\bRFC[\\s-]*${reference.rfcNumber}\\b`, 'i').test(reference.title);
+        })
+        .map((reference) => `[${reference.anchor}] ${reference.rfcNumber} <- "${reference.title}"`),
+  },
+  {
+    id: 'E6',
+    description: '参照の題名に目印が残っていない',
+    check: ({ parsed }) =>
+      [...parsed.references.normative, ...parsed.references.informative]
+        .filter((reference) => /^\[/.test(reference.title ?? ''))
+        .map((reference) => `[${reference.anchor}] "${(reference.title ?? '').slice(0, 40)}"`),
+  },
+  {
+    id: 'E5',
+    description: '参照の題名が目印のままになっていない',
+    check: ({ parsed }) =>
+      [...parsed.references.normative, ...parsed.references.informative]
+        .filter((reference) => reference.title === reference.anchor)
+        .map((reference) => `[${reference.anchor}] の題名が取れていない`),
+  },
+  {
     id: 'F1',
     description: 'チェックリストの各項目がレベル付きの 1 行',
     check: ({ checklist }) =>

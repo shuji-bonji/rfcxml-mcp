@@ -1,0 +1,282 @@
+# dependencies-1123
+
+tool: get_rfc_dependencies
+args: {"rfc":1123}
+
+--- json ---
+{
+  "rfc": 1123,
+  "normative": [],
+  "informative": [
+    {
+      "rfcNumber": 1122,
+      "title": "Requirements for Internet Hosts -- Communication Layers",
+      "anchor": "INTRO:1"
+    },
+    {
+      "title": "DDN Protocol Handbook",
+      "anchor": "INTRO:2"
+    },
+    {
+      "rfcNumber": 1011,
+      "title": "Official Internet Protocols",
+      "anchor": "INTRO:3"
+    },
+    {
+      "rfcNumber": 980,
+      "title": "Protocol Document Order Information",
+      "anchor": "INTRO:4"
+    },
+    {
+      "rfcNumber": 1010,
+      "title": "Assigned Numbers",
+      "anchor": "INTRO:5"
+    },
+    {
+      "rfcNumber": 854,
+      "title": "Telnet Protocol Specification",
+      "anchor": "TELNET:1"
+    },
+    {
+      "rfcNumber": 855,
+      "title": "Telnet Option Specification",
+      "anchor": "TELNET:2"
+    },
+    {
+      "rfcNumber": 856,
+      "title": "Telnet Binary Transmission",
+      "anchor": "TELNET:3"
+    },
+    {
+      "rfcNumber": 857,
+      "title": "Telnet Echo Option",
+      "anchor": "TELNET:4"
+    },
+    {
+      "rfcNumber": 858,
+      "title": "Telnet Suppress Go Ahead Option",
+      "anchor": "TELNET:5"
+    },
+    {
+      "rfcNumber": 859,
+      "title": "Telnet Status Option",
+      "anchor": "TELNET:6"
+    },
+    {
+      "rfcNumber": 860,
+      "title": "Telnet Timing Mark Option",
+      "anchor": "TELNET:7"
+    },
+    {
+      "rfcNumber": 861,
+      "title": "Telnet Extended Options List",
+      "anchor": "TELNET:8"
+    },
+    {
+      "rfcNumber": 855,
+      "title": "Telnet End-Of-Record Option",
+      "anchor": "TELNET:9"
+    },
+    {
+      "rfcNumber": 1091,
+      "title": "Telnet Terminal-Type Option",
+      "anchor": "TELNET:10"
+    },
+    {
+      "rfcNumber": 1073,
+      "title": "Telnet Window Size Option",
+      "anchor": "TELNET:11"
+    },
+    {
+      "rfcNumber": 1116,
+      "title": "Telnet Linemode Option",
+      "anchor": "TELNET:12"
+    },
+    {
+      "rfcNumber": 1079,
+      "title": "Telnet Terminal Speed Option",
+      "anchor": "TELNET:13"
+    },
+    {
+      "rfcNumber": 1080,
+      "title": "Telnet Remote Flow Control Option",
+      "anchor": "TELNET:14"
+    },
+    {
+      "rfcNumber": 854,
+      "title": "Telnet Protocol",
+      "anchor": "TELNET:15"
+    },
+    {
+      "rfcNumber": 734,
+      "title": "SUPDUP Protocol",
+      "anchor": "TELNET:16"
+    },
+    {
+      "rfcNumber": 736,
+      "title": "Telnet SUPDUP Option",
+      "anchor": "TELNET:17"
+    },
+    {
+      "rfcNumber": 732,
+      "title": "Data Entry Terminal Option",
+      "anchor": "TELNET:18"
+    },
+    {
+      "rfcNumber": 1043,
+      "title": "TELNET Data Entry Terminal option -- DODIIS Implementation",
+      "anchor": "TELNET:19"
+    },
+    {
+      "rfcNumber": 959,
+      "title": "File Transfer Protocol",
+      "anchor": "FTP:1"
+    },
+    {
+      "rfcNumber": 678,
+      "title": "Document File Format Standards",
+      "anchor": "FTP:2"
+    },
+    {
+      "rfcNumber": 765,
+      "title": "File Transfer Protocol",
+      "anchor": "FTP:3"
+    },
+    {
+      "rfcNumber": 783,
+      "title": "The TFTP Protocol Revision 2",
+      "anchor": "TFTP:1"
+    },
+    {
+      "rfcNumber": 821,
+      "title": "Simple Mail Transfer Protocol",
+      "anchor": "SMTP:1"
+    },
+    {
+      "rfcNumber": 822,
+      "title": "Standard For The Format of ARPA Internet Text Messages",
+      "anchor": "SMTP:2"
+    },
+    {
+      "rfcNumber": 974,
+      "title": "Mail Routing and the Domain System",
+      "anchor": "SMTP:3"
+    },
+    {
+      "rfcNumber": 1047,
+      "title": "Duplicate Messages and SMTP",
+      "anchor": "SMTP:4"
+    },
+    {
+      "rfcNumber": 987,
+      "title": "Mapping between X.400 and RFC 822",
+      "anchor": "SMTP:5a"
+    },
+    {
+      "title": "Addendum to RFC-987",
+      "anchor": "SMTP:5b"
+    },
+    {
+      "rfcNumber": 821,
+      "title": "Simple Mail Transfer Protocol",
+      "anchor": "SMTP:6"
+    },
+    {
+      "rfcNumber": 1049,
+      "title": "A Content-Type Field for Internet Messages",
+      "anchor": "SMTP:7"
+    },
+    {
+      "rfcNumber": 1034,
+      "title": "Domain Names - Concepts and Facilities",
+      "anchor": "DNS:1"
+    },
+    {
+      "rfcNumber": 1035,
+      "title": "Domain Names - Implementation and Specification",
+      "anchor": "DNS:2"
+    },
+    {
+      "rfcNumber": 974,
+      "title": "Mail Routing and the Domain System",
+      "anchor": "DNS:3"
+    },
+    {
+      "rfcNumber": 952,
+      "title": "DoD Internet Host Table Specification",
+      "anchor": "DNS:4"
+    },
+    {
+      "rfcNumber": 953,
+      "title": "Hostname Server",
+      "anchor": "DNS:5"
+    },
+    {
+      "rfcNumber": 1032,
+      "title": "Domain Administrators Guide",
+      "anchor": "DNS:6"
+    },
+    {
+      "rfcNumber": 1033,
+      "title": "Domain Administrators Operations Guide",
+      "anchor": "DNS:7"
+    },
+    {
+      "title": "The Domain Name System Handbook",
+      "anchor": "DNS:8"
+    },
+    {
+      "rfcNumber": 906,
+      "title": "Bootstrap Loading Using TFTP",
+      "anchor": "BOOT:1"
+    },
+    {
+      "rfcNumber": 951,
+      "title": "Bootstrap Protocol (BOOTP)",
+      "anchor": "BOOT:2"
+    },
+    {
+      "rfcNumber": 1084,
+      "title": "BOOTP Vendor Information Extensions",
+      "anchor": "BOOT:3"
+    },
+    {
+      "rfcNumber": 903,
+      "title": "A Reverse Address Resolution Protocol",
+      "anchor": "BOOT:4"
+    },
+    {
+      "rfcNumber": 1052,
+      "title": "IAB Recommendations for the Development of Internet Network Management Standards",
+      "anchor": "MGT:1"
+    },
+    {
+      "rfcNumber": 1065,
+      "title": "Structure and Identification of Management Information for TCP/IP-based internets",
+      "anchor": "MGT:2"
+    },
+    {
+      "rfcNumber": 1066,
+      "title": "Management Information Base for Network Management of TCP/IP-based internets",
+      "anchor": "MGT:3"
+    },
+    {
+      "rfcNumber": 1098,
+      "title": "A Simple Network Management Protocol",
+      "anchor": "MGT:4"
+    },
+    {
+      "rfcNumber": 1095,
+      "title": "The Common Management Information Services and Protocol over TCP/IP",
+      "anchor": "MGT:5"
+    },
+    {
+      "rfcNumber": 1109,
+      "title": "Report of the Second Ad Hoc Network Management Review Group",
+      "anchor": "MGT:6"
+    }
+  ],
+  "_source": "text",
+  "_referencesSource": "text",
+  "_sourceNote": "This RFC has a single References section in the text, so every reference is reported as informative. The text carries no normative/informative marking."
+}

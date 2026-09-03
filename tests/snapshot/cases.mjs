@@ -109,6 +109,18 @@ export const CASES = [
     tool: 'get_rfc_dependencies',
     args: { rfc: 6455 },
   },
+  {
+    // 題名の読点、注釈の中の番号、題名の中の番号、閉じていない引用符。
+    name: 'dependencies-1123',
+    tool: 'get_rfc_dependencies',
+    args: { rfc: 1123 },
+  },
+  {
+    // 目印を 1 行に置き、引用を 1 桁目から書く。48 件が目印のままだった。
+    name: 'dependencies-1305',
+    tool: 'get_rfc_dependencies',
+    args: { rfc: 1305 },
+  },
 
   // --- get_related_sections ---
   {

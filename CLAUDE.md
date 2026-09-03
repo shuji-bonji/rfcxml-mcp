@@ -50,7 +50,7 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 55 本に不変条件 29 種を当てる
+npm run audit         # 実物の RFC 55 本に不変条件 33 種を当てる
 npm run snapshot      # 代表的な出力 14 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
@@ -71,8 +71,8 @@ publish の前に、次を順に通す。
 |---|---|
 | `npm test` | 書いた条件の取りこぼし（367 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 55 本 × 29 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 17 本） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 55 本 × 33 種） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 19 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -525,6 +525,25 @@ RFC 8259 §3 は取りうる値を字下げして並べる。
 要件文が "false null true The literal names MUST be lowercase." になっていた。
 `looksLikeDiagram` は当たらない。ABNF の規則でも罫線でもなく、空白で桁を
 揃えてもいない、ただの短い語の並びである。`looksLikeDisplayBlock` で落とす。
+
+### 参照の題名と番号は、引用の部分から取る
+
+テキストの参考文献は 1 項目が「目印・題名・著者・出典・日付」と、そのあとに
+注釈の段落を持つ。どこから何を取るかで 4 通り間違えていた。
+
+| 誤り | 例 | 直し方 |
+|---|---|---|
+| 題名に読点が残る | `"Assigned Numbers,"` | 引用符の中の末尾の読点を落とす（859 件中 121 件） |
+| 注釈の中の番号を採る | RFC 1123 [DNS:1] は本体が RFC-1034、注釈が RFC-882/883/973 | **最初**の番号を採る |
+| 題名の中の番号を採る | RFC 1123 [SMTP:5b] `"Addendum to RFC-987," … RFC-???` | 題名を外してから探す |
+| 出典と日付を題名にする | RFC 1305 [DAR81a] の `DARPA Network Working Group Report RFC-791, …` | RFC 番号・西暦・ページ範囲を含む部分を落としてから最長を採る |
+
+**1 桁目から続く項目の本体を落としていた。** RFC 1305 は目印だけを 1 行に置き、
+引用を次の行から 1 桁目で書く。1 桁目の行は見出しの候補として処理され、
+見出しでなければ捨てられていた。48 件の題名が目印（`ABA89`）のままだった。
+
+閉じ引用符が無い項目がある（RFC 2131 [4]、原文の誤り）。開き引用符から
+`, STD` / `, RFC` / `, Work in Progress` までを題名とみなす。
 
 ### `unless` は例外であって条件ではない
 

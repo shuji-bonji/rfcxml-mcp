@@ -1,0 +1,220 @@
+# dependencies-1305
+
+tool: get_rfc_dependencies
+args: {"rfc":1305}
+
+--- json ---
+{
+  "rfc": 1305,
+  "normative": [],
+  "informative": [
+    {
+      "title": "AT&T's new approach to the synchronization of telecommunication networks",
+      "anchor": "ABA89"
+    },
+    {
+      "title": "National Bureau of Standards Monograph 140, U.S",
+      "anchor": "ALL74a"
+    },
+    {
+      "title": "The National Bureau of Standards atomic time scale: generation, stability, accuracy and accessibility",
+      "anchor": "ALL74b"
+    },
+    {
+      "title": "Digital Synchronization Network Plan",
+      "anchor": "BEL86"
+    },
+    {
+      "title": "Bertsekas, D., and R",
+      "anchor": "BER87"
+    },
+    {
+      "title": "Time and frequency dissemination: an overview of principles and techniques",
+      "anchor": "BLA74"
+    },
+    {
+      "title": "Short term frequency effects in networks of coupled oscillators",
+      "anchor": "BRA80"
+    },
+    {
+      "title": "An experiment in clock synchronisation",
+      "anchor": "COL88"
+    },
+    {
+      "rfcNumber": 791,
+      "title": "Defense Advanced Research Projects Agency",
+      "anchor": "DAR81a"
+    },
+    {
+      "rfcNumber": 792,
+      "title": "Defense Advanced Research Projects Agency",
+      "anchor": "DAR81b"
+    },
+    {
+      "title": "Digital Time Service Functional Specification Version T.1.0.5",
+      "anchor": "DEC89"
+    },
+    {
+      "title": "Calendrical Calculations",
+      "anchor": "DER90"
+    },
+    {
+      "title": "History of LORAN-C",
+      "anchor": "FRA82"
+    },
+    {
+      "title": "TEMPO - A network time controller for a distributed Berkeley UNIX system",
+      "anchor": "GUS84"
+    },
+    {
+      "title": "The Berkeley UNIX 4.3BSD time synchronization protocol: protocol specification",
+      "anchor": "GUS85a"
+    },
+    {
+      "title": "An election algorithm for a distributed clock synchronization program",
+      "anchor": "GUS85b"
+    },
+    {
+      "title": "Fault-tolerant clock synchronization",
+      "anchor": "HAL84"
+    },
+    {
+      "title": "Reference Data for Engineers, Seventh Edition",
+      "anchor": "JOR85"
+    },
+    {
+      "title": "Clock synchronization in distributed real-time systems",
+      "anchor": "KOP87"
+    },
+    {
+      "title": "Lamport, L., Time, clocks and the ordering of events in a distributed system",
+      "anchor": "LAM78"
+    },
+    {
+      "title": "Synchronizing clocks in the presence of faults",
+      "anchor": "LAM85"
+    },
+    {
+      "title": "Network synchronization of random signals",
+      "anchor": "LIN80"
+    },
+    {
+      "title": "A new fault-tolerant algorithm for clock synchronization",
+      "anchor": "LUN84"
+    },
+    {
+      "title": "Maintaining the time in a distributed system",
+      "anchor": "MAR85"
+    },
+    {
+      "title": "Time Synchronization in DCNET Hosts",
+      "anchor": "MIL81a"
+    },
+    {
+      "rfcNumber": 778,
+      "title": "DCNET Internet Clock Service",
+      "anchor": "MIL81b"
+    },
+    {
+      "rfcNumber": 889,
+      "title": "Internet Delay Experiments",
+      "anchor": "MIL83a"
+    },
+    {
+      "rfcNumber": 891,
+      "title": "DCN local-network protocols",
+      "anchor": "MIL83b"
+    },
+    {
+      "rfcNumber": 956,
+      "title": "Algorithms for synchronizing network clocks",
+      "anchor": "MIL85a"
+    },
+    {
+      "rfcNumber": 957,
+      "title": "Experiments in network clock synchronization",
+      "anchor": "MIL85b"
+    },
+    {
+      "rfcNumber": 958,
+      "title": "Network Time Protocol (NTP)",
+      "anchor": "MIL85c"
+    },
+    {
+      "rfcNumber": 1059,
+      "title": "Network Time Protocol (version 1) - specification and implementation",
+      "anchor": "MIL88a"
+    },
+    {
+      "title": "The Fuzzball",
+      "anchor": "MIL88b"
+    },
+    {
+      "rfcNumber": 1119,
+      "title": "Network Time Protocol (version 2) - specification and implementation",
+      "anchor": "MIL89"
+    },
+    {
+      "title": "Measured performance of the Network Time Protocol in the Internet system",
+      "anchor": "MIL90"
+    },
+    {
+      "title": "Internet time synchronization: the Network Time Protocol",
+      "anchor": "MIL91a"
+    },
+    {
+      "title": "On the chronology and metrology of computer network timescales and their application to the Network Time Protocol",
+      "anchor": "MIL91b"
+    },
+    {
+      "title": "Network synchronization: analysis of a hybrid of master-slave and mutual synchronization",
+      "anchor": "MIT80"
+    },
+    {
+      "title": "Federal Information Processing Standards Publication 46",
+      "anchor": "NBS77"
+    },
+    {
+      "title": "Time and Frequency Dissemination Services",
+      "anchor": "NBS79"
+    },
+    {
+      "title": "Federal Information Processing Standards Publication 81",
+      "anchor": "NBS80"
+    },
+    {
+      "rfcNumber": 768,
+      "title": "User Datagram Protocol",
+      "anchor": "POS80"
+    },
+    {
+      "rfcNumber": 867,
+      "title": "Daytime protocol",
+      "anchor": "POS83a"
+    },
+    {
+      "rfcNumber": 868,
+      "title": "Time protocol",
+      "anchor": "POS83b"
+    },
+    {
+      "title": "Non Byzantine clock synchronization - a programming experiment",
+      "anchor": "RIC88"
+    },
+    {
+      "title": "A paradigm for reliable clock synchronization",
+      "anchor": "SCH86"
+    },
+    {
+      "title": "Modern Communications Circuits",
+      "anchor": "SMI86"
+    },
+    {
+      "title": "Optimal clock synchronization",
+      "anchor": "SRI87"
+    }
+  ],
+  "_source": "text",
+  "_referencesSource": "text",
+  "_sourceNote": "This RFC has a single References section in the text, so every reference is reported as informative. The text carries no normative/informative marking."
+}
