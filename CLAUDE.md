@@ -51,7 +51,7 @@ npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
 npm run audit         # 実物の RFC 67 本に不変条件 43 種を当てる
-npm run snapshot      # 代表的な出力 29 本を固定し、差分を見る
+npm run snapshot      # 代表的な出力 30 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
 npm start             # MCP サーバー起動
@@ -69,10 +69,10 @@ publish の前に、次を順に通す。
 
 | 手順 | 見るもの |
 |---|---|
-| `npm test` | 書いた条件の取りこぼし（456 件） |
+| `npm test` | 書いた条件の取りこぼし（459 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
 | `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 43 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 29 本） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 30 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -946,6 +946,19 @@ RFC 7519 §2 の 10 件、RFC 2616 §1.3 の 77 件、RFC 5246 §6.1 が丸ご�
   判断できない。RFC 6455 §5.4 の `… unless an extension has been negotiated` に
   対し `unless` を求めると当の要件が落ち、順位の下の無関係な要件
   （`MUST NOT be fragmented`）を名指ししていた。
+
+- **限定語の言い換えでも判定しない**。RFC 9110 §6.6.1 は
+  `An origin server with a clock MUST generate …` と
+  `An origin server without a clock MUST NOT generate …` を並べて書く。
+  2 つを区別しているのは `with` / `without` なので、`describesSameAct` は主張にも
+  同じ語を求める。言い換えられると当たらない —
+  `… even though it has no clock.` は `without` を含まないので矛盾が出ず、
+  **`isValid: true`（矛盾なし）を返していた**。
+  `findQualifierOnlyViolation()` が、限定語を無視すれば矛盾が出て、かつ主張が
+  同じ否定を述べている（`no clock` / `does not have a clock` / `lacks a clock`）
+  ときだけ拾い、`null` にする。**逆の枝（`with a clock`）は取り下げない** —
+  そちらは準拠している主張である。`without` 以外の限定語は見ない（言い換えの形が
+  定まらない）。禁止の要件 1,668 件のうち `without` を含むのは 51 件。
 
 #### 「固有の名前」は RFC の書き方に合わせる
 

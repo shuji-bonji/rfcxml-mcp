@@ -28,6 +28,7 @@ import {
   matchStatement,
   isSubjectTerm,
   findUndecidablePassiveProhibition,
+  findQualifierOnlyViolation,
   MATCHING_LIMITS,
 } from '../utils/statement-matcher.js';
 import { clipAtWord } from '../utils/text.js';
@@ -377,8 +378,15 @@ export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
  * 一致している要件が `matchingRequirements` の先頭にあるのに「一致が無い」と
  * 読める。
  */
-function verdictNote(isValid: boolean | null, undecidable: Requirement | null): string | undefined {
+function verdictNote(
+  isValid: boolean | null,
+  undecidable: Requirement | null,
+  qualifierOnly: { requirement: Requirement; qualifier: string } | null = null
+): string | undefined {
   if (isValid !== null) return undefined;
+  if (qualifierOnly) {
+    return `isValid is null: requirement ${qualifierOnly.requirement.id} turns on "${qualifierOnly.qualifier}", a word the statement does not use, so whether they describe the same case cannot be decided. This is not a statement of compliance.`;
+  }
   if (undecidable) {
     return `isValid is null: requirement ${undecidable.id} forbids this in the passive voice, so who performs the act cannot be matched. Read that requirement and decide. This is not a statement of compliance.`;
   }
@@ -417,8 +425,17 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
     hasVerdictEvidence && conflicts.length === 0
       ? findUndecidablePassiveProhibition(args.statement, matches)
       : null;
+
+  // 限定語（`without` `unless` `except`）を言い換えた主張も、矛盾が出ない。
+  // "An origin server without a clock MUST NOT generate a Date header field."
+  // に対する "… even though it has no clock." が該当する。
+  const qualifierOnly =
+    hasVerdictEvidence && conflicts.length === 0 && !undecidable
+      ? findQualifierOnlyViolation(args.statement, matches)
+      : null;
+
   const isValid: boolean | null =
-    hasVerdictEvidence && !undecidable ? conflicts.length === 0 : null;
+    hasVerdictEvidence && !undecidable && !qualifierOnly ? conflicts.length === 0 : null;
 
   // Build suggestions
   const suggestions: string[] = [];
@@ -434,6 +451,11 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
   if (conflicts.length > 0) {
     suggestions.push(
       'Potential conflicts detected. Review the requirement levels (MUST/SHOULD/MAY) carefully.'
+    );
+  }
+  if (qualifierOnly) {
+    suggestions.push(
+      `Cannot judge: requirement ${qualifierOnly.requirement.id} turns on "${qualifierOnly.qualifier}", a word the statement does not use. Read that requirement and decide whether the statement means the same case.`
     );
   }
   if (undecidable) {
@@ -455,7 +477,7 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
       detectedSubject: statementSubject,
     },
     isValid,
-    _verdictNote: verdictNote(isValid, undecidable),
+    _verdictNote: verdictNote(isValid, undecidable, qualifierOnly),
     matchingRequirements: matches.map((m) => ({
       ...m.requirement,
       _matchScore: m.score,

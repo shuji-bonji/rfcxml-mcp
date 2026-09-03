@@ -1000,7 +1000,8 @@ export function statementPerformsVerb(
 export function describesSameAct(
   statement: string,
   requirement: Requirement,
-  action: string
+  action: string,
+  options: { ignoreQualifiers?: boolean } = {}
 ): boolean {
   const lower = statement.toLowerCase();
 
@@ -1013,8 +1014,10 @@ export function describesSameAct(
     if (!lower.includes(identifier.toLowerCase())) return false;
   }
 
-  for (const qualifier of qualifiersOf(scope)) {
-    if (!lower.includes(qualifier)) return false;
+  if (!options.ignoreQualifiers) {
+    for (const qualifier of qualifiersOf(scope)) {
+      if (!lower.includes(qualifier)) return false;
+    }
   }
 
   const statementCondition = conditionOf(statement);
@@ -1213,6 +1216,57 @@ function sameActForWithdrawal(
   return true;
 }
 
+/**
+ * 限定語の言い換えだけで矛盾を落とした一致を返す。無ければ `null`。
+ *
+ * `describesSameAct` は、要件に限定語（`without` `except` `unless` など）が
+ * あれば主張にも同じ語を求める。要件を互いに区別しているのがその語だからである
+ * （RFC 9110 §6.6.1 は "An origin server **with** a clock MUST generate a Date
+ * header field" と "An origin server **without** a clock MUST NOT generate a
+ * Date header field" を並べて書く）。
+ *
+ * 言い換えられると当たらない。"The origin server generates a Date header field
+ * even though it **has no clock**." は `without` を含まないので、
+ * `MUST NOT` に反しているのに矛盾が出ず、`isValid` が `true` になっていた。
+ * **違反している主張に「矛盾なし」と答えることになる。**
+ *
+ * 限定語を無視すれば矛盾が出るときだけ拾い、`isValid` を `null` にする。
+ * 「違反している」とは言わない — 言い換えなのか別の話なのかは決められない。
+ */
+export function findQualifierOnlyViolation(
+  statement: string,
+  matches: MatchResult[]
+): { requirement: Requirement; qualifier: string } | null {
+  const lower = statement.toLowerCase();
+
+  for (const match of matches) {
+    const req = match.requirement;
+    if (!NEGATIVE_LEVELS.has(req.level)) continue;
+
+    // `without X` だけを見る。ほかの限定語（`unless` `except` `arbitrarily`）は
+    // 言い換えの形が定まらず、言い換えなのか別の話なのかを見分けられない。
+    const scope = `${req.text} ${requiredActionOf(req) ?? ''}`;
+    const withoutWhat = /\bwithout\s+(?:a|an|the)?\s*([a-z][\w-]*)/i.exec(scope);
+    if (!withoutWhat) continue;
+    if (lower.includes('without')) continue;
+
+    // 主張が同じ否定を述べていること。"with a clock"（逆の枝）は取り下げない。
+    const noun = withoutWhat[1].toLowerCase();
+    const saysTheSame = new RegExp(
+      `\\b(?:no|not\\s+have|does\\s+not\\s+have|lacks?|lacking|missing)\\b[^.]{0,30}\\b${noun}s?\\b`,
+      'i'
+    ).test(lower);
+    if (!saysTheSame) continue;
+
+    if (detectConflicts(statement, [req]).length > 0) continue;
+    if (detectConflicts(statement, [req], { ignoreQualifiers: true }).length === 0) continue;
+
+    return { requirement: req, qualifier: 'without' };
+  }
+
+  return null;
+}
+
 /** 受動態の行為。`MUST NOT` の直後が "be 過去分詞" になっている。 */
 const PASSIVE_ACTION_PATTERN = /^be\s+[a-z]+(?:ed|n|t)\b/;
 
@@ -1260,7 +1314,11 @@ export function findUndecidablePassiveProhibition(
 /**
  * Detect conflicts between statement and requirements
  */
-export function detectConflicts(statement: string, requirements: Requirement[]): ConflictResult[] {
+export function detectConflicts(
+  statement: string,
+  requirements: Requirement[],
+  options: { ignoreQualifiers?: boolean } = {}
+): ConflictResult[] {
   const conflicts: ConflictResult[] = [];
   const statementLevel = extractRequirementLevel(statement);
   const statementSubject = extractSubject(statement);
@@ -1328,7 +1386,7 @@ export function detectConflicts(statement: string, requirements: Requirement[]):
 
     // For MUST requirements: check if statement contradicts the required action
     if (reqAction && (reqLevel === 'MUST' || reqLevel === 'SHALL' || reqLevel === 'REQUIRED')) {
-      const contradiction = describesSameAct(statementLower, req, reqAction)
+      const contradiction = describesSameAct(statementLower, req, reqAction, options)
         ? findActionContradiction(statementLower, reqAction, statementKeywords)
         : null;
       if (contradiction) {
@@ -1367,7 +1425,7 @@ export function detectConflicts(statement: string, requirements: Requirement[]):
         if (
           statementDoesPositive &&
           sharesActionContext(statementKeywords, forbiddenAction, pair) &&
-          describesSameAct(statementLower, req, forbiddenAction)
+          describesSameAct(statementLower, req, forbiddenAction, options)
         ) {
           conflicts.push({
             requirement: req,
@@ -1385,7 +1443,7 @@ export function detectConflicts(statement: string, requirements: Requirement[]):
       if (
         !pairConflict &&
         forbiddenAction &&
-        describesSameAct(statementLower, req, forbiddenAction)
+        describesSameAct(statementLower, req, forbiddenAction, options)
       ) {
         const violation = findProhibitionViolation(
           statementLower,

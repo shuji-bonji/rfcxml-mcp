@@ -213,4 +213,13 @@ export const CASES = [
         'The fragments of one message are interleaved between the fragments of another message.',
     },
   },
+  {
+    // 限定語 `without` を言い換えた主張。isValid は true ではなく null になること。
+    name: 'validate-9110-qualifier',
+    tool: 'validate_statement',
+    args: {
+      rfc: 9110,
+      statement: 'The origin server generates a Date header field even though it has no clock.',
+    },
+  },
 ];

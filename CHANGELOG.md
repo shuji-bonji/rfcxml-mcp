@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.32] - 2026-09-03
+
+**違反している主張に「矛盾なし」と答えていた。** 実際の使い方で試して見つけた。
+
+### Fixed
+
+- **限定語 `without` を言い換えた主張で `isValid: true` を返していた**:
+  - RFC 9110 §6.6.1 は 2 つの要件を並べて書く。
+
+    > An origin server **with** a clock … **MUST** generate a Date header field …
+    > An origin server **without** a clock **MUST NOT** generate a Date header field.
+
+    この 2 つを区別しているのは `with` / `without` である。だから
+    `describesSameAct` は、要件に限定語があれば主張にも同じ語を求める。
+  - 言い換えられると当たらない。
+    `The origin server generates a Date header field even though it has no clock.`
+    は `without` を含まないので矛盾が出ず、**`isValid: true`**（矛盾なし）を
+    返していた。R-6.6.1-76 は `matchingRequirements` の 3 位に出ていた。
+  - 限定語を無視すれば矛盾が出て、かつ**主張が同じ否定を述べている**
+    （`no clock` / `does not have a clock` / `lacks a clock`）ときだけ拾い、
+    `isValid` を `null` にする。「違反している」とは言わない。
+  - **逆の枝は取り下げない。** `An origin server with a clock generates a Date
+    header field.` は準拠している主張なので `true` のままである。
+  - `without` 以外の限定語（`unless` `except` `arbitrarily`）は見ない。言い換えの
+    形が定まらず、言い換えなのか別の話なのかを見分けられない。
+  - 禁止の要件 1,668 件のうち `without` を含むのは 51 件（3.1%）。
+
+### Added
+
+- **テストを 456 件から 459 件へ**。
+- **出力見本を 29 本から 30 本へ**: `validate-9110-qualifier`。
+
+### `isValid` が `null` になる理由は 3 つになった
+
+| 理由 | いつ |
+|---|---|
+| 一致が弱い | 最上位の一致が `MIN_SCORE_FOR_VERDICT` に届かない |
+| 受動態の禁止 | `MUST NOT be <過去分詞>` で、行為の実行者が本文に無い（v0.6.24） |
+| 限定語の言い換え | `without X` を別の言い方で述べている（今回） |
+
+`_verdictNote` はどれに当たったかを書き分ける。**`true` は準拠の証明ではない** —
+矛盾が見つからなかったという意味しか持たない。
+
 ## [0.6.31] - 2026-09-03
 
 **要件の主語が `and` `it` `this` になっていた。**

@@ -14,6 +14,7 @@ import {
   requiredActionOf,
   isSubjectTerm,
   findUndecidablePassiveProhibition,
+  findQualifierOnlyViolation,
 } from './statement-matcher.js';
 import type { Requirement } from '../types/index.js';
 
@@ -1054,5 +1055,43 @@ describe('受動態で書かれた禁止', () => {
     const statement = 'The server sends unmasked frames to the client.';
     const result = matchStatement(statement, [active]);
     expect(findUndecidablePassiveProhibition(statement, result.matches)).toBeNull();
+  });
+});
+
+describe('限定語 without の言い換え', () => {
+  // RFC 9110 §6.6.1 は "with a clock" と "without a clock" を並べて書く。
+  // 限定語がこの 2 つを区別しているので、`describesSameAct` は主張にも
+  // `without` を求める。言い換えられると当たらない。
+  const prohibition: Requirement = {
+    id: 'R-6.6.1-76',
+    level: 'MUST NOT',
+    section: '6.6.1',
+    sectionTitle: 'Date',
+    text: 'An origin server without a clock MUST NOT generate a Date header field.',
+    fullContext: '',
+    subject: 'origin server',
+    action: 'generate a Date header field',
+  };
+
+  const violationOf = (statement: string) =>
+    findQualifierOnlyViolation(statement, matchStatement(statement, [prohibition]).matches);
+
+  it('同じ否定を言い換えた主張を拾う', () => {
+    const statement =
+      'The origin server generates a Date header field even though it has no clock.';
+    expect(matchStatement(statement, [prohibition]).conflicts).toEqual([]);
+    expect(violationOf(statement)?.requirement.id).toBe('R-6.6.1-76');
+  });
+
+  it('逆の枝（with a clock）は取り下げない', () => {
+    // これは準拠している主張である。
+    const statement = 'An origin server with a clock generates a Date header field.';
+    expect(violationOf(statement)).toBeNull();
+  });
+
+  it('without をそのまま書いた主張は、通常の矛盾検出に任せる', () => {
+    const statement = 'An origin server without a clock generates a Date header field.';
+    expect(matchStatement(statement, [prohibition]).conflicts.length).toBeGreaterThan(0);
+    expect(violationOf(statement)).toBeNull();
   });
 });
