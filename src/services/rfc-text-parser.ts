@@ -179,6 +179,9 @@ const REFERENCE_HEADING_PATTERN =
  *
  * 見出しの角括弧は 4 桁目から始まり、続きの行はさらに深く字下げされる。
  */
+/** 付録の始まり。参考文献の欄はここで終わる。 */
+const APPENDIX_START_PATTERN = /^Appendix\s+[A-Z]\b/;
+
 const REFERENCE_ENTRY_PATTERN = /^ {0,6}\[([^\]\s][^\]]*)\]/;
 
 /**
@@ -250,6 +253,23 @@ function extractTextReferences(lines: string[], currentRfcNumber: number): Parse
 
     // 1 桁目から始まる行だけが見出しになりうる。
     if (!/^\s/.test(line)) {
+      // 付録の見出しで欄を閉じる。`Appendix A.  Example JWTs` は
+      // `isValidSectionHeader` を通らないので、下の節見出しの判定では閉じない。
+      // 閉じないまま付録の本文を読み続け、1 桁目の `[JWS]` のような行を
+      // 参照項目として拾っていた。実測（RFC 67 本）で 5 件。
+      //
+      // | RFC | 取り込んでいた題名 |
+      // |---|---|
+      // | 3986 | `[RFC2234]` → `?` |
+      // | 6749 | `[W3C.REC-html401-19991224]` → `application/x-www-form-urlencoded` |
+      // | 7231 | `[RFC2045]` → `text`、`[RFC7230]` → `about:blank` |
+      // | 7519 | `[JWS]` → `alg":"RSA1_5` |
+      if (APPENDIX_START_PATTERN.test(line)) {
+        flush();
+        bucket = null;
+        continue;
+      }
+
       const headerMatch = line.match(SECTION_HEADER_PATTERN);
       const heading = headerMatch
         ? isValidSectionHeader(headerMatch[1].replace(/\.$/, ''), headerMatch[2])
@@ -298,6 +318,55 @@ function extractTextReferences(lines: string[], currentRfcNumber: number): Parse
 }
 
 /**
+ * 参考文献の項目から、二重引用符で囲まれた題名を取る。
+ *
+ * 閉じ引用符は「読点・句点・セミコロン・空白のいずれかが続く引用符、または
+ * 項目の末尾の引用符」に限る。最初の `"…"` をそのまま採ると、題名の中に
+ * 引用符が入る項目で途中まで切れる。RFC 5280 の
+ *
+ * ```
+ * [RFC3454]  Hoffman, P. and M. Blanchet, "Preparation of
+ *            Internationalized Strings ("stringprep")", RFC 3454,
+ *            December 2002.
+ * ```
+ *
+ * は題名が `Preparation of Internationalized Strings (` で終わっていた。
+ *
+ * 閉じ引用符は、次が読点・句点・セミコロンまたは項目の末尾になる **最後の**
+ * 引用符とする。RFC 5246 の
+ * `"Methods for Avoiding the "Small-Subgroup" Attacks on … S/MIME", RFC 2785`
+ * は `"Small-Subgroup"` の閉じのあとが空白なので、そこで切ると
+ * `Methods for Avoiding the "Small-Subgroup` になる。
+ * 読点・句点で終わる引用符が 1 つも無いときだけ、空白が続くものを採る
+ * （RFC 1123 の `"Addendum to RFC-987," S. Kille, RFC-???` は読点が引用符の中）。
+ */
+function quotedTitle(entry: string): { full: string; title: string } | null {
+  const open = entry.indexOf('"');
+  if (open < 0) return null;
+
+  let closer = -1;
+  let fallback = -1;
+  for (let i = open + 1; i < entry.length; i++) {
+    if (entry[i] !== '"') continue;
+    const after = entry[i + 1];
+    if (after === undefined || /[,.;]/.test(after)) closer = i;
+    else if (/\s/.test(after)) fallback = i;
+  }
+
+  const at = closer >= 0 ? closer : fallback;
+  if (at <= open) return null;
+
+  // 題名の中に残る引用符。数が奇数のときは、対になっていない＝行送りで
+  // 題名が割れたときの書き足しなので、落とす。RFC 1122 の
+  // `"A Standard for the Transmission of IP Datagrams over IEEE 802\n "Networks,"`
+  // は 2 行目の頭に引用符を置き直しており、`802 "Networks` になっていた。
+  const inner = entry.slice(open + 1, at);
+  const title = (inner.split('"').length - 1) % 2 === 1 ? inner.replace(/"/g, '') : inner;
+
+  return { full: entry.slice(open, at + 1), title };
+}
+
+/**
  * 参考文献の 1 項目を `RFCReference` にする。
  *
  * - RFC 番号: 角括弧の中が `RFC2119` ならそこから。`[HTTP/1.1]` のような
@@ -313,7 +382,7 @@ function parseTextReference(
 ): RFCReference {
   const entry = rawEntry.replace(/\s+/g, ' ').trim();
 
-  const quoted = /"([^"]+)"/.exec(entry);
+  const quoted = quotedTitle(entry);
 
   let rfcNumber: number | undefined;
   const fromAnchor = /^RFC[\s-]*(\d+)$/i.exec(anchor);
@@ -330,7 +399,7 @@ function parseTextReference(
     // `[DNS:1] "Domain Names - Concepts and Facilities," P. Mockapetris,
     // RFC-1034, November 1987.` は、注釈の
     // "obsolete RFC-882, RFC-883, RFC-973" から 973 を拾っていた。
-    const body = quoted ? entry.replace(quoted[0], ' ') : entry;
+    const body = quoted ? entry.replace(quoted.full, ' ') : entry;
     // "RFC 2119" と "RFC-817"（古い RFC の書き方）の双方を拾う
     const inline = /\bRFC[\s-]+(\d+)\b/.exec(body);
     if (inline) {
@@ -340,8 +409,8 @@ function parseTextReference(
 
   // 題名の引用符の中に読点が入る（`"Assigned Numbers," J. Reynolds, …`）。
   // 実測（テキスト経路の参照 859 件）で 121 件（14.1%）が読点で終わっていた。
-  const quotedTitle = quoted ? quoted[1].trim() : '';
-  const title = (quotedTitle || titleWithoutQuotes(entry) || '').replace(/[,;]$/, '');
+  const quotedText = quoted ? quoted.title.trim() : '';
+  const title = (quotedText || titleWithoutQuotes(entry) || '').replace(/[,;]$/, '');
 
   return {
     anchor,

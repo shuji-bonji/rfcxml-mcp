@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.40] - 2026-09-03
+
+**`get_rfc_dependencies` が、付録の本文と JSON の断片を参照として返していた。**
+`get_rfc_dependencies` は突き合わせ（`npm run crosscheck` の X1〜X10）が
+一度も触っていない出力だった。67 本ぶんを並べて読んで見つけた。
+
+### Fixed
+
+- **参考文献の欄が付録に入り込んだまま閉じていなかった**:
+  - 欄を閉じるのは「1 桁目から始まり `isValidSectionHeader` を通る行」だが、
+    `Appendix A.  Example JWTs` は通らない。閉じないまま付録を読み続け、
+    1 桁目から始まる `[JWS]` のような行を参照項目として拾っていた。
+  - RFC 7519 の `[JWS]` は、題名が `alg":"RSA1_5`（付録 A.2 の JOSE ヘッダの
+    JSON）になっていた。同じ目印の項目が 2 件並ぶ。
+  - `Appendix <大文字>` で始まる行で欄を閉じる。
+  - 実測（RFC 67 本）: 付録から拾っていた項目 **6 件**（RFC 3986 の
+    `[RFC2234]` → `?`、RFC 6749 の `[W3C.REC-html401-19991224]` →
+    `application/x-www-form-urlencoded`、RFC 7231 の `[RFC2045]` → `text` と
+    `[RFC7230]` → `about:blank`、RFC 7519 の `[JWS]` → `alg":"RSA1_5`、
+    RFC 8446 の `[Skip decrypt errors]` → `_RESERVED`）。
+  - 付録の本文を項目に足さなくなったことで、題名と番号も直った。
+    RFC 6066 の `[X509-4th-TC1]` は `Error Alerts` から本来の題名に、
+    RFC 5280 の `[X9.55]` は `ASN.1-like`（RFC 3629 と紐付け）から本来の
+    題名になった。RFC 3986 の `[Siedzik]`、RFC 5321 の `[47]`、RFC 6265 の
+    `[Aggarwal2010]` に付いていた誤った RFC 番号も消えた。
+
+- **題名の中に引用符が入る項目で、題名が途中で切れていた**:
+  - 最初の `"…"` を題名としていた。RFC 5280 の `[RFC3454]`
+    `"Preparation of Internationalized Strings ("stringprep")", RFC 3454` は
+    `Preparation of Internationalized Strings (` で終わっていた。
+  - 閉じ引用符は、**次が読点・句点・セミコロン、または項目の末尾**になる
+    最後の引用符とする。空白が続くだけでは終わらせない。RFC 5246 の
+    `[SUBGROUP]` は `"Small-Subgroup"` の閉じで切れて
+    `Methods for Avoiding the "Small-Subgroup` になっていた。
+  - 読点・句点で終わる引用符が 1 つも無いときだけ、空白が続くものを採る。
+    RFC 1123 の `"Addendum to RFC-987," S. Kille` は読点が引用符の中にある。
+  - 取れた題名に残る引用符が**奇数個**のときは落とす。RFC 1122 の
+    `[LINK:4]` は行送りのときに 2 行目の頭で引用符を置き直しており、
+    `IEEE 802 "Networks` になっていた。
+  - 実測（RFC 67 本）: 題名が直ったもの **6 件**（RFC 1122 `[LINK:4]`、
+    RFC 2068 `[3]` `[13]`、RFC 5246 `[SUBGROUP]`、RFC 5280 `[RFC3454]`、
+    RFC 7231 `[BCP178]`）。
+
+### Added
+
+- **監査の条件を 2 つ足した**（47 → 49）:
+  - `E8` 同じ目印の参照が 2 度出ていない
+  - `E9` 参照の題名の引用符が対になっている
+- **テストを 4 つ足した**（478 → 482）: 題名の中の引用符、空白が続く引用符、
+  対になっていない引用符、付録での欄の終わり。
+
 ## [0.6.39] - 2026-09-03
 
 **要件文が注記の括弧から始まっていた。** RFC 9110 のサーバ側チェックリストを

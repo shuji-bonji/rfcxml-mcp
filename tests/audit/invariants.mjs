@@ -622,6 +622,36 @@ export const INVARIANTS = [
     },
   },
   {
+    id: 'E8',
+    description: '同じ目印の参照が 2 度出ていない',
+    // 参考文献の欄が付録に入り込んだまま読み続け、付録の中の
+    // `[JWS]` のような行を参照項目として拾っていた。`Appendix A.  …` は
+    // `isValidSectionHeader` を通らないので、節見出しの判定では欄が閉じない。
+    // 実測（RFC 67 本）で 5 件。RFC 7519 の `[JWS]` は題名が
+    // `alg":"RSA1_5` になっていた。
+    check: ({ parsed }) => {
+      const seen = new Map();
+      for (const reference of [...parsed.references.normative, ...parsed.references.informative]) {
+        seen.set(reference.anchor, (seen.get(reference.anchor) ?? 0) + 1);
+      }
+      return [...seen]
+        .filter(([, times]) => times > 1)
+        .map(([anchor, times]) => `[${anchor}] が ${times} 件`);
+    },
+  },
+  {
+    id: 'E9',
+    description: '参照の題名の引用符が対になっている',
+    // 題名の中に引用符が入る項目で、最初の `"…"` を採ると途中で切れる。
+    // RFC 5280 の `[RFC3454]` は
+    // `Preparation of Internationalized Strings (` で終わっていた。
+    // 切れた題名は引用符が 1 つ残るので、奇数個であることで見つかる。
+    check: ({ parsed }) =>
+      [...parsed.references.normative, ...parsed.references.informative]
+        .filter((reference) => ((reference.title ?? '').split('"').length - 1) % 2 === 1)
+        .map((reference) => `[${reference.anchor}] "${reference.title}"`),
+  },
+  {
     id: 'G3',
     description: '定義の用語が文の一部でない',
     // 用語欄は「用語: 説明」「用語 / 字下げした説明」の形をしているが、

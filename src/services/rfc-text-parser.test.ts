@@ -1349,6 +1349,81 @@ describe('値を並べた塊を要件文に繋がない', () => {
 describe('参照の題名', () => {
   const refsOf = (text: string, rfc: number) => parseRFCText(text, rfc).references.informative;
 
+  it('題名の中の引用符で切らない', () => {
+    // RFC 5280 の [RFC3454]。題名が `Preparation of Internationalized Strings (`
+    // で終わっていた。
+    const text = [
+      '7.  REFERENCES',
+      '',
+      '   [RFC3454]  Hoffman, P. and M. Blanchet, "Preparation of',
+      '              Internationalized Strings ("stringprep")", RFC 3454,',
+      '              December 2002.',
+      '',
+    ].join('\n');
+
+    expect(refsOf(text, 5280)[0]).toMatchObject({
+      anchor: 'RFC3454',
+      title: 'Preparation of Internationalized Strings ("stringprep")',
+      rfcNumber: 3454,
+    });
+  });
+
+  it('引用符のあとに空白が続くだけでは題名を終わらせない', () => {
+    // RFC 5246 の [SUBGROUP]。`"Small-Subgroup"` の閉じで切っていた。
+    const text = [
+      '7.  REFERENCES',
+      '',
+      '   [SUBGROUP] Zuccherato, R., "Methods for Avoiding the "Small-Subgroup"',
+      '              Attacks on the Diffie-Hellman Key Agreement Method for',
+      '              S/MIME", RFC 2785, March 2000.',
+      '',
+    ].join('\n');
+
+    expect(refsOf(text, 5246)[0].title).toBe(
+      'Methods for Avoiding the "Small-Subgroup" Attacks on the Diffie-Hellman Key Agreement Method for S/MIME'
+    );
+  });
+
+  it('対になっていない引用符を落とす', () => {
+    // RFC 1122 の [LINK:4]。行送りのときに 2 行目の頭で引用符を置き直しており、
+    // `IEEE 802 "Networks` になっていた。
+    const text = [
+      '7.  REFERENCES',
+      '',
+      '   [LINK:4] "A Standard for the Transmission of IP Datagrams over IEEE 802',
+      '        "Networks," J. Postel and J. Reynolds, RFC-1042, February 1988.',
+      '',
+    ].join('\n');
+
+    expect(refsOf(text, 1122)[0].title).toBe(
+      'A Standard for the Transmission of IP Datagrams over IEEE 802 Networks'
+    );
+  });
+
+  it('付録に入ったら参考文献の欄を閉じる', () => {
+    // RFC 7519 は参考文献のあとに Appendix A が続く。`Appendix A.  Example JWTs`
+    // は `isValidSectionHeader` を通らないので欄が閉じず、付録の中の
+    // 1 桁目の `[JWS]` を項目として拾い、題名が `alg":"RSA1_5` になっていた。
+    const text = [
+      '10.  References',
+      '',
+      '   [JWS]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web',
+      '              Signature (JWS)", RFC 7515, May 2015.',
+      '',
+      'Appendix A.  Example JWTs',
+      '',
+      'A.1.  Example Encrypted JWT',
+      '',
+      '   [JWS]',
+      '   {"alg":"RSA1_5","enc":"A128CBC-HS256"}',
+      '',
+    ].join('\n');
+
+    const refs = refsOf(text, 7519);
+    expect(refs.filter((reference) => reference.anchor === 'JWS')).toHaveLength(1);
+    expect(refs[0].title).toBe('JSON Web Signature (JWS)');
+  });
+
   it('引用符の中の読点を落とす', () => {
     // 実測（テキスト経路の参照 859 件）で 121 件（14.1%）が読点で終わっていた。
     const text = [
