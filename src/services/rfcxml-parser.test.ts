@@ -991,3 +991,62 @@ describe('コロンで終わる段落と、続く箇条書き', () => {
     expect(requirements.some((r) => /rules apply.*originating host/s.test(r.text))).toBe(false);
   });
 });
+
+describe('後付録と、箇条書きの中の段落', () => {
+  const xml = `<?xml version="1.0"?>
+<rfc number="9114">
+  <middle>
+    <section anchor="intro" pn="section-1">
+      <name>Introduction</name>
+      <t pn="section-1-1">Body.</t>
+    </section>
+  </middle>
+  <back>
+    <references pn="section-11"><name>References</name></references>
+    <section anchor="h2-considerations" numbered="true" pn="section-appendix.a">
+      <name>Considerations for Transitioning from HTTP/2</name>
+      <t pn="section-appendix.a-1">Body.</t>
+      <section anchor="h2-frames" numbered="true" pn="section-appendix.a.2">
+        <name>Frames</name>
+        <t pn="section-appendix.a.2-1">A client <bcp14>MUST</bcp14> ignore unknown frames.</t>
+      </section>
+    </section>
+  </back>
+</rfc>`;
+
+  it('後付録が構造に入る', () => {
+    const numbers = parseRFCXML(xml).sections.map((s) => s.number);
+
+    expect(numbers).toContain('section-appendix.a');
+  });
+
+  it('後付録の中の要件が取れる', () => {
+    const requirements = extractRequirements(parseRFCXML(xml).sections, { section: 'A.2' });
+
+    expect(requirements.map((r) => r.text)).toContain('A client MUST ignore unknown frames.');
+  });
+});
+
+describe('箇条書きの中の段落の節番号', () => {
+  it('pn="section-7.1-8.1" の節は 7.1', () => {
+    // 末尾の `-\\d+` だけを外すと `.1` が残り、節が "7.1-8.1" になっていた。
+    const xml = `<?xml version="1.0"?>
+<rfc number="9110">
+  <middle>
+    <section anchor="routing" pn="section-7.1">
+      <name>Determining the Target Resource</name>
+      <ul pn="section-7.1-8">
+        <li pn="section-7.1-8.1">
+          <iref primary="true" item="effective request URI" pn="iref-1"/>
+          <t pn="section-7.1-8.1">The "effective request URI" is the target URI of a request, reconstructed by the server.</t>
+        </li>
+      </ul>
+    </section>
+  </middle>
+</rfc>`;
+
+    const definition = parseRFCXML(xml).definitions.find((d) => d.term === 'effective request URI');
+
+    expect(definition?.section).toBe('7.1');
+  });
+});

@@ -1,0 +1,502 @@
+# structure-9114
+
+tool: get_rfc_structure
+args: {"rfc":9114}
+
+--- json ---
+{
+  "metadata": {
+    "title": "HTTP/3",
+    "docName": "draft-ietf-quic-http-34",
+    "number": 9114,
+    "date": "2022-06",
+    "category": "std",
+    "stream": "IETF",
+    "abstract": "The QUIC transport protocol has several features that are desirable in a transport for HTTP, such as stream multiplexing, per-stream flow control, and low-latency connection establishment.  This document describes a mapping of HTTP semantics over QUIC.  This document also identifies HTTP/2 features that are subsumed by QUIC and describes how HTTP/2 extensions can be ported to HTTP/3."
+  },
+  "sections": [
+    {
+      "number": "1",
+      "title": "Introduction",
+      "anchor": "introduction",
+      "subsections": [
+        {
+          "number": "1.1",
+          "title": "Prior Versions of HTTP",
+          "anchor": "prior-versions-of-http"
+        },
+        {
+          "number": "1.2",
+          "title": "Delegation to QUIC",
+          "anchor": "delegation-to-quic"
+        }
+      ]
+    },
+    {
+      "number": "2",
+      "title": "HTTP/3 Protocol Overview",
+      "anchor": "http3-protocol-overview",
+      "subsections": [
+        {
+          "number": "2.1",
+          "title": "Document Organization",
+          "anchor": "document-organization"
+        },
+        {
+          "number": "2.2",
+          "title": "Conventions and Terminology",
+          "anchor": "conventions-and-terminology"
+        }
+      ]
+    },
+    {
+      "number": "3",
+      "title": "Connection Setup and Management",
+      "anchor": "connection-setup",
+      "subsections": [
+        {
+          "number": "3.1",
+          "title": "Discovering an HTTP/3 Endpoint",
+          "anchor": "discovery",
+          "subsections": [
+            {
+              "number": "3.1.1",
+              "title": "HTTP Alternative Services",
+              "anchor": "alt-svc"
+            },
+            {
+              "number": "3.1.2",
+              "title": "Other Schemes",
+              "anchor": "other-schemes"
+            }
+          ]
+        },
+        {
+          "number": "3.2",
+          "title": "Connection Establishment",
+          "anchor": "connection-establishment"
+        },
+        {
+          "number": "3.3",
+          "title": "Connection Reuse",
+          "anchor": "connection-reuse"
+        }
+      ]
+    },
+    {
+      "number": "4",
+      "title": "Expressing HTTP Semantics in HTTP/3",
+      "anchor": "http-request-lifecycle",
+      "subsections": [
+        {
+          "number": "4.1",
+          "title": "HTTP Message Framing",
+          "anchor": "request-response",
+          "subsections": [
+            {
+              "number": "4.1.1",
+              "title": "Request Cancellation and Rejection",
+              "anchor": "request-cancellation"
+            },
+            {
+              "number": "4.1.2",
+              "title": "Malformed Requests and Responses",
+              "anchor": "malformed"
+            }
+          ]
+        },
+        {
+          "number": "4.2",
+          "title": "HTTP Fields",
+          "anchor": "header-formatting",
+          "subsections": [
+            {
+              "number": "4.2.1",
+              "title": "Field Compression",
+              "anchor": "field-compression"
+            },
+            {
+              "number": "4.2.2",
+              "title": "Header Size Constraints",
+              "anchor": "header-size-constraints"
+            }
+          ]
+        },
+        {
+          "number": "4.3",
+          "title": "HTTP Control Data",
+          "anchor": "http-control-data",
+          "subsections": [
+            {
+              "number": "4.3.1",
+              "title": "Request Pseudo-Header Fields",
+              "anchor": "request-pseudo-header-fields"
+            },
+            {
+              "number": "4.3.2",
+              "title": "Response Pseudo-Header Fields",
+              "anchor": "response-pseudo-header-fields"
+            }
+          ]
+        },
+        {
+          "number": "4.4",
+          "title": "The CONNECT Method",
+          "anchor": "connect"
+        },
+        {
+          "number": "4.5",
+          "title": "HTTP Upgrade",
+          "anchor": "http-upgrade"
+        },
+        {
+          "number": "4.6",
+          "title": "Server Push",
+          "anchor": "server-push"
+        }
+      ]
+    },
+    {
+      "number": "5",
+      "title": "Connection Closure",
+      "anchor": "connection-closure",
+      "subsections": [
+        {
+          "number": "5.1",
+          "title": "Idle Connections",
+          "anchor": "idle-connections"
+        },
+        {
+          "number": "5.2",
+          "title": "Connection Shutdown",
+          "anchor": "connection-shutdown"
+        },
+        {
+          "number": "5.3",
+          "title": "Immediate Application Closure",
+          "anchor": "immediate-application-closure"
+        },
+        {
+          "number": "5.4",
+          "title": "Transport Closure",
+          "anchor": "transport-closure"
+        }
+      ]
+    },
+    {
+      "number": "6",
+      "title": "Stream Mapping and Usage",
+      "anchor": "stream-mapping",
+      "subsections": [
+        {
+          "number": "6.1",
+          "title": "Bidirectional Streams",
+          "anchor": "request-streams"
+        },
+        {
+          "number": "6.2",
+          "title": "Unidirectional Streams",
+          "anchor": "unidirectional-streams",
+          "subsections": [
+            {
+              "number": "6.2.1",
+              "title": "Control Streams",
+              "anchor": "control-streams"
+            },
+            {
+              "number": "6.2.2",
+              "title": "Push Streams",
+              "anchor": "push-streams"
+            },
+            {
+              "number": "6.2.3",
+              "title": "Reserved Stream Types",
+              "anchor": "stream-grease"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "7",
+      "title": "HTTP Framing Layer",
+      "anchor": "http-framing-layer",
+      "subsections": [
+        {
+          "number": "7.1",
+          "title": "Frame Layout",
+          "anchor": "frame-layout"
+        },
+        {
+          "number": "7.2",
+          "title": "Frame Definitions",
+          "anchor": "frames",
+          "subsections": [
+            {
+              "number": "7.2.1",
+              "title": "DATA",
+              "anchor": "frame-data"
+            },
+            {
+              "number": "7.2.2",
+              "title": "HEADERS",
+              "anchor": "frame-headers"
+            },
+            {
+              "number": "7.2.3",
+              "title": "CANCEL_PUSH",
+              "anchor": "frame-cancel-push"
+            },
+            {
+              "number": "7.2.4",
+              "title": "SETTINGS",
+              "anchor": "frame-settings",
+              "subsections": [
+                {
+                  "number": "7.2.4.1",
+                  "title": "Defined SETTINGS Parameters",
+                  "anchor": "settings-parameters"
+                },
+                {
+                  "number": "7.2.4.2",
+                  "title": "Initialization",
+                  "anchor": "settings-initialization"
+                }
+              ]
+            },
+            {
+              "number": "7.2.5",
+              "title": "PUSH_PROMISE",
+              "anchor": "frame-push-promise"
+            },
+            {
+              "number": "7.2.6",
+              "title": "GOAWAY",
+              "anchor": "frame-goaway"
+            },
+            {
+              "number": "7.2.7",
+              "title": "MAX_PUSH_ID",
+              "anchor": "frame-max-push-id"
+            },
+            {
+              "number": "7.2.8",
+              "title": "Reserved Frame Types",
+              "anchor": "frame-reserved"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "8",
+      "title": "Error Handling",
+      "anchor": "errors",
+      "subsections": [
+        {
+          "number": "8.1",
+          "title": "HTTP/3 Error Codes",
+          "anchor": "http-error-codes"
+        }
+      ]
+    },
+    {
+      "number": "9",
+      "title": "Extensions to HTTP/3",
+      "anchor": "extensions"
+    },
+    {
+      "number": "10",
+      "title": "Security Considerations",
+      "anchor": "security-considerations",
+      "subsections": [
+        {
+          "number": "10.1",
+          "title": "Server Authority",
+          "anchor": "server-authority"
+        },
+        {
+          "number": "10.2",
+          "title": "Cross-Protocol Attacks",
+          "anchor": "cross-protocol-attacks"
+        },
+        {
+          "number": "10.3",
+          "title": "Intermediary-Encapsulation Attacks",
+          "anchor": "intermediary-encapsulation-attacks"
+        },
+        {
+          "number": "10.4",
+          "title": "Cacheability of Pushed Responses",
+          "anchor": "cacheability-of-pushed-responses"
+        },
+        {
+          "number": "10.5",
+          "title": "Denial-of-Service Considerations",
+          "anchor": "denial-of-service-considerations",
+          "subsections": [
+            {
+              "number": "10.5.1",
+              "title": "Limits on Field Section Size",
+              "anchor": "limits-on-field-section-size"
+            },
+            {
+              "number": "10.5.2",
+              "title": "CONNECT Issues",
+              "anchor": "connect-issues"
+            }
+          ]
+        },
+        {
+          "number": "10.6",
+          "title": "Use of Compression",
+          "anchor": "use-of-compression"
+        },
+        {
+          "number": "10.7",
+          "title": "Padding and Traffic Analysis",
+          "anchor": "padding-and-traffic-analysis"
+        },
+        {
+          "number": "10.8",
+          "title": "Frame Parsing",
+          "anchor": "frame-parsing"
+        },
+        {
+          "number": "10.9",
+          "title": "Early Data",
+          "anchor": "early-data"
+        },
+        {
+          "number": "10.10",
+          "title": "Migration",
+          "anchor": "migration"
+        },
+        {
+          "number": "10.11",
+          "title": "Privacy Considerations",
+          "anchor": "privacy-considerations"
+        }
+      ]
+    },
+    {
+      "number": "11",
+      "title": "IANA Considerations",
+      "anchor": "iana-considerations",
+      "subsections": [
+        {
+          "number": "11.1",
+          "title": "Registration of HTTP/3 Identification String",
+          "anchor": "iana-alpn"
+        },
+        {
+          "number": "11.2",
+          "title": "New Registries",
+          "anchor": "iana-policy",
+          "subsections": [
+            {
+              "number": "11.2.1",
+              "title": "Frame Types",
+              "anchor": "iana-frames"
+            },
+            {
+              "number": "11.2.2",
+              "title": "Settings Parameters",
+              "anchor": "iana-settings"
+            },
+            {
+              "number": "11.2.3",
+              "title": "Error Codes",
+              "anchor": "iana-error-codes"
+            },
+            {
+              "number": "11.2.4",
+              "title": "Stream Types",
+              "anchor": "iana-stream-types"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "A",
+      "title": "Considerations for Transitioning from HTTP/2",
+      "anchor": "h2-considerations",
+      "subsections": [
+        {
+          "number": "A.1",
+          "title": "Streams",
+          "anchor": "h2-streams"
+        },
+        {
+          "number": "A.2",
+          "title": "HTTP Frame Types",
+          "anchor": "h2-frames",
+          "subsections": [
+            {
+              "number": "A.2.1",
+              "title": "Prioritization Differences",
+              "anchor": "h2-diff-priority"
+            },
+            {
+              "number": "A.2.2",
+              "title": "Field Compression Differences",
+              "anchor": "field-compression-differences"
+            },
+            {
+              "number": "A.2.3",
+              "title": "Flow-Control Differences",
+              "anchor": "flow-control-differences"
+            },
+            {
+              "number": "A.2.4",
+              "title": "Guidance for New Frame Type Definitions",
+              "anchor": "guidance-for-new-frame-type-definitions"
+            },
+            {
+              "number": "A.2.5",
+              "title": "Comparison of HTTP/2 and HTTP/3 Frame Types",
+              "anchor": "comparison-of-http2-and-http3-frame-types"
+            }
+          ]
+        },
+        {
+          "number": "A.3",
+          "title": "HTTP/2 SETTINGS Parameters",
+          "anchor": "h2-settings"
+        },
+        {
+          "number": "A.4",
+          "title": "HTTP/2 Error Codes",
+          "anchor": "http2-error-codes",
+          "subsections": [
+            {
+              "number": "A.4.1",
+              "title": "Mapping between HTTP/2 and HTTP/3 Errors",
+              "anchor": "mapping-between-http2-and-http3-errors"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "B",
+      "title": "Acknowledgments",
+      "anchor": "acknowledgments"
+    },
+    {
+      "number": "C",
+      "title": "Index"
+    },
+    {
+      "number": "D",
+      "title": "Author's Address",
+      "anchor": "authors-addresses"
+    }
+  ],
+  "referenceCount": {
+    "normative": 14,
+    "informative": 9
+  },
+  "_source": "xml"
+}

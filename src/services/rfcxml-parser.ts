@@ -271,7 +271,14 @@ export function parseRFCXML(xml: string): ParsedRFC {
 
   return {
     metadata: extractMetadata(rfc),
-    sections: extractSections(rfc.middle?.section || []),
+    // 後付録は `<back>` に置かれる。`<middle>` だけを見ていたため、
+    // `get_rfc_structure` に後付録が 1 つも出ていなかった。RFC 9114 の
+    // Appendix A.2.5 には本物の定義があり、`get_definitions` はそれを
+    // §A.2.5 として返すのに、その節が構造に無い状態だった。
+    sections: [
+      ...extractSections(rfc.middle?.section || []),
+      ...extractSections(rfc.back?.section || []),
+    ],
     references: extractReferences(rfc.back?.references || []),
     definitions: dropNonDefinitions(
       mergeDefinitions(extractDefinitions(rfc), extractIrefDefinitions(inlineRendered))
@@ -359,6 +366,9 @@ function extractSections(sections: XmlNode | XmlNode[]): Section[] {
  */
 /** 文の続きとして繋ぐ要素を、いくつ先まで見るか。 */
 const MAX_CONTINUATION_BLOCKS = 3;
+
+/** 文の続きとして取り込む箇条書きの項目数の上限。これを超えるものは表とみなす。 */
+const MAX_MERGED_LIST_ITEMS = 20;
 
 /** 文の続きとして取り込む表示例の最大の長さ。これを超えるものは独立した図とみなす。 */
 const INLINE_EXAMPLE_MAX_LENGTH = 120;
@@ -526,6 +536,12 @@ function mergeContinuations(elements: OrderedElement[]): OrderedElement[] {
       if (next.kind === 'list') {
         const items = (next.items ?? []).filter((item) => item.length > 0);
         if (items.length === 0) break;
+        // 項目が多い箇条書きは、文の続きではなく表である。RFC 9113 の
+        // Appendix A は "… as a connection error of type INADEQUATE_SECURITY:"
+        // のあとに禁止する暗号スイートを約 300 件並べる。繋ぐと 1 件の要件が
+        // 9,992 文字になり、`generate_checklist` の項目として読めない。
+        // 繋がなければ要件文はコロンで終わり、その節を見よという形になる。
+        if (items.length > MAX_MERGED_LIST_ITEMS) break;
         text = `${text} ${joinListItems(items)}`;
         consumed.add(i + step);
         break;
@@ -1062,8 +1078,11 @@ function definingParagraph(
  * 公開前の RFCXML では、直前の `<section>` の `anchor` / `pn` を使う。
  */
 function sectionOfParagraph(xml: string, paragraph: { open: number; tag: string }): string {
+  // 箇条書きの中の `<t>` は `pn="section-7.1-8.1"`（節 7.1・8 番目の塊・1 番目の
+  // 項目）になる。`-\d+$` だけを外すと `.1` が残り、節が "7.1-8.1" になっていた。
+  // 実在しない節を指すので `get_definitions` の `section` が引けなくなる。
   const pn = attributeOf(paragraph.tag, 'pn');
-  if (pn) return pn.replace(/-\d+$/, '');
+  if (pn) return pn.replace(/-\d+(?:\.\d+)*$/, '');
 
   const before = xml.lastIndexOf('<section', paragraph.open);
   if (before === -1) return '';

@@ -50,8 +50,8 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 67 本に不変条件 44 種を当てる
-npm run snapshot      # 代表的な出力 30 本を固定し、差分を見る
+npm run audit         # 実物の RFC 67 本に不変条件 45 種を当てる
+npm run snapshot      # 代表的な出力 31 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
 npm start             # MCP サーバー起動
@@ -69,10 +69,10 @@ publish の前に、次を順に通す。
 
 | 手順 | 見るもの |
 |---|---|
-| `npm test` | 書いた条件の取りこぼし（462 件） |
+| `npm test` | 書いた条件の取りこぼし（465 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 44 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 30 本） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 45 種） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 31 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -500,6 +500,24 @@ RFC 2131 §4.3.1 の Table 3 は 2 ページにわたるので、段落全体を
 要件文は `keyIdentifier [0] KeyIdentifier OPTIONAL,` になる。RFC 4253 §6.3 の
 暗号方式の表も同じ。実測（RFC 67 本）: 86 件、うち RFC 5280 が 46 件、
 RFC 4253 が 12 件、RFC 5652 が 12 件。**判断待ちである。**
+
+### 後付録は `<back>` にある（XML 経路）
+
+`extractSections(rfc.middle?.section)` だけを見ていたため、XML 経路の構造に
+**後付録が 1 つも入っていなかった**。RFC 9110・9112・9113・9114 は最後の番号付き
+節で終わっていた。`get_definitions` は Appendix A.2.5 の定義を §A.2.5 と返すのに
+その節が構造に無い、という食い違いが 56 件あった。
+
+実測（RFC 67 本）: 節 5,189 → 5,429 件、要件 9,845 → 9,870 件。
+テキスト経路で v0.6.24 に直したのと同じ穴が、XML 経路に残っていた。
+
+**箇条書きの中の `<t>` は `pn="section-7.1-8.1"` になる。** 節 7.1・8 番目の塊・
+1 番目の項目という意味である。末尾の `-\d+` だけを外すと `.1` が残り、節が
+`7.1-8.1` という実在しない番号になる。`-\d+(?:\.\d+)*$` を外す。
+
+**項目が 20 件を超える箇条書きは取り込まない。** RFC 9113 の Appendix A は
+`… of type INADEQUATE_SECURITY:` のあとに暗号スイートを約 300 件並べる。
+取り込むと 1 件の要件が 9,992 文字になる。表であって文の続きではない。
 
 ### 折り返した節の題名は、開始桁で継ぐ
 

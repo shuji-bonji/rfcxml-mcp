@@ -78,7 +78,13 @@ const walk = (sections, fn) => {
 
 const findSection = (sections, target) => {
   let found = null;
-  const normalize = (value) => (value ?? '').replace(/^section-/, '');
+  // 後付録は `section-appendix.a.2.5` の形で入っている。製品側の
+  // `normalizeSectionNumber` と同じく `A.2.5` に直してから比べる。
+  const normalize = (value) => {
+    const bare = (value ?? '').replace(/^section-/, '');
+    const appendix = /^appendix\.([a-z])((?:\.\d+)*)$/i.exec(bare);
+    return appendix ? `${appendix[1].toUpperCase()}${appendix[2]}` : bare;
+  };
   walk(sections, (section) => {
     if (found) return;
     if (normalize(section.number) === normalize(target)) found = section;
@@ -527,6 +533,21 @@ export const INVARIANTS = [
       requirements
         .filter((requirement) => TRAILING_SUBJECT_WORD.test(requirement.subject ?? ''))
         .map((requirement) => `${requirement.id} の主語が "${requirement.subject}"`),
+  },
+  {
+    id: 'G4',
+    description: '定義の section が実在する',
+    // XML 経路の構造は `<middle>` だけを見ていたため、後付録が 1 つも入って
+    // いなかった。RFC 9114 の Appendix A.2.5 には本物の定義があり、
+    // `get_definitions` は §A.2.5 と返すのに、その節が構造に無かった。
+    // 箇条書きの中の `<t>` は `pn="section-7.1-8.1"` になり、末尾の `-\d+` だけを
+    // 外すと節が "7.1-8.1" になっていた（RFC 9110）。実測: 56 件 → 0 件。
+    check: ({ parsed }) =>
+      (parsed.definitions ?? [])
+        .filter(
+          (definition) => definition.section && !findSection(parsed.sections, definition.section)
+        )
+        .map((definition) => `"${definition.term}" の S${definition.section} が引けない`),
   },
   {
     id: 'E7',
