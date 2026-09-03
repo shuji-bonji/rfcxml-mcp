@@ -1051,3 +1051,102 @@ describe('三点リーダは文の終わりではない', () => {
     expect(parsed.sections[0].title).toBe('Headings: H1 ... H6');
   });
 });
+
+describe('番号なしの見出しで節を取る', () => {
+  it('全部大文字の見出しから節を取る', () => {
+    // RFC 854（Telnet）。1980 年代の RFC は節に番号を振らない。
+    // 番号を頼りにすると 1 つも取れず、get_rfc_structure が空になっていた。
+    const text = [
+      'Network Working Group                                          J. Postel',
+      'Request for Comments: 854                                    J. Reynolds',
+      '                                                                May 1983',
+      '',
+      '                     TELNET PROTOCOL SPECIFICATION',
+      '',
+      'INTRODUCTION',
+      '',
+      '   The purpose of the TELNET Protocol is to provide a fairly general,',
+      '   bi-directional communications facility.',
+      '',
+      'GENERAL CONSIDERATIONS',
+      '',
+      '   A TELNET connection is a TCP connection.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 854);
+
+    expect(parsed.sections.map((s) => `${s.number}. ${s.title}`)).toEqual([
+      '1. INTRODUCTION',
+      '2. GENERAL CONSIDERATIONS',
+    ]);
+  });
+
+  it('ページ見出しの "RFC 792" を節にしない', () => {
+    // RFC 792 はページ見出しを 1 行で書くため、前後が空行になる。
+    const text = [
+      'Network Working Group                                          J. Postel',
+      'Request for Comments: 792                                September 1981',
+      '',
+      '                     INTERNET CONTROL MESSAGE PROTOCOL',
+      '',
+      'Introduction',
+      '',
+      '   The Internet Protocol is used for host-to-host datagram service.',
+      '',
+      'RFC 792',
+      '',
+      'Message Formats',
+      '',
+      '   ICMP messages are sent using the basic IP header.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 792);
+
+    expect(parsed.sections.map((s) => s.title)).toEqual(['Introduction', 'Message Formats']);
+  });
+
+  it('番号の付いた見出しがあるときは、そちらを使う', () => {
+    const text = [
+      '1.  Introduction',
+      '',
+      '   Text.',
+      '',
+      'Some Heading Without A Number',
+      '',
+      '   Text.',
+      '',
+      '2.  Overview',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 9999);
+
+    expect(parsed.sections.map((s) => s.number)).toEqual(['1', '2']);
+  });
+});
+
+describe('値を並べた塊を要件文に繋がない', () => {
+  it('RFC 8259 §3 のリテラル名の並びを繋がない', () => {
+    const text = [
+      '3.  Values',
+      '',
+      '   A JSON value MUST be an object, array, number, or string, or one of',
+      '   the following three literal names:',
+      '',
+      '      false',
+      '      null',
+      '      true',
+      '',
+      '   The literal names MUST be lowercase.  No other literal names are',
+      '   allowed.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 8259);
+    const texts = JSON.stringify(parsed.sections[0].content);
+
+    // "false null true The literal names MUST be lowercase." になっていた
+    expect(texts).not.toContain('false\nnull\ntrue The literal names');
+    expect(texts).toContain('The literal names MUST be lowercase.');
+  });
+});

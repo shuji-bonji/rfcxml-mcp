@@ -1,0 +1,44 @@
+# checklist-8259
+
+tool: generate_checklist
+args: {"rfc":8259}
+
+--- markdown ---
+# RFC 8259 Implementation Checklist
+
+**The JavaScript Object Notation (JSON) Data Interchange Format**
+
+Generated: <generatedAt>
+
+## Mandatory Requirements (MUST / REQUIRED / SHALL)
+
+- [ ] **MUST** A JSON value MUST be an object, array, number, or string, or one of the following three literal names: (§3)
+- [ ] **MUST** The literal names MUST be lowercase. (§3)
+- [ ] **MUST** All Unicode characters may be placed within the quotation marks, except for the characters that MUST be escaped: quotation mark, reverse solidus, and the control characters (U+0000 through U+001F). (§7)
+- [ ] **MUST** JSON text exchanged between systems that are not part of a closed ecosystem MUST be encoded using UTF-8 [RFC3629]. (§8.1)
+- [ ] **MUST NOT** Implementations MUST NOT add a byte order mark (U+FEFF) to the beginning of a networked-transmitted JSON text. (§8.1)
+- [ ] **MUST** A JSON parser MUST accept all texts that conform to the JSON grammar. (§9)
+- [ ] **MUST** The resulting text MUST strictly conform to the JSON grammar. (§10)
+
+## Recommended Requirements (SHOULD / RECOMMENDED)
+
+- [ ] **SHOULD** The names within an object SHOULD be unique. (§4)
+
+## Optional Requirements (MAY / OPTIONAL)
+
+- [ ] **MAY** In the interests of interoperability, implementations that parse JSON texts MAY ignore the presence of a byte order mark rather than treating it as an error. (§8.1)
+- [ ] **MAY** A JSON parser MAY accept non-JSON forms or extensions. (§9)
+
+--- json ---
+{
+  "rfc": 8259,
+  "role": "both",
+  "stats": {
+    "must": 7,
+    "should": 1,
+    "may": 2,
+    "total": 10
+  },
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Checklist accuracy may be limited."
+}

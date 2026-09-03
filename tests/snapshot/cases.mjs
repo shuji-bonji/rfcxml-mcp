@@ -36,6 +36,12 @@ export const CASES = [
     tool: 'generate_checklist',
     args: { rfc: 9113, sections: ['8.3.1'] },
   },
+  {
+    // BCP 14 の定型文から 11 件出ていた。21 項目のうち 11 項目がそれだった。
+    name: 'checklist-8259',
+    tool: 'generate_checklist',
+    args: { rfc: 8259 },
+  },
 
   // --- get_requirements ---
   {
@@ -82,6 +88,18 @@ export const CASES = [
     name: 'structure-1035',
     tool: 'get_rfc_structure',
     args: { rfc: 1035 },
+  },
+  {
+    // 節に番号が無い（1980 年代）。番号を頼りにすると 1 つも取れない。
+    name: 'structure-854',
+    tool: 'get_rfc_structure',
+    args: { rfc: 854 },
+  },
+  {
+    // 節に番号が無く、ページ見出しが "RFC 792" の 1 行で書かれている。
+    name: 'structure-792',
+    tool: 'get_rfc_structure',
+    args: { rfc: 792 },
   },
 
   // --- get_rfc_dependencies ---

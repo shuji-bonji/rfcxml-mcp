@@ -50,7 +50,7 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 49 本に不変条件 27 種を当てる
+npm run audit         # 実物の RFC 53 本に不変条件 29 種を当てる
 npm run snapshot      # 代表的な出力 14 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
@@ -71,8 +71,8 @@ publish の前に、次を順に通す。
 |---|---|
 | `npm test` | 書いた条件の取りこぼし（367 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 49 本 × 27 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 14 本） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 53 本 × 29 種） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 17 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -453,6 +453,50 @@ RFC のテキストは 72 桁で折り返す。`SHOULD NOT` が
 
 `createRequirementRegex` はキーワードの空白を `\s+` にする。
 `extractRequirementMarkers` が `level` を 1 個の空白に畳んで返す。
+
+### 節に番号が無い RFC がある
+
+1980 年代の RFC は節に番号を振らない。
+
+```
+INTRODUCTION
+
+   The purpose of the TELNET Protocol is to provide a fairly general,
+   bi-directional, eight-bit byte oriented communications facility.
+```
+
+番号を頼りにすると 1 つも取れない。実測（1980 年代の RFC 29 本）で 14 本が
+節 0〜1 だった。RFC 792（ICMP）、RFC 826（ARP）、RFC 854（Telnet）、
+RFC 894（IP over Ethernet）が含まれる。どれも RFC 1122 や RFC 1123 が
+繰り返し参照する文書で、`get_rfc_structure` が何も返していなかった。
+
+番号の付いた見出しが 2 つ未満のときだけ、`extractUnnumberedSections` で
+取り直す。見出しは 1 桁目・前後が空行・3〜60 文字・8 語以下・文末記号なし・
+小文字だけでないこと。**番号は文書に現れる順に 1 から振る。**
+原文に番号は無いので、`§3` はこちらが振った番号である。
+
+ページの飾りを除くこと。RFC 792 はページ見出しを `RFC 792` の 1 行で書くため、
+前後が空行になり見出しの条件を満たす。
+
+### 値を並べた塊は文ではない
+
+RFC 8259 §3 は取りうる値を字下げして並べる。
+
+```
+   A JSON value MUST be an object, array, number, or string, or one of
+   the following three literal names:
+
+      false
+      null
+      true
+
+   The literal names MUST be lowercase.
+```
+
+この塊は文末記号を持たないので、`joinUnterminatedParagraphs` が次の段落と繋ぎ、
+要件文が "false null true The literal names MUST be lowercase." になっていた。
+`looksLikeDiagram` は当たらない。ABNF の規則でも罫線でもなく、空白で桁を
+揃えてもいない、ただの短い語の並びである。`looksLikeDisplayBlock` で落とす。
 
 ### `unless` は例外であって条件ではない
 

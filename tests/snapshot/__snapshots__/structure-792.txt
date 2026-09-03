@@ -1,0 +1,71 @@
+# structure-792
+
+tool: get_rfc_structure
+args: {"rfc":792}
+
+--- json ---
+{
+  "metadata": {
+    "title": "INTERNET CONTROL MESSAGE PROTOCOL",
+    "number": 792,
+    "date": "1981-09",
+    "category": "std",
+    "stream": "IETF"
+  },
+  "sections": [
+    {
+      "number": "1",
+      "title": "Introduction"
+    },
+    {
+      "number": "2",
+      "title": "Message Formats"
+    },
+    {
+      "number": "3",
+      "title": "Destination Unreachable Message"
+    },
+    {
+      "number": "4",
+      "title": "Time Exceeded Message"
+    },
+    {
+      "number": "5",
+      "title": "Parameter Problem Message"
+    },
+    {
+      "number": "6",
+      "title": "Source Quench Message"
+    },
+    {
+      "number": "7",
+      "title": "Redirect Message"
+    },
+    {
+      "number": "8",
+      "title": "Echo or Echo Reply Message"
+    },
+    {
+      "number": "9",
+      "title": "Timestamp or Timestamp Reply Message"
+    },
+    {
+      "number": "10",
+      "title": "Information Request or Information Reply Message"
+    },
+    {
+      "number": "11",
+      "title": "Summary of Message Types"
+    },
+    {
+      "number": "12",
+      "title": "References"
+    }
+  ],
+  "referenceCount": {
+    "normative": 0,
+    "informative": 5
+  },
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Accuracy may be limited."
+}

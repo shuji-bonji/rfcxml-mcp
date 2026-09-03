@@ -144,6 +144,15 @@ export const INVARIANTS = [
     },
   },
   {
+    id: 'A7',
+    description: '節が 1 つ以上ある',
+    check: ({ parsed }) => {
+      let count = 0;
+      walk(parsed.sections, () => count++);
+      return count === 0 ? ['節が 1 つも取れていない'] : [];
+    },
+  },
+  {
     id: 'A5',
     description: 'メタデータに題名と公開日がある',
     check: ({ parsed }) => {

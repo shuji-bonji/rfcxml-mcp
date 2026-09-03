@@ -870,8 +870,97 @@ function extractTextSections(lines: string[]): Section[] {
     sections.push(currentSection);
   }
 
+  // 番号の付いた見出しが無い RFC は、番号なしの見出しで取り直す。
+  if (sections.length < MIN_NUMBERED_SECTIONS) {
+    const unnumbered = extractUnnumberedSections(lines);
+    if (unnumbered.length > sections.length) return unnumbered;
+  }
+
   // セクションを階層構造に整理
   return organizeSections(sections);
+}
+
+/** ここに満たないときは、番号なしの見出しで取り直す。 */
+const MIN_NUMBERED_SECTIONS = 2;
+
+/** 番号なしの見出しとみなす行の、文字数と語数の上限。 */
+const UNNUMBERED_HEADER_MAX_LENGTH = 60;
+const UNNUMBERED_HEADER_MAX_WORDS = 8;
+
+/**
+ * 番号なしの見出しで節を取る。
+ *
+ * 1980 年代の RFC は節に番号を振らない。
+ *
+ * ```
+ * INTRODUCTION
+ *
+ *    The purpose of the TELNET Protocol is to provide a fairly general,
+ *    bi-directional, eight-bit byte oriented communications facility.
+ * ```
+ *
+ * 番号を頼りにすると 1 つも取れない。実測（1980 年代の RFC 29 本）で
+ * 14 本が節 0〜1 だった。RFC 792（ICMP）、RFC 826（ARP）、RFC 854（Telnet）、
+ * RFC 894（IP over Ethernet）が含まれる。どれも RFC 1122 や RFC 1123 が
+ * 繰り返し参照する文書で、`get_rfc_structure` が何も返していなかった。
+ *
+ * 見出しとみなす条件は 5 つ。番号は文書に現れる順に 1 から振る。
+ *
+ * - 1 桁目から始まる（字下げが無い）
+ * - 前後が空行
+ * - 3 文字以上 60 文字以下、8 語以下
+ * - 文末記号（`.` `!` `?` `,` `;` `:`）で終わらない
+ * - 小文字だけの行ではない
+ */
+function extractUnnumberedSections(lines: string[]): Section[] {
+  const sections: Section[] = [];
+  let current: Section | null = null;
+  let content: string[] = [];
+  let number = 0;
+
+  const isHeading = (index: number): boolean => {
+    const line = lines[index];
+    if (/^[ \t]/.test(line)) return false;
+
+    const trimmed = line.trim();
+    if (trimmed.length < 3 || trimmed.length > UNNUMBERED_HEADER_MAX_LENGTH) return false;
+    if (!/^[A-Za-z]/.test(trimmed)) return false;
+    if (/[.!?,;:]$/.test(trimmed)) return false;
+    if (trimmed.split(/\s+/).length > UNNUMBERED_HEADER_MAX_WORDS) return false;
+    if (trimmed === trimmed.toLowerCase()) return false;
+    // ページの飾り。RFC 792 はページ見出しを "RFC 792" の 1 行で書くため、
+    // 前後が空行になり見出しの条件を満たしてしまう。
+    if (/^RFC[\s-]*\d+$/i.test(trimmed)) return false;
+
+    const before = index > 0 ? lines[index - 1] : '';
+    const after = index + 1 < lines.length ? lines[index + 1] : '';
+    return before.trim() === '' && after.trim() === '';
+  };
+
+  for (let index = 0; index < lines.length; index++) {
+    if (isHeading(index)) {
+      if (current) {
+        current.content = createTextBlocks(content.join('\n'));
+        sections.push(current);
+      }
+      current = {
+        number: String(++number),
+        title: lines[index].trim(),
+        content: [],
+        subsections: [],
+      };
+      content = [];
+      continue;
+    }
+    if (current) content.push(lines[index]);
+  }
+
+  if (current) {
+    current.content = createTextBlocks(content.join('\n'));
+    sections.push(current);
+  }
+
+  return sections;
 }
 
 /**
@@ -927,6 +1016,43 @@ const MAX_PARAGRAPH_JOINS = 3;
  * 図・ABNF で終わる段落は繋がない。`acceptable-ranges = 1#range-unit | "none"` の
  * ように、文末記号が無いのが普通だからである。
  */
+/** 表示ブロックの 1 行にある語数の上限。 */
+const DISPLAY_BLOCK_MAX_WORDS = 3;
+
+/**
+ * 値を並べただけの塊か。
+ *
+ * RFC 8259 §3 は取りうる値を字下げして並べる。
+ *
+ * ```
+ *    A JSON value MUST be an object, array, number, or string, or one of
+ *    the following three literal names:
+ *
+ *       false
+ *       null
+ *       true
+ *
+ *    The literal names MUST be lowercase.  No other literal names are
+ *    allowed.
+ * ```
+ *
+ * この塊は文末記号を持たないので、続く段落と繋がれて要件文が
+ * "false null true The literal names MUST be lowercase." になっていた。
+ *
+ * `looksLikeDiagram` は当たらない。ABNF の規則でも罫線でもなく、
+ * 空白で桁を揃えてもいない、ただの短い語の並びである。
+ */
+function looksLikeDisplayBlock(text: string): boolean {
+  const lines = text.split('\n').filter((line) => line.trim() !== '');
+  if (lines.length < 2) return false;
+
+  return lines.every((line) => {
+    const trimmed = line.trim();
+    if (/[.!?]$/.test(trimmed)) return false;
+    return trimmed.split(/\s+/).length <= DISPLAY_BLOCK_MAX_WORDS;
+  });
+}
+
 function joinUnterminatedParagraphs(paragraphs: string[]): string[] {
   const joined: string[] = [];
   const joinCount: number[] = [];
@@ -938,6 +1064,7 @@ function joinUnterminatedParagraphs(paragraphs: string[]): string[] {
       previous !== undefined &&
       !/[.!?:;]\s*$/.test(previous) &&
       !looksLikeDiagram(previous) &&
+      !looksLikeDisplayBlock(previous) &&
       joinCount[last] < MAX_PARAGRAPH_JOINS &&
       // どちらかに BCP 14 キーワードがあること。要件に関わらない箇所では繋がない。
       // RFC 3261 §7.3.1 は "is equivalent to" と表示例を交互に並べる。繋ぐと
