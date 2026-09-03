@@ -1400,7 +1400,12 @@ async function testCompleteSentences(client) {
     try {
       const res = await callTool(client, 'get_requirements', { rfc });
       const requirements = res.requirements || [];
-      const truncated = requirements.filter((r) => !/[.:;)"']$/.test(r.text || ''));
+      // 箇条書きで終わる要件文は、文末記号を持たないが切れてはいない。
+      // RFC 2616 §13.5.2 の "MUST NOT modify any of the following fields in a
+      // response: - Expires" は、コロンのあとの項目まで取れている形である。
+      const truncated = requirements.filter(
+        (r) => !/[.:;)"']$/.test(r.text || '') && !/(?:\s[-*o]\s|\(\d+\)\s)/.test(r.text || '')
+      );
 
       logResult(
         toolName,

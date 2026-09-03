@@ -1513,6 +1513,18 @@ function endsWithListItem(paragraph: string): boolean {
   return false;
 }
 
+/**
+ * コロンの続きとして取り込む項目の記号。
+ *
+ * `1.` `2.` の形は入れない。取り込むと `isSentenceEnd` が番号の句点を文の
+ * 終わりと読み、要件文が **"The client MUST validate the server's response as
+ * follows: 1."** で切れる（RFC 6455 §4.1）。
+ */
+const COLON_LIST_MARKER = /^\s*(?:o\s{2}|[-*+•]\s|\(\d+\)\s)/;
+
+/** コロンの続きとして取り込む項目に、記号のほかに要る文字数。 */
+const LIST_ITEM_MIN_CONTENT = 3;
+
 /** 箇条書きの項目の始まり。`o` は語と紛れるので空白 2 個を求める。 */
 const LIST_ITEM_START = /^\s*(?:o\s{2}|[-*+•]\s|\(\d+\)\s|\d+[.)]\s|[a-z][.)]\s)/;
 
@@ -1523,9 +1535,24 @@ function joinUnterminatedParagraphs(paragraphs: string[]): string[] {
   for (const paragraph of paragraphs) {
     const last = joined.length - 1;
     const previous = joined[last];
+    // コロンで終わる文が、続く箇条書きで完結することがある。RFC 6797 §8.1 の
+    // "the UA MUST either:" は、続く 2 つの項目を取らないと**何を選ぶのかが
+    // 読めない**。RFC 1122 の "An ICMP error message MUST NOT be sent as the
+    // result of receiving:" も同じ。
+    // ただし**項目自身がキーワードを持つなら繋がない**。その項目は独立した
+    // 要件であり、取り込むと元の要件文が失われる（RFC 1122 §3.2.1.8 の
+    // "the following rules apply:" と "o The originating host MUST record …"）。
+    const completesWithList =
+      previous !== undefined &&
+      /:\s*$/.test(previous) &&
+      COLON_LIST_MARKER.test(paragraph) &&
+      // 記号だけの行は取らない（RFC 1521 の付録は "1." だけの行を挟む）
+      paragraph.replace(COLON_LIST_MARKER, '').trim().length >= LIST_ITEM_MIN_CONTENT &&
+      !createRequirementRegex().test(paragraph);
+
     const canJoin =
       previous !== undefined &&
-      !/[.!?:;]\s*$/.test(previous) &&
+      (completesWithList || !/[.!?:;]\s*$/.test(previous)) &&
       !looksLikeDiagram(previous) &&
       !looksLikeDisplayBlock(previous) &&
       // 項目のあとに地の文が来たら、そこで切る。項目のあとに項目が来るなら、

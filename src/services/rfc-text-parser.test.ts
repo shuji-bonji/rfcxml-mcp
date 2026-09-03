@@ -1929,3 +1929,60 @@ describe('ページの終わりに置かれた値の並び', () => {
     expect(contents).toContain('The authorization server MUST authenticate the client.');
   });
 });
+
+describe('コロンで終わる要件文と、続く箇条書き', () => {
+  it('項目を取り込む', () => {
+    // RFC 6797 §8.1 の "the UA MUST either:" は、続く 2 つの項目を取らないと
+    // 何を選ぶのかが読めない。
+    const text = [
+      '3.  Requirements',
+      '',
+      '   An ICMP error message MUST NOT be sent as the result of receiving:',
+      '',
+      '   *  an ICMP error message, or',
+      '',
+      '   *  a datagram destined to an IP broadcast address.',
+      '',
+    ].join('\n');
+    const blocks = parseRFCText(text, 1122).sections.flatMap((s) => s.content ?? []);
+    const withRequirement = blocks.filter((b) => (b.requirements ?? []).length > 0);
+    expect(withRequirement).toHaveLength(1);
+    expect(withRequirement[0].content).toMatch(/an ICMP error message, or/);
+    expect(withRequirement[0].content).toMatch(/IP broadcast address\.$/);
+  });
+
+  it('項目自身がキーワードを持つなら取り込まない', () => {
+    // RFC 1122 §3.2.1.8。取り込むと "the following rules apply: o" で切れ、
+    // 項目にある本来の要件が失われる。
+    const text = [
+      '3.  Requirements',
+      '',
+      '   Implementation of the Timestamp option is OPTIONAL. If it is',
+      '   implemented, the following rules apply:',
+      '',
+      '   o  The originating host MUST record a timestamp in a Timestamp option.',
+      '',
+    ].join('\n');
+    const blocks = parseRFCText(text, 1122).sections.flatMap((s) => s.content ?? []);
+    expect(blocks.some((b) => /^o {2}The originating host MUST record/.test(b.content))).toBe(true);
+  });
+
+  it('番号付きの項目は取り込まない', () => {
+    // RFC 6455 §4.1。取り込むと番号の句点を文の終わりと読み、要件文が
+    // "as follows: 1." で切れる。
+    const text = [
+      '4.  Opening Handshake',
+      '',
+      "   The client MUST validate the server's response as follows:",
+      '',
+      '   1.  If the status code received from the server is not 101, the client',
+      '       handles the response per HTTP procedures.',
+      '',
+    ].join('\n');
+    const blocks = parseRFCText(text, 6455).sections.flatMap((s) => s.content ?? []);
+    const withRequirement = blocks.filter((b) => (b.requirements ?? []).length > 0);
+    expect(withRequirement[0].content).toBe(
+      "The client MUST validate the server's response as follows:"
+    );
+  });
+});
