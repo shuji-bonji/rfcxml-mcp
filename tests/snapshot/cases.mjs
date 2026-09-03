@@ -104,6 +104,12 @@ export const CASES = [
     tool: 'get_definitions',
     args: { rfc: 5280 },
   },
+  {
+    // テキスト経路のぶら下げの用語欄（用語だけの行 + 字下げした説明）。
+    name: 'definitions-7519',
+    tool: 'get_definitions',
+    args: { rfc: 7519 },
+  },
 
   // --- get_rfc_structure ---
   {

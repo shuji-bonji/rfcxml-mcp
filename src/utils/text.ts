@@ -471,7 +471,20 @@ export function extractRequirementMarkers(
  * どれも「用語: 説明」と同じ形をしているが、用語ではない。
  */
 const NOT_A_TERM =
-  /^(?:Request for Comments|Category|ISSN|Obsoletes|Updates|Network Working Group|BCP|STD|FYI|EMail|Email|E-Mail|URI|URL|Phone|Fax|Tel|Telephone|NOTE|Note|Notes|Example|EXAMPLE|Examples)$|^o\s/;
+  /^(?:Request for Comments|Category|ISSN|Obsoletes|Updates|Network Working Group|BCP|STD|FYI|EMail|Email|E-Mail|URI|URL|Phone|Fax|Tel|Telephone|NOTE|Note|Notes|Example|EXAMPLE|Examples|IMPLEMENTATION NOTE|Implementation Note|NB)$|^o\s/;
+
+/**
+ * 文の書き出しに来る語。これで始まる「用語」は、折り返した文の途中である。
+ * RFC 6455 の "The protocol has two parts: a handshake and the data transfer."
+ */
+export const SENTENCE_OPENER =
+  /^(?:The|This|These|Those|That|It|Its|A|An|Each|Every|All|There|If|When|Note that)\s/;
+
+/**
+ * 用語の中に現れると、用語ではなく文の一部であることを示す語。
+ * RFC 9110 の IANA 登録票 "Applications that use this media type"。
+ */
+export const RELATIVE_CLAUSE = /\s(?:that|which|who|have|has|are|is|be|was|were)\s/i;
 
 /** 同じ用語がこの回数以上出たら、定義ではなく登録票・例示の並びとみなす。 */
 const MAX_TERM_OCCURRENCES = 3;
@@ -482,7 +495,8 @@ const MAX_TERM_OCCURRENCES = 3;
  * 2 種類ある。
  *
  * 1. 用語の位置に来る、用語でない見出し（`NOT_A_TERM`）。
- * 2. 同じ用語が何度も出るもの。IANA 登録票は `Name:` `Description:`
+ * 2. 文の書き出し・関係節を含むもの（`SENTENCE_OPENER` / `RELATIVE_CLAUSE`）。
+ * 3. 同じ用語が何度も出るもの。IANA 登録票は `Name:` `Description:`
  *    `Reference:` を項目の数だけ繰り返す（RFC 9209 は 34 回）。見出し
  *    フィールドの例示も同じ形になる（RFC 6265 §3.1 の `Set-Cookie:` が
  *    10 回以上）。用語の定義なら 1 つの RFC に 1 回か 2 回しか出ない。
@@ -494,6 +508,9 @@ export function dropNonDefinitions<T extends { term: string }>(definitions: T[])
   }
   return definitions.filter(
     (definition) =>
-      !NOT_A_TERM.test(definition.term) && (count.get(definition.term) ?? 0) < MAX_TERM_OCCURRENCES
+      !NOT_A_TERM.test(definition.term) &&
+      !SENTENCE_OPENER.test(definition.term) &&
+      !RELATIVE_CLAUSE.test(definition.term) &&
+      (count.get(definition.term) ?? 0) < MAX_TERM_OCCURRENCES
   );
 }

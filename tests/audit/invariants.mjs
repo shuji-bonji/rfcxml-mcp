@@ -27,6 +27,13 @@ const DIAGRAM_PATTERNS = [
 const NOT_A_TERM =
   /^(?:Request for Comments|Category|ISSN|Obsoletes|Updates|Network Working Group|BCP|STD|FYI|EMail|Email|E-Mail|URI|URL|Phone|Fax|Tel|Telephone|NOTE|Note|Notes|Example|EXAMPLE|Examples)$|^o\s/;
 
+/** 文の書き出しに来る語。これで始まる「用語」は文である。 */
+const SENTENCE_OPENER =
+  /^(?:The|This|These|Those|That|It|Its|A|An|Each|Every|All|There|If|When|Note that)\s/;
+
+/** 用語の中に現れると、用語ではなく文の一部であることを示す語。 */
+const RELATIVE_CLAUSE = /\s(?:that|which|who|have|has|are|is|be|was|were)\s/i;
+
 /** 題名の末尾に来ると折り返しを疑う語。 */
 const TRAILING_FUNCTION_WORD =
   /\s(?:of|to|and|with|in|for|the|a|an|or|on|from|by|at|as|that|which|into|over|under)$/i;
@@ -482,6 +489,22 @@ export const INVARIANTS = [
         .filter(([, times]) => times >= 3)
         .map(([term, times]) => `"${term}" が ${times} 回`);
     },
+  },
+  {
+    id: 'G3',
+    description: '定義の用語が文の一部でない',
+    // 用語欄は「用語: 説明」「用語 / 字下げした説明」の形をしているが、
+    // 折り返した文の途中も同じ形になる。
+    //   "The protocol has two parts: a handshake and the data transfer."
+    //   "Implementations that have implementation: and/or platform-specific"
+    check: ({ parsed }) =>
+      (parsed.definitions ?? [])
+        .filter(
+          (definition) =>
+            SENTENCE_OPENER.test(definition.term ?? '') ||
+            RELATIVE_CLAUSE.test(definition.term ?? '')
+        )
+        .map((definition) => `"${definition.term}" は文の一部`),
   },
   {
     id: 'A8',

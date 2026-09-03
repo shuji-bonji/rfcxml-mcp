@@ -1720,3 +1720,68 @@ describe('テキスト経路の定義', () => {
     expect(parseRFCText(text, 6797).definitions).toEqual([]);
   });
 });
+
+describe('ぶら下げの用語欄', () => {
+  const glossary = [
+    '2.  Terminology',
+    '',
+    '   These terms are defined by this specification:',
+    '',
+    '   JSON Web Token (JWT)',
+    '      A string representing a set of claims as a JSON object that is',
+    '      encoded in a JWS or JWE.',
+    '',
+    '   Claim Name',
+    '      The name portion of a claim representation.',
+    '',
+  ].join('\n');
+
+  it('用語だけの行のあとの、字下げした説明を読む', () => {
+    const definitions = parseRFCText(glossary, 7519).definitions;
+    expect(definitions.map((d) => d.term)).toEqual(['JSON Web Token (JWT)', 'Claim Name']);
+    expect(definitions[0].definition).toBe(
+      'A string representing a set of claims as a JSON object that is encoded in a JWS or JWE.'
+    );
+    expect(definitions[0].section).toBe('2');
+  });
+
+  it('型定義の断片を用語にしない', () => {
+    // RFC 5246 §6.1 の前後に並ぶ C 構造体。
+    const text = [
+      '6.  The TLS Record Protocol',
+      '',
+      '   struct {',
+      '      T1 f1;',
+      '      T2 f2;',
+      '   } T;',
+      '',
+    ].join('\n');
+    expect(parseRFCText(text, 5246).definitions).toEqual([]);
+  });
+
+  it('索引の見出し語を用語にしない', () => {
+    // RFC 7231 §11.2 は "A" のあとに字下げして項目を並べる。
+    const text = [
+      '11.  Index',
+      '',
+      '   A',
+      '      Accept header field  38',
+      '      Accept-Charset header field  40',
+      '',
+    ].join('\n');
+    expect(parseRFCText(text, 7231).definitions).toEqual([]);
+  });
+
+  it('深く字下げした "X: Y" は例示として落とす', () => {
+    // RFC 7231 §5.3.3 の見出しフィールドの例。
+    const text = [
+      '5.  Request Header Fields',
+      '',
+      '   The example below is not a definition.',
+      '',
+      '     Accept-Charset: iso-8859-5, unicode-1-1;q=0.8',
+      '',
+    ].join('\n');
+    expect(parseRFCText(text, 7231).definitions).toEqual([]);
+  });
+});

@@ -6,7 +6,7 @@ args: {"rfc":5280}
 --- json ---
 {
   "rfc": 5280,
-  "count": 7,
+  "count": 3,
   "definitions": [
     {
       "term": "CA",
@@ -22,26 +22,6 @@ args: {"rfc":5280}
       "term": "CRL issuer",
       "definition": "a system that generates and signs CRLs; and",
       "section": "3"
-    },
-    {
-      "term": "Infrastructure",
-      "definition": "Operational Protocols: FTP and HTTP\", RFC",
-      "section": "11.1"
-    },
-    {
-      "term": "Mail",
-      "definition": "Part II: Certificate-Based Key Management\", RFC",
-      "section": "11.2"
-    },
-    {
-      "term": "Services Industry",
-      "definition": "Extensions to Public Key Certificates",
-      "section": "11.2"
-    },
-    {
-      "term": "This appendix contains four examples",
-      "definition": "three certificates and a CRL.",
-      "section": "20"
     }
   ],
   "_source": "text",

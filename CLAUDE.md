@@ -50,8 +50,8 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 66 本に不変条件 40 種を当てる
-npm run snapshot      # 代表的な出力 27 本を固定し、差分を見る
+npm run audit         # 実物の RFC 66 本に不変条件 41 種を当てる
+npm run snapshot      # 代表的な出力 28 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
 npm start             # MCP サーバー起動
@@ -69,10 +69,10 @@ publish の前に、次を順に通す。
 
 | 手順 | 見るもの |
 |---|---|
-| `npm test` | 書いた条件の取りこぼし（433 件） |
+| `npm test` | 書いた条件の取りこぼし（437 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 66 本 × 40 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 27 本） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 66 本 × 41 種） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 28 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -744,12 +744,34 @@ RFC 7519 が返していた 21 件は**全件が用語ではなかった**。XML
 34 回ずつ返していた。
 
 `dropNonDefinitions()`（`src/utils/text.ts`）が両方の経路に同じ規則を当てる。
-テキスト経路はさらに、節に入る前を見ない・段落の途中の行を見ないの 2 つを課す。
-実測: 4,670 件 → **1,744 件**（テキスト 3,118 → 605、XML 1,552 → 1,139）。
+用語でない見出し（`NOT_A_TERM`）、文の書き出し（`SENTENCE_OPENER`）、関係節
+（`RELATIVE_CLAUSE`）、同じ用語の繰り返しの 4 つ。
 
-**まだ残っている。** RFC 5280 が返す 7 件のうち用語と言えるのは §3 の
-`CA` `RA` `CRL issuer` の 3 件で、残りは参考文献の題名である。RFC 7519 §2 の
-用語欄は「用語 / 次の行に説明」の形で、この抽出では最初から拾えていない。
+テキスト経路はさらに 4 つを課す。
+
+1. 節に入る前は見ない（表紙）。題名が `Index` の節も見ない。
+2. 段落の途中の行は見ない（空行のあと、または前の行より深い字下げ）。
+3. `X: Y` の形は**地の文の桁（4 桁目まで）に限る**。それより深いものは例示である。
+4. 節の追跡は 1 桁目の見出しだけを見る。字下げした行を数えると、RFC 6455 の
+   フレーム図の目盛り `0 1 2 3` を節 0 として記録していた。
+
+### 用語欄で最も多いのは「ぶら下げ」の形
+
+```
+   JSON Web Token (JWT)
+      A string representing a set of claims as a JSON object that is
+      encoded in a JWS or JWE, ...
+```
+
+v0.6.25 まで `X: Y` の形しか見ておらず、**この形は 1 件も読めていなかった**。
+RFC 7519 §2 の 10 件、RFC 2616 §1.3 の 77 件、RFC 5246 §6.1 が丸ごと落ちていた。
+
+`hangingDefinition()` が読む。用語の行は空行のあと・字下げ 2〜8 桁・60 文字以内・
+6 語以内・句点で終わらない。説明の行はそれより 2 桁以上深く、大文字で始まる。
+参考文献の `[TAG]` と型定義の断片（`struct {`、`Dss-Sig-Value ::= SEQUENCE {`）を除く。
+
+実測（v0.6.26）: 合計 1,768 件（テキスト 633、XML 1,135）。RFC 7519 は 0 件 →
+**10 件**、RFC 5280 は 7 件 → **3 件**（§3 の `CA` `RA` `CRL issuer` だけ）。
 
 ### `validate_statement` は判定器ではない
 

@@ -17,6 +17,8 @@ import {
   extractCrossReferences,
   extractRequirementMarkers as extractMarkers,
   dropNonDefinitions,
+  SENTENCE_OPENER,
+  RELATIVE_CLAUSE,
   looksLikeDiagram,
 } from '../utils/text.js';
 import {
@@ -1463,21 +1465,37 @@ function extractTextDefinitions(lines: string[]): Definition[] {
   const defPattern = /^\s*([A-Za-z][A-Za-z0-9\s-]*[A-Za-z0-9])\s*[-:]\s+(.+)$/;
 
   let currentSection = '';
+  let inIndex = false;
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     const trimmed = line.trim();
 
-    // セクションを追跡
-    const sectionMatch = trimmed.match(SECTION_HEADER_PATTERN);
-    if (sectionMatch) {
-      currentSection = sectionMatch[1].replace(/\.$/, '');
-      continue;
+    // セクションを追跡。節見出しは 1 桁目から始まる。字下げした行を数えると、
+    // フレーム図の目盛り（RFC 6455 の "0 1 2 3"）を節 0 として記録していた。
+    if (!/^\s/.test(line)) {
+      const sectionMatch = trimmed.match(SECTION_HEADER_PATTERN);
+      if (sectionMatch) {
+        currentSection = sectionMatch[1].replace(/\.$/, '');
+        // 索引は「見出し語 / 字下げした行数」の並びで、用語欄と同じ形をしている。
+        // RFC 7231 §11.2 の `A: Accept header field  38 …` を定義にしていた。
+        inIndex = /^index$/i.test(sectionMatch[2]?.trim() ?? '');
+        continue;
+      }
     }
 
     // 節に入る前は RFC の表紙である。`Request for Comments: 7519` や
     // `Category: Standards Track` を用語として出していた（実測 111 件）。
     if (currentSection === '') continue;
+    if (inIndex) continue;
+
+    // ぶら下げの用語欄。用語だけの行のあとに、深く字下げした説明が続く。
+    const hanging = hangingDefinition(lines, index);
+    if (hanging) {
+      definitions.push({ ...hanging.definition, section: currentSection });
+      index = hanging.lastLine;
+      continue;
+    }
 
     // 定義パターンを探す
     const defMatch = trimmed.match(defPattern);
@@ -1503,11 +1521,95 @@ function extractTextDefinitions(lines: string[]): Definition[] {
     const previousIndent = previous.length - previous.trimStart().length;
     if (previous.trim() !== '' && indent <= previousIndent) continue;
 
+    // 用語欄は地の文の桁に置かれる。深く字下げされた `X: Y` は、見出し
+    // フィールドの例示である。
+    //
+    //   indent=3   CA: certification authority;                （RFC 5280 §3）
+    //   indent=5   Accept-Charset: iso-8859-5, unicode-1-1;q=0.8（RFC 7231 §5.3.3）
+    //   indent=9   Sec-WebSocket-Extensions: foo, bar; baz=2    （RFC 6455 §9.1）
+    //   indent=14  Specifications: ABNF", STD 68, RFC 5234,     （参考文献の欄）
+    if (indent > COLON_DEFINITION_MAX_INDENT) continue;
+
     definitions.push({ term, definition, section: currentSection });
   }
 
   return dropNonDefinitions(definitions);
 }
+
+/** `X: Y` の形の用語欄を認める字下げの上限。これより深いものは例示である。 */
+const COLON_DEFINITION_MAX_INDENT = 4;
+
+/**
+ * ぶら下げの用語欄を読む。読めなければ `null`。
+ *
+ * RFC の用語欄で最も多い形は、用語だけの行のあとに説明を字下げして置くもの。
+ *
+ * ```
+ *    JSON Web Token (JWT)
+ *       A string representing a set of claims as a JSON object that is
+ *       encoded in a JWS or JWE, ...
+ * ```
+ *
+ * v0.6.25 まではこの形を 1 件も読めていなかった。`X: Y` の形しか見ておらず、
+ * RFC 7519 §2 の 10 件、RFC 2616 §1.3 の用語欄が丸ごと落ちていた。
+ *
+ * 用語の行は、空行のあと・浅い字下げ・短い・句点で終わらない。説明の行は
+ * それより深く字下げされ、大文字で始まる。参考文献の `[TAG]` と
+ * ASN.1・C 構造体の断片（`struct {`、`Dss-Sig-Value ::= SEQUENCE {`）を除く。
+ */
+function hangingDefinition(
+  lines: string[],
+  index: number
+): { definition: { term: string; definition: string }; lastLine: number } | null {
+  if ((lines[index - 1] ?? '').trim() !== '') return null;
+
+  const line = lines[index].replace(/\s+$/, '');
+  const term = line.trim();
+  const indent = line.length - term.length;
+  if (indent < HANGING_TERM_MIN_INDENT || indent > HANGING_TERM_MAX_INDENT) return null;
+  if (term.length > HANGING_TERM_MAX_LENGTH) return null;
+  if (term.split(/\s+/).length > HANGING_TERM_MAX_WORDS) return null;
+  if (!/^[A-Za-z]/.test(term)) return null;
+  if (term.length < DEFINITION_EXTRACTION.MIN_TERM_LENGTH) return null;
+  if (/[.:;,]$/.test(term)) return null;
+  // 文の書き出し・関係節を含むものは用語ではない
+  // （"Implementations that have implementation"）。
+  if (SENTENCE_OPENER.test(term)) return null;
+  if (RELATIVE_CLAUSE.test(term)) return null;
+  // 型定義・構造体の断片
+  if (/[{}|;=]|::=|\.\.\./.test(term)) return null;
+
+  const first = (lines[index + 1] ?? '').replace(/\s+$/, '');
+  const firstText = first.trim();
+  if (firstText === '') return null;
+  if (first.length - firstText.length < indent + HANGING_BODY_MIN_OFFSET) return null;
+  // 説明は文で始まる。`T1 f1;` のような並びを落とす。
+  if (!/^[A-Z]/.test(firstText)) return null;
+
+  // 空行までを説明とする。
+  const body: string[] = [];
+  let cursor = index + 1;
+  while (cursor < lines.length && lines[cursor].trim() !== '') {
+    body.push(lines[cursor].trim());
+    if (body.join(' ').length > HANGING_BODY_MAX_LENGTH) break;
+    cursor++;
+  }
+
+  const definition = body.join(' ').slice(0, HANGING_BODY_MAX_LENGTH).trim();
+  if (definition.length < DEFINITION_EXTRACTION.MIN_DEFINITION_LENGTH) return null;
+
+  return { definition: { term, definition }, lastLine: cursor - 1 };
+}
+
+/** ぶら下げの用語欄の字下げと長さ。 */
+const HANGING_TERM_MIN_INDENT = 2;
+const HANGING_TERM_MAX_INDENT = 8;
+const HANGING_TERM_MAX_LENGTH = 60;
+const HANGING_TERM_MAX_WORDS = 6;
+/** 説明は用語より、これだけ深く字下げされている。 */
+const HANGING_BODY_MIN_OFFSET = 2;
+/** 説明の文字数の上限。 */
+const HANGING_BODY_MAX_LENGTH = 500;
 
 /**
  * 用語として認めるか。
@@ -1523,6 +1625,10 @@ function isDefinitionTerm(term: string): boolean {
   if (!/^[A-Z0-9"']/.test(term)) return false;
   // 用語は短い。長いものは文である（"There are three classes of JWT Claim Names"）。
   if (term.split(/\s+/).length > DEFINITION_EXTRACTION.MAX_TERM_WORDS) return false;
+  // 文の書き出し・関係節を含むものは用語ではない
+  // （"The protocol has two parts: a handshake and…"）。
+  if (SENTENCE_OPENER.test(term)) return false;
+  if (RELATIVE_CLAUSE.test(term)) return false;
   return true;
 }
 

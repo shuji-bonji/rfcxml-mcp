@@ -1,0 +1,64 @@
+# definitions-7519
+
+tool: get_definitions
+args: {"rfc":7519}
+
+--- json ---
+{
+  "rfc": 7519,
+  "count": 10,
+  "definitions": [
+    {
+      "term": "JSON Web Token (JWT)",
+      "definition": "A string representing a set of claims as a JSON object that is encoded in a JWS or JWE, enabling the claims to be digitally signed or MACed and/or encrypted.",
+      "section": "2"
+    },
+    {
+      "term": "JWT Claims Set",
+      "definition": "A JSON object that contains the claims conveyed by the JWT.",
+      "section": "2"
+    },
+    {
+      "term": "Claim",
+      "definition": "A piece of information asserted about a subject.  A claim is represented as a name/value pair consisting of a Claim Name and a Claim Value.",
+      "section": "2"
+    },
+    {
+      "term": "Claim Name",
+      "definition": "The name portion of a claim representation.  A Claim Name is always a string.",
+      "section": "2"
+    },
+    {
+      "term": "Claim Value",
+      "definition": "The value portion of a claim representation.  A Claim Value can be any JSON value.",
+      "section": "2"
+    },
+    {
+      "term": "Nested JWT",
+      "definition": "A JWT in which nested signing and/or encryption are employed.  In Nested JWTs, a JWT is used as the payload or plaintext value of an enclosing JWS or JWE structure, respectively.",
+      "section": "2"
+    },
+    {
+      "term": "Unsecured JWT",
+      "definition": "A JWT whose claims are not integrity protected or encrypted.",
+      "section": "2"
+    },
+    {
+      "term": "Collision-Resistant Name",
+      "definition": "A name in a namespace that enables names to be allocated in a manner such that they are highly unlikely to collide with other names.  Examples of collision-resistant namespaces include: Domain Names, Object Identifiers (OIDs) as defined in the ITU-T X.660 and X.670 Recommendation series, and Universally Unique IDentifiers (UUIDs) [RFC4122].  When using an administratively delegated namespace, the definer of a name needs to take reasonable precautions to ensure they are in control of the portion",
+      "section": "2"
+    },
+    {
+      "term": "StringOrURI",
+      "definition": "A JSON string value, with the additional requirement that while arbitrary string values MAY be used, any value containing a \":\" character MUST be a URI [RFC3986].  StringOrURI values are compared as case-sensitive strings with no transformations or canonicalizations applied.",
+      "section": "2"
+    },
+    {
+      "term": "NumericDate",
+      "definition": "A JSON numeric value representing the number of seconds from 1970-01-01T00:00:00Z UTC until the specified UTC date/time, ignoring leap seconds.  This is equivalent to the IEEE Std 1003.1, 2013 Edition [POSIX.1] definition \"Seconds Since the Epoch\", in which each day is accounted for by exactly 86400 seconds, other than that non-integer values can be represented.  See RFC 3339 [RFC3339] for details regarding date/times in general and UTC in particular.",
+      "section": "2"
+    }
+  ],
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Definition extraction accuracy may be limited."
+}
