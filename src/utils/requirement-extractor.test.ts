@@ -792,3 +792,67 @@ describe('主語の先頭を削らないこと', () => {
     );
   });
 });
+
+describe('主語にならない語', () => {
+  it('接続詞を主語にしない', () => {
+    // RFC 9110 §4.3.4。1 つの文に要件が 2 つあると、2 つ目のキーワードの
+    // 手前が "and" になる。
+    // 括弧が 2 語の取り込みを断つので、キーワードの手前が "and" だけになる。
+    const [requirement] = extractRequirementsFromSections([
+      {
+        number: '4.3.4',
+        title: 'Test',
+        content: [
+          {
+            type: 'text',
+            content:
+              'Automated clients log the error to an appropriate audit log (if available) and MUST provide a configuration setting.',
+            requirements: [{ level: 'MUST', position: 79 }],
+          },
+        ],
+        subsections: [],
+      },
+    ]);
+
+    expect(requirement.subject).toBeUndefined();
+  });
+
+  it('代名詞を主語にしない', () => {
+    const [requirement] = extractRequirementsFromSections([
+      {
+        number: '7.7',
+        title: 'Test',
+        content: [
+          {
+            type: 'text',
+            content:
+              'If a proxy receives a target URI with a host name that is not a fully qualified domain name, it MAY add its own domain to the host name it received.',
+            requirements: [{ level: 'MAY', position: 94 }],
+          },
+        ],
+        subsections: [],
+      },
+    ]);
+
+    expect(requirement.subject).toBeUndefined();
+  });
+
+  it('本物の主語は残す', () => {
+    const [requirement] = extractRequirementsFromSections([
+      {
+        number: '1',
+        title: 'Test',
+        content: [
+          {
+            type: 'text',
+            content: 'Automated clients MUST log the error to an appropriate audit log.',
+            requirements: [{ level: 'MUST', position: 17 }],
+          },
+        ],
+        subsections: [],
+      },
+    ]);
+
+    expect(requirement.subject).toBe('automated clients');
+  });
+});

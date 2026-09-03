@@ -78,7 +78,6 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "section": "4.1",
       "sectionTitle": "Client Requirements",
       "fullContext": "When the client is to _Establish a WebSocket Connection_ given a set of (/host/, /port/, /resource name/, and /secure/ flag), along with a list of /protocols/ and /extensions/ to be used, and an /origin/ in the case of web browsers, it MUST open a connection, send an opening handshake, and read the server's handshake in response. The exact requirements of how the connection should be opened, what should be sent in the opening handshake, and how the server's response should be interpreted are as follows in this section. In the following text, we will use terms from Section 3, such as \"/host/\" and \"/secure/ flag\" as defined in that section.",
-      "subject": "it",
       "condition": "the client is to _Establish a WebSocket Connection_ given a set of (/host/, /port/, /resource name/, and /secure/ flag), along with a list of /protocols/ and /extensions/ to be used, and an /origin/ in the case of web browsers",
       "action": "open a connection, send an opening handshake, and read the server's handshake in response",
       "_matchScore": 12,

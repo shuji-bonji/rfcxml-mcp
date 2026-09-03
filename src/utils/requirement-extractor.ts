@@ -253,6 +253,12 @@ function parseRequirementComponents(text: string, level: RequirementLevel): Part
   // 冠詞のあとには**必ず空白がある**。`\\s*` にすると、冠詞の候補が語の頭の
   // 1 文字を食う。"Automated clients MUST" の "A" が冠詞として消費され、
   // 主語が "utomated clients" になっていた（実測で 600 件、6.20%）。
+  //
+  // 直前の語が接続詞や代名詞のことがある。1 つの文に要件が 2 つあると、
+  // 2 つ目のキーワードの手前が "and" になる（RFC 9110 §4.3.4 の
+  // "MUST log the error to an appropriate audit log (if available) and MUST
+  // provide …"）。代名詞（it / this / they）も同じで、指しているものは
+  // 文の前の方にある。**主語ではないので、名乗らせない。**
   const subjectMatch = new RegExp(
     `\\b(?:(?:The|A|An|Each|Every|All)\\s+)?([A-Za-z][\\w-]*(?:\\s+[A-Za-z][\\w-]*)?)\\s+${level.replace(' ', '\\s+')}\\b`,
     'i'
@@ -263,7 +269,7 @@ function parseRequirementComponents(text: string, level: RequirementLevel): Part
       .toLowerCase()
       .replace(/^(?:the|a|an|each|every|all)\s+/, '')
       .trim();
-    if (subject) result.subject = subject;
+    if (subject && !NOT_A_SUBJECT.has(subject)) result.subject = subject;
   }
 
   // 条件の抽出（"if", "when", "where", "in case"）
@@ -296,3 +302,72 @@ function parseRequirementComponents(text: string, level: RequirementLevel): Part
 
   return result;
 }
+
+/** 主語として認めない語。接続詞・代名詞・関係詞。 */
+const NOT_A_SUBJECT = new Set([
+  'and',
+  'or',
+  'but',
+  'nor',
+  'so',
+  'then',
+  'it',
+  'its',
+  'this',
+  'that',
+  'these',
+  'those',
+  'they',
+  'them',
+  'we',
+  'you',
+  'he',
+  'she',
+  'which',
+  'who',
+  'whom',
+  'there',
+  'here',
+  'if',
+  'when',
+  'while',
+  'also',
+  'thus',
+  'hence',
+  'however',
+  'therefore',
+  'otherwise',
+  // 冠詞・前置詞・繋辞。1 語だけ取れたときに残ることがある。
+  'the',
+  'a',
+  'an',
+  'of',
+  'to',
+  'in',
+  'on',
+  'at',
+  'by',
+  'as',
+  'for',
+  'from',
+  'with',
+  'is',
+  'are',
+  'was',
+  'were',
+  'be',
+  'been',
+  'being',
+  'has',
+  'have',
+  'had',
+  'not',
+  'no',
+  'all',
+  'any',
+  'each',
+  'every',
+  'such',
+  'other',
+  'both',
+]);

@@ -27,6 +27,10 @@ const DIAGRAM_PATTERNS = [
 const NOT_A_TERM =
   /^(?:Request for Comments|Category|ISSN|Obsoletes|Updates|Network Working Group|BCP|STD|FYI|EMail|Email|E-Mail|URI|URL|Phone|Fax|Tel|Telephone|NOTE|Note|Notes|Example|EXAMPLE|Examples)$|^o\s/;
 
+/** 主語として認めない語。`requirement-extractor` の `NOT_A_SUBJECT` と揃える。 */
+const FUNCTION_WORD_SUBJECT =
+  /^(?:and|or|but|nor|so|then|it|its|this|that|these|those|they|them|we|you|he|she|which|who|whom|there|here|if|when|while|also|thus|hence|however|therefore|otherwise|the|a|an|of|to|in|on|at|by|as|for|from|with|is|are|was|were|be|been|being|has|have|had|not|no|all|any|each|every|such|other|both)$/i;
+
 /** 参考文献の欄の見出し。 */
 const REFERENCE_HEADING =
   /^(?:\d+(?:\.\d+)*\.?\s+)?(?:(?:normative|informative)\s+)?(?:references(?:\s+and\s+bibliography)?|bibliography)\s*$/i;
@@ -493,6 +497,18 @@ export const INVARIANTS = [
         .filter(([, times]) => times >= 3)
         .map(([term, times]) => `"${term}" が ${times} 回`);
     },
+  },
+  {
+    id: 'B16',
+    description: '要件の主語が機能語でない',
+    // 1 つの文に要件が 2 つあると、2 つ目のキーワードの手前が "and" になる
+    // （RFC 9110 §4.3.4 の "… audit log (if available) and MUST provide …"）。
+    // 代名詞（it / this）も同じで、指しているものは文の前の方にある。
+    // 実測（RFC 67 本）: 744 件 → 0 件。
+    check: ({ requirements }) =>
+      requirements
+        .filter((requirement) => FUNCTION_WORD_SUBJECT.test(requirement.subject ?? ''))
+        .map((requirement) => `${requirement.id} の主語が "${requirement.subject}"`),
   },
   {
     id: 'E7',
