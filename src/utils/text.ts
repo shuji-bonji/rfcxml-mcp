@@ -458,3 +458,42 @@ export function extractRequirementMarkers(
 
   return markers;
 }
+
+// ========================================
+// 定義の絞り込み（XML 経路・テキスト経路の共通）
+// ========================================
+
+/**
+ * 定義の用語として認めない見出し。
+ *
+ * RFC の表紙（`Request for Comments: 7519`）、末尾の著者欄（`EMail: …`）、
+ * 本文の注記（`NOTE: …`）、IANA 登録票の項目（`o  Type name: application`）は
+ * どれも「用語: 説明」と同じ形をしているが、用語ではない。
+ */
+const NOT_A_TERM =
+  /^(?:Request for Comments|Category|ISSN|Obsoletes|Updates|Network Working Group|BCP|STD|FYI|EMail|Email|E-Mail|URI|URL|Phone|Fax|Tel|Telephone|NOTE|Note|Notes|Example|EXAMPLE|Examples)$|^o\s/;
+
+/** 同じ用語がこの回数以上出たら、定義ではなく登録票・例示の並びとみなす。 */
+const MAX_TERM_OCCURRENCES = 3;
+
+/**
+ * 定義になっていないものを落とす。
+ *
+ * 2 種類ある。
+ *
+ * 1. 用語の位置に来る、用語でない見出し（`NOT_A_TERM`）。
+ * 2. 同じ用語が何度も出るもの。IANA 登録票は `Name:` `Description:`
+ *    `Reference:` を項目の数だけ繰り返す（RFC 9209 は 34 回）。見出し
+ *    フィールドの例示も同じ形になる（RFC 6265 §3.1 の `Set-Cookie:` が
+ *    10 回以上）。用語の定義なら 1 つの RFC に 1 回か 2 回しか出ない。
+ */
+export function dropNonDefinitions<T extends { term: string }>(definitions: T[]): T[] {
+  const count = new Map<string, number>();
+  for (const definition of definitions) {
+    count.set(definition.term, (count.get(definition.term) ?? 0) + 1);
+  }
+  return definitions.filter(
+    (definition) =>
+      !NOT_A_TERM.test(definition.term) && (count.get(definition.term) ?? 0) < MAX_TERM_OCCURRENCES
+  );
+}

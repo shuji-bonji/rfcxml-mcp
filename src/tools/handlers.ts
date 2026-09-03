@@ -19,6 +19,7 @@ import type {
   GetDependenciesArgs,
   GenerateChecklistArgs,
   ValidateStatementArgs,
+  Requirement,
   RequirementLevel,
   ContentBlock,
   ReferencedByEntry,
@@ -367,6 +368,27 @@ export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
   };
 }
 
+/** 長い引用を切る。要求アクションは 1 文まるごとのことがある。 */
+function clip(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
+}
+
+/**
+ * `isValid` が `null` のときに、なぜ判断しなかったかを返す。
+ *
+ * 理由は 2 つあり、意味が違う。一致が弱くて判断できないのか、一致はあるが
+ * 受動態で書かれていて実行者を照合できないのか。前者の文言を後者にも出すと、
+ * 一致している要件が `matchingRequirements` の先頭にあるのに「一致が無い」と
+ * 読める。
+ */
+function verdictNote(isValid: boolean | null, undecidable: Requirement | null): string | undefined {
+  if (isValid !== null) return undefined;
+  if (undecidable) {
+    return `isValid is null: requirement ${undecidable.id} forbids this in the passive voice, so who performs the act cannot be matched. Read that requirement and decide. This is not a statement of compliance.`;
+  }
+  return 'isValid is null: no requirement matched strongly enough to judge. This is not a statement of compliance.';
+}
+
 /**
  * validate_statement handler
  * Uses weighted keyword matching for better precision
@@ -420,7 +442,7 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
   }
   if (undecidable) {
     suggestions.push(
-      `Cannot judge: requirement ${undecidable.id} is written in the passive voice ("${undecidable.level} ${undecidable.action ?? ''}"), so the text names no actor. Read that requirement and decide.`
+      `Cannot judge: requirement ${undecidable.id} is written in the passive voice ("${undecidable.level} ${clip(undecidable.action ?? '', 60)}"), so the text names no actor. Read that requirement and decide.`
     );
   }
   if (statementLevel && !statementSubject) {
@@ -437,10 +459,7 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
       detectedSubject: statementSubject,
     },
     isValid,
-    _verdictNote:
-      isValid === null
-        ? 'isValid is null: no requirement matched strongly enough to judge. This is not a statement of compliance.'
-        : undefined,
+    _verdictNote: verdictNote(isValid, undecidable),
     matchingRequirements: matches.map((m) => ({
       ...m.requirement,
       _matchScore: m.score,

@@ -1022,7 +1022,7 @@ args: {"rfc":2068}
           "subsections": [
             {
               "number": "19.5.1",
-              "title": "Changes to Simplify Multi-homed Web Servers and Conserve IP"
+              "title": "Changes to Simplify Multi-homed Web Servers and Conserve IP Addresses"
             }
           ]
         },

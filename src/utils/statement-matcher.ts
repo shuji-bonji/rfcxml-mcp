@@ -1181,6 +1181,38 @@ export function findProhibitionViolation(
   return { verb: matchedVerb, sharedTerms };
 }
 
+/**
+ * 判断を取り下げるかを決めるための「同じ行為か」。
+ *
+ * `describesSameAct` の 3 条件のうち、**限定語の一致だけは求めない**。
+ * 矛盾を主張するときは、要件に `unless` `except` `without` があって主張に
+ * 無ければ落とすのが正しい。ここは逆で、限定語に触れていない主張こそ
+ * 判断できない。RFC 6455 §5.4 の
+ * "The fragments of one message MUST NOT be interleaved … unless an extension
+ * has been negotiated …" に対し、`unless` を求めると当の要件が落ち、
+ * 順位の下の無関係な要件（"MUST NOT be fragmented"）を名指ししていた。
+ *
+ * 固有の名前（`identifiersOf`）と条件節の重なりは `describesSameAct` と同じく求める。
+ */
+function sameActForWithdrawal(
+  statementLower: string,
+  requirement: Requirement,
+  action: string
+): boolean {
+  const scope = `${requirement.text} ${action}`;
+
+  for (const identifier of identifiersOf(scope)) {
+    if (!statementLower.includes(identifier.toLowerCase())) return false;
+  }
+
+  const statementCondition = conditionOf(statementLower);
+  if (requirement.condition && statementCondition) {
+    if (!sharesContentWord(requirement.condition, statementCondition)) return false;
+  }
+
+  return true;
+}
+
 /** 受動態の行為。`MUST NOT` の直後が "be 過去分詞" になっている。 */
 const PASSIVE_ACTION_PATTERN = /^be\s+[a-z]+(?:ed|n|t)\b/;
 
@@ -1218,7 +1250,7 @@ export function findUndecidablePassiveProhibition(
       .trim()
       .toLowerCase();
     if (!PASSIVE_ACTION_PATTERN.test(action)) continue;
-    if (!describesSameAct(lower, req, action)) continue;
+    if (!sameActForWithdrawal(lower, req, action)) continue;
     return req;
   }
 

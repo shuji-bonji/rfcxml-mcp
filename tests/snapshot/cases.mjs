@@ -98,6 +98,12 @@ export const CASES = [
     tool: 'get_definitions',
     args: { rfc: 9114 },
   },
+  {
+    // テキスト経路。表紙・著者欄・注記・登録票を落としたあとに何が残るか。
+    name: 'definitions-5280',
+    tool: 'get_definitions',
+    args: { rfc: 5280 },
+  },
 
   // --- get_rfc_structure ---
   {

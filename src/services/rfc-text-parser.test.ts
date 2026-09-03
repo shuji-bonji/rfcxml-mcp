@@ -1592,3 +1592,131 @@ describe('付録の見出し', () => {
     expect(numbers(parseRFCText(text, 9999).sections).filter((n) => /^[A-Z]/.test(n))).toEqual([]);
   });
 });
+
+describe('折り返した節の題名', () => {
+  it('題名の開始桁にそろう次の行を継ぐ', () => {
+    // RFC 7519 §10.2。1 行目だけを取ると「何の登録か」が消える。
+    const text = [
+      'Test RFC',
+      '',
+      '1.  Introduction',
+      '',
+      '   Body.',
+      '',
+      '2.  Sub-Namespace Registration of',
+      '    urn:ietf:params:oauth:token-type:jwt',
+      '',
+      '   Body.',
+      '',
+    ].join('\n');
+    const sections = parseRFCText(text, 7519).sections;
+    expect(sections.find((s) => s.number === '2')?.title).toBe(
+      'Sub-Namespace Registration of urn:ietf:params:oauth:token-type:jwt'
+    );
+  });
+
+  it('桁がそろわない行は本文として残す', () => {
+    // RFC 1035 §6.4.1 のように、見出しの直後から本文が 1 桁目で続く形。
+    const text = [
+      'Test RFC',
+      '',
+      '1.  Introduction',
+      '',
+      '   Body.',
+      '',
+      '2.  Overview',
+      'This line starts at column zero and is body text',
+      '',
+    ].join('\n');
+    const sections = parseRFCText(text, 1035).sections;
+    expect(sections.find((s) => s.number === '2')?.title).toBe('Overview');
+  });
+
+  it('句点で終わる行は継がない', () => {
+    const text = [
+      'Test RFC',
+      '',
+      '1.  Introduction',
+      '',
+      '   Body.',
+      '',
+      '2.  Something about resolvers and',
+      '    particular server.',
+      '',
+    ].join('\n');
+    const sections = parseRFCText(text, 1123).sections;
+    expect(sections.find((s) => s.number === '2')?.title).toBe('Something about resolvers and');
+  });
+});
+
+describe('本文からの付録参照', () => {
+  it('字下げした "Appendix A.2 of …" を見出しにしない', () => {
+    // RFC 7519。本文の参照を見出しとして拾い、そのあとの本物の
+    // `A.2.  Example Nested JWT` が番号の重複で落ちていた。
+    const text = [
+      'Test RFC',
+      '',
+      '1.  Introduction',
+      '',
+      '   Body.',
+      '',
+      '2.  Overview',
+      '',
+      '   Body.',
+      '',
+      'Appendix A.  Examples',
+      '',
+      '   Body.',
+      '',
+      'A.1.  Example Encrypted JWT',
+      '',
+      '   The computation is identical to the computation of the JWE in',
+      '   Appendix A.2 of [JWE], including the keys used.',
+      '',
+      'A.2.  Example Nested JWT',
+      '',
+      '   Body.',
+      '',
+    ].join('\n');
+    const numbers = parseRFCText(text, 7519).sections.flatMap((s) => [
+      s.number,
+      ...(s.subsections ?? []).map((x) => x.number),
+    ]);
+    expect(numbers).toContain('A.2');
+    const a2 = parseRFCText(text, 7519)
+      .sections.flatMap((s) => s.subsections ?? [])
+      .find((s) => s.number === 'A.2');
+    expect(a2?.title).toBe('Example Nested JWT');
+  });
+});
+
+describe('テキスト経路の定義', () => {
+  it('節に入る前の表紙を用語にしない', () => {
+    const text = [
+      'Internet Engineering Task Force (IETF)                          M. Jones',
+      'Request for Comments: 7519                                     Microsoft',
+      'Category: Standards Track                                     J. Bradley',
+      '',
+      '1.  Terminology',
+      '',
+      '   CA: certification authority, an authority trusted by users.',
+      '',
+    ].join('\n');
+    const terms = parseRFCText(text, 7519).definitions.map((d) => d.term);
+    expect(terms).toEqual(['CA']);
+  });
+
+  it('折り返した文の途中の行を用語にしない', () => {
+    // RFC 6797 §4。"…is the overall name for the combined UA and server-side"
+    // が「用語 = is the overall name…」として出ていた。
+    const text = [
+      '1.  Terminology',
+      '',
+      '   HSTS is a name that covers several things.  The term',
+      '   Overall Policy: is the overall name for the combined UA and',
+      '   server-side security policy.',
+      '',
+    ].join('\n');
+    expect(parseRFCText(text, 6797).definitions).toEqual([]);
+  });
+});

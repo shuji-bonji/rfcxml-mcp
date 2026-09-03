@@ -1010,6 +1010,36 @@ describe('受動態で書かれた禁止', () => {
     expect(findUndecidablePassiveProhibition(statement, result.matches)).toBeNull();
   });
 
+  it('限定語（unless）があっても、当の要件を名指しする', () => {
+    // RFC 6455 §5.4。`unless` を主張にも求めると当の要件が落ち、順位の下の
+    // 無関係な要件（"MUST NOT be fragmented"）を名指ししていた。
+    const withException: Requirement = {
+      id: 'R-5.4-88',
+      level: 'MUST NOT',
+      section: '5.4',
+      sectionTitle: 'Fragmentation',
+      text: 'The fragments of one message MUST NOT be interleaved between the fragments of another message unless an extension has been negotiated that can interpret the interleaving.',
+      fullContext: '',
+      subject: 'one message',
+      action:
+        'be interleaved between the fragments of another message unless an extension has been negotiated that can interpret the interleaving',
+    };
+    const other: Requirement = {
+      id: 'R-5.4-86',
+      level: 'MUST NOT',
+      section: '5.4',
+      sectionTitle: 'Fragmentation',
+      text: 'Control frames themselves MUST NOT be fragmented.',
+      fullContext: '',
+      subject: 'frames themselves',
+      action: 'be fragmented',
+    };
+    const statement =
+      'The fragments of one message are interleaved between the fragments of another message.';
+    const result = matchStatement(statement, [withException, other]);
+    expect(findUndecidablePassiveProhibition(statement, result.matches)?.id).toBe('R-5.4-88');
+  });
+
   it('能動態で書かれた禁止は取り下げない', () => {
     const active: Requirement = {
       id: 'R-5.1-69',

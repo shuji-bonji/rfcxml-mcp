@@ -155,6 +155,20 @@ export function createExternalSectionRegexes(): Array<{
       sectionGroup: 2,
       documentGroup: 1,
     },
+    // 番号と `of` の間に補足が入り、文書名が角括弧の手前に置かれる形。
+    //   "as specified in Section 15.12 ("The JSON Object") of ECMAScript 5.1
+    //    [ECMAScript]"（RFC 7519 §4）
+    // 番号だけを見ると、この RFC の §15.12 を指していると読める。RFC 7519 に
+    // §15.12 は無く、`get_related_sections` が実在しない節を返していた。
+    //
+    // `of` のあとに置けるのは、版番号を含む語 3 つまでとする。句点で終わる語は
+    // 認めない（"of this specification. See [RFC1234]" を拾わないため）。
+    {
+      pattern:
+        /[Ss]ections?\s+(\d+(?:\.\d+)*)\s*(?:\([^)]*\)\s*)?of\s+(?:[A-Za-z0-9][\w/-]*(?:\.\d+)*\s+){0,3}\[([^\]]+)\]/g,
+      sectionGroup: 1,
+      documentGroup: 2,
+    },
   ];
 }
 

@@ -22,6 +22,7 @@ import {
   extractCrossReferences,
   extractRequirementMarkers as extractMarkers,
   toArray,
+  dropNonDefinitions,
 } from '../utils/text.js';
 import { compareSectionNumbers, normalizeSectionNumber } from '../utils/section.js';
 import {
@@ -272,7 +273,9 @@ export function parseRFCXML(xml: string): ParsedRFC {
     metadata: extractMetadata(rfc),
     sections: extractSections(rfc.middle?.section || []),
     references: extractReferences(rfc.back?.references || []),
-    definitions: mergeDefinitions(extractDefinitions(rfc), extractIrefDefinitions(inlineRendered)),
+    definitions: dropNonDefinitions(
+      mergeDefinitions(extractDefinitions(rfc), extractIrefDefinitions(inlineRendered))
+    ),
   };
 }
 

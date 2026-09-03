@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  dropNonDefinitions,
   clipAtClauseEnd,
   extractCrossReferences,
   extractRequirementMarkers,
@@ -399,5 +400,49 @@ describe('ASN.1 の型定義から要件を出さない', () => {
     const text = 'The signedAttrs field is OPTIONAL for this content type.';
 
     expect(extractRequirementMarkers(text)).toHaveLength(1);
+  });
+});
+
+describe('番号と of の間に補足が入る別文書参照', () => {
+  it('"Section 15.12 (…) of ECMAScript 5.1 [ECMAScript]" を external にする', () => {
+    // RFC 7519 §4。番号だけを見るとこの RFC の §15.12 に見えるが、
+    // RFC 7519 に §15.12 は無い。
+    const refs = extractCrossReferences(
+      'use a JSON parser that returns only the lexically last duplicate member name, as specified in Section 15.12 ("The JSON Object") of ECMAScript 5.1 [ECMAScript].'
+    );
+    expect(refs).toContainEqual(
+      expect.objectContaining({ type: 'external', target: 'ECMAScript', section: '15.12' })
+    );
+    expect(refs.some((r) => r.type === 'section' && r.section === '15.12')).toBe(false);
+  });
+
+  it('句点をまたいで角括弧に結び付けない', () => {
+    const refs = extractCrossReferences('See Section 3 of this specification. See also [RFC1234].');
+    expect(refs).toContainEqual(expect.objectContaining({ type: 'section', section: '3' }));
+    expect(refs.some((r) => r.type === 'external' && r.section === '3')).toBe(false);
+  });
+});
+
+describe('定義になっていないものを落とす', () => {
+  it('表紙・著者欄・注記・登録票の見出しを落とす', () => {
+    const kept = dropNonDefinitions([
+      { term: 'Request for Comments', definition: '7519' },
+      { term: 'EMail', definition: 'mbj@microsoft.com' },
+      { term: 'NOTE', definition: 'This is a note to the reader.' },
+      { term: 'o  Type name', definition: 'application' },
+      { term: 'CA', definition: 'certification authority' },
+    ]);
+    expect(kept.map((d) => d.term)).toEqual(['CA']);
+  });
+
+  it('同じ用語が 3 回以上出るものを落とす', () => {
+    // RFC 9209 の IANA 登録票は `Name:` を 34 回繰り返す。
+    const many = Array.from({ length: 4 }, (_, i) => ({ term: 'Name', definition: `x${i}` }));
+    const kept = dropNonDefinitions([
+      ...many,
+      { term: 'HSTS Host', definition: 'a host that has an HSTS Policy' },
+      { term: 'HSTS Host', definition: '2 回なら残す' },
+    ]);
+    expect(kept.map((d) => d.term)).toEqual(['HSTS Host', 'HSTS Host']);
   });
 });

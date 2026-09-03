@@ -46,6 +46,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 6455, note: 'ABNF の注釈に要件を書く' },
     { rfc: 6265 },
     { rfc: 6749 },
+    { rfc: 6797, note: '節の題名が 2 行に折り返す (§11.3 §11.4.1 §14.3)' },
+    { rfc: 7519, note: '本文が "Appendix A.2 of [JWE]" と参照する' },
     { rfc: 7230, note: '題名が 2 文字の節 (TE) がある' },
     { rfc: 7231 },
     { rfc: 7540 },

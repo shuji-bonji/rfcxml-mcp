@@ -12,7 +12,7 @@ args: {"rfc":6455,"statement":"The fragments of one message are interleaved betw
     "detectedSubject": null
   },
   "isValid": null,
-  "_verdictNote": "isValid is null: no requirement matched strongly enough to judge. This is not a statement of compliance.",
+  "_verdictNote": "isValid is null: requirement R-5.4-88 forbids this in the passive voice, so who performs the act cannot be matched. Read that requirement and decide. This is not a statement of compliance.",
   "matchingRequirements": [
     {
       "id": "R-5.4-88",
@@ -191,7 +191,7 @@ args: {"rfc":6455,"statement":"The fragments of one message are interleaved betw
   ],
   "conflicts": [],
   "suggestions": [
-    "Cannot judge: requirement R-5.4-86 is written in the passive voice (\"MUST NOT be fragmented\"), so the text names no actor. Read that requirement and decide."
+    "Cannot judge: requirement R-5.4-88 is written in the passive voice (\"MUST NOT be interleaved between the fragments of another message unle…\"), so the text names no actor. Read that requirement and decide."
   ],
   "_source": "text",
   "_sourceNote": "Warning: Parsed from text format. Validation accuracy may be limited."

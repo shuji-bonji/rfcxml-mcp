@@ -50,8 +50,8 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 64 本に不変条件 37 種を当てる
-npm run snapshot      # 代表的な出力 26 本を固定し、差分を見る
+npm run audit         # 実物の RFC 66 本に不変条件 40 種を当てる
+npm run snapshot      # 代表的な出力 27 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
 npm start             # MCP サーバー起動
@@ -69,10 +69,10 @@ publish の前に、次を順に通す。
 
 | 手順 | 見るもの |
 |---|---|
-| `npm test` | 書いた条件の取りこぼし（422 件） |
+| `npm test` | 書いた条件の取りこぼし（433 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 64 本 × 37 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 26 本） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 66 本 × 40 種） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 27 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -402,6 +402,27 @@ How to apply: 新しい抽出で「最初のピリオドまで」を書きたく
 読点を必須にしていたため、この形が「RFC 6749 の §3.4」になり、
 `get_related_sections` が実在しない節を返していた（RFC 6749 に §3.4 は無い）。
 
+### 折り返した節の題名は、開始桁で継ぐ
+
+題名は右余白で折り返す。RFC 7519 §10.2 は
+
+```
+10.2.  Sub-Namespace Registration of
+       urn:ietf:params:oauth:token-type:jwt
+```
+
+の 2 行になる。1 行目だけを取ると**何の登録かが消える**。RFC 6797 §11.3 は
+`Using HSTS in Conjunction with Self-Signed Public-Key` で終わり、
+何の証明書かが消えていた。
+
+続きの行は**題名の開始桁にそろう**。これが本文と見分ける手掛かりである。
+RFC 1035 §6.4.1 は見出しの直後に本文が 1 桁目から続くので当たらない。
+そのうえで、次の行が空行であること（3 行に折り返す題名は無い）、
+60 文字以内、句点で終わらないことを求める。
+
+実測（RFC 66 本）: 題名を継いだ節 6 件、節の総数は変わらず、
+誤って本文を継いだものは 0 件。
+
 ### 付録の見出しは、順番で見分ける
 
 テキスト経路は `1.` `2.1` のような数字の節しか拾っていなかった。RFC 8446 の
@@ -422,6 +443,12 @@ Appendix A〜E、RFC 6455 の Appendix A のように、**付録は文字で番�
 
 実測: 節 4,754 件 → **4,992 件**。参考文献の欄から出ていた要件 147 件 → **0 件**。
 RFC 8446 は付録 46 件を拾う。
+
+**`Appendix` と書く見出しは 1 桁目から始まる。** 字下げして `Appendix A.2` と
+書いてあるのは本文からの参照である。RFC 7519 の
+`   Appendix A.2 of [JWE], including the keys used.` を見出しとして拾い、
+そのあとの本物の `A.2.  Example Nested JWT` が番号の重複で落ちていた。
+RFC 5280 の C.1〜C.3 も題名が本文になっていた。
 
 ### 節番号は一度しか使われない
 
@@ -698,6 +725,32 @@ Datatracker の `document.time` は**レコードの最終更新時刻**であ�
 テキスト経路ではヘッダ行から取る。`RFCMetadata.datatrackerUpdated` が前者の値だが、
 ツールの応答には出さない。
 
+### `get_definitions` はテキスト経路では当てにならない
+
+テキスト経路の定義は「行の中の `X: Y`」でしか見分けられない。同じ形が
+用語以外にもいくつも出る。
+
+| 出どころ | 例 | 実測 |
+|---|---|---:|
+| RFC の表紙 | `Request for Comments: 7519` | 111 |
+| 末尾の著者欄 | `EMail: mbj@microsoft.com` | 139 |
+| 本文の注記 | `NOTE: This is a note to the reader.` | 352 |
+| IANA 登録票 | `o  Type name: application` | 58 |
+| 折り返した文の途中 | `Overall Policy: is the overall name for the combined UA and` | 237 |
+| 見出しの例示 | `Set-Cookie: SID=31d4d96e407aad42`（RFC 6265 §3.1 に 10 回以上） | 633 |
+
+RFC 7519 が返していた 21 件は**全件が用語ではなかった**。XML 経路にも同じ問題が
+あり、IANA 登録票を `<dl>` で書く RFC 9209 は `Name` `Description` `Reference` を
+34 回ずつ返していた。
+
+`dropNonDefinitions()`（`src/utils/text.ts`）が両方の経路に同じ規則を当てる。
+テキスト経路はさらに、節に入る前を見ない・段落の途中の行を見ないの 2 つを課す。
+実測: 4,670 件 → **1,744 件**（テキスト 3,118 → 605、XML 1,552 → 1,139）。
+
+**まだ残っている。** RFC 5280 が返す 7 件のうち用語と言えるのは §3 の
+`CA` `RA` `CRL issuer` の 3 件で、残りは参考文献の題名である。RFC 7519 §2 の
+用語欄は「用語 / 次の行に説明」の形で、この抽出では最初から拾えていない。
+
 ### `validate_statement` は判定器ではない
 
 - `isValid` は三値（`true` / `false` / `null`）。最上位マッチが
@@ -738,7 +791,13 @@ Datatracker の `document.time` は**レコードの最終更新時刻**であ�
   `suggestions` に該当要件の ID を出す。主張自身が否定（`not` / `never` / `no` /
   `cannot`）なら準拠を述べているので取り下げない。
   実測（機械生成した受動態の違反文 40 件）: `true` **13 件 → 4 件**。
-  要件どおりの文 179 件のうち取り下げたのは 1 件。
+  要件どおりの文 179 件のうち取り下げたのは 4 件。
+  **判断を取り下げるときの「同じ行為か」は `describesSameAct` と違う。**
+  限定語（`unless` `except` `without`）の一致を求めない。矛盾を主張するときは
+  限定語の不一致で落とすのが正しいが、ここは逆で、限定語に触れていない主張こそ
+  判断できない。RFC 6455 §5.4 の `… unless an extension has been negotiated` に
+  対し `unless` を求めると当の要件が落ち、順位の下の無関係な要件
+  （`MUST NOT be fragmented`）を名指ししていた。
 
 #### 「固有の名前」は RFC の書き方に合わせる
 

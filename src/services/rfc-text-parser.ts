@@ -16,6 +16,7 @@ import { createRequirementRegex, SECTION_HEADER_PATTERN } from '../constants.js'
 import {
   extractCrossReferences,
   extractRequirementMarkers as extractMarkers,
+  dropNonDefinitions,
   looksLikeDiagram,
 } from '../utils/text.js';
 import {
@@ -55,6 +56,8 @@ const DEFINITION_EXTRACTION = {
   MIN_TERM_LENGTH: 2,
   /** 定義として認識する最小文字数 */
   MIN_DEFINITION_LENGTH: 10,
+  /** 用語として認識する最大語数。これを超えるものは文である。 */
+  MAX_TERM_WORDS: 5,
 } as const;
 
 /**
@@ -670,6 +673,13 @@ function appendixHeader(
   if (trimmed.length < 3) return null;
   if (containsSentenceBreak(trimmed)) return null;
 
+  // `Appendix` と書く見出しは 1 桁目から始まる。字下げして `Appendix A.2` と
+  // 書いてあるのは本文からの参照である。RFC 7519 の
+  //   "   Appendix A.2 of [JWE], including the keys used."
+  // を付録 A.2 の見出しとして拾い、そのあとの本物の `A.2.  Example Nested JWT`
+  // が番号の重複で落ちていた。
+  if (explicit && indent > 0) return null;
+
   // 深い段（A.1、A.1.2）は親の文字と同じであること。
   // 親の文字が一致していれば十分なので、題名の先頭は問わない。
   // RFC 6749 の `A.1.  "client_id" Syntax`、RFC 5321 の `F.4.  #-literals`、
@@ -954,6 +964,51 @@ function acceptsSectionNumber(
   return true;
 }
 
+/**
+ * 折り返した見出しの 2 行目を返す。折り返しでなければ `null`。
+ *
+ * 題名は右余白で折り返す。RFC 7519 §10.2 は
+ *
+ * ```
+ * 10.2.  Sub-Namespace Registration of
+ *        urn:ietf:params:oauth:token-type:jwt
+ * ```
+ *
+ * と 2 行になる。1 行目だけを取ると題名が "Sub-Namespace Registration of" で
+ * 終わり、**何の登録かが消える**。RFC 6797 §11.3 は
+ * "Using HSTS in Conjunction with Self-Signed Public-Key" で終わり、
+ * 何の証明書かが消えていた。
+ *
+ * 続きの行は**題名の開始桁にそろう**。これが本文と見分ける手掛かりである。
+ * RFC 1035 §6.4.1 は見出しの直後に本文が 1 桁目から続くので当たらない。
+ */
+function titleContinuation(lines: string[], index: number, titleColumn: number): string | null {
+  if (titleColumn < MIN_CONTINUATION_COLUMN) return null;
+
+  const next = (lines[index + 1] ?? '').replace(/\s+$/, '');
+  const text = next.trim();
+  if (text === '') return null;
+  if (next.length - text.length !== titleColumn) return null;
+
+  // 見出しは 1 つの空行で終わる。3 行に折り返す題名は無い。
+  if ((lines[index + 2] ?? '').trim() !== '') return null;
+
+  if (text.length > MAX_CONTINUATION_LENGTH) return null;
+  // 別の見出しなら折り返しではない。
+  if (SECTION_HEADER_PATTERN.test(text)) return null;
+  // 題名は句点で終わらない。RFC 1123 の脚注 "particular server." を落とす。
+  if (/[.!?]$/.test(text)) return null;
+  if (containsSentenceBreak(text)) return null;
+
+  return text;
+}
+
+/** 続きの行とみなす字下げの下限。これより浅いと本文の 1 行目と見分けられない。 */
+const MIN_CONTINUATION_COLUMN = 3;
+
+/** 続きの行の文字数の上限。折り返しの 2 行目が本文 1 行分になることは無い。 */
+const MAX_CONTINUATION_LENGTH = 60;
+
 function extractTextSections(lines: string[]): Section[] {
   const sections: Section[] = [];
   let currentSection: Section | null = null;
@@ -1014,9 +1069,16 @@ function extractTextSections(lines: string[]): Section[] {
         currentSection.content = createTextBlocks(currentContent.join('\n'));
         sections.push(currentSection);
       }
+      const appendixLine = line.replace(/\s+$/, '');
+      const appendixContinuation = titleContinuation(
+        lines,
+        index,
+        appendixLine.length - appendix.title.length
+      );
+      if (appendixContinuation) index++;
       currentSection = {
         number: appendix.number,
-        title: appendix.title,
+        title: appendixContinuation ? `${appendix.title} ${appendixContinuation}` : appendix.title,
         content: [],
         subsections: [],
       };
@@ -1071,10 +1133,19 @@ function extractTextSections(lines: string[]): Section[] {
         // 4 個以上の空白で切り、残りは本文に回す。
         const [headline, ...rest] = title.split(/ {4,}/);
 
+        // 折り返した題名の 2 行目を継ぐ。見出しと本文が 1 行に入っている
+        // ときは折り返しではないので見ない。
+        const headerLine = line.replace(/\s+$/, '');
+        const continuation =
+          rest.length === 0
+            ? titleContinuation(lines, index, headerLine.length - title.length)
+            : null;
+        if (continuation) index++;
+
         // 新しいセクションを開始
         currentSection = {
           number: sectionNum,
-          title: headline.trim(),
+          title: continuation ? `${headline.trim()} ${continuation}` : headline.trim(),
           content: [],
           subsections: [],
         };
@@ -1393,7 +1464,8 @@ function extractTextDefinitions(lines: string[]): Definition[] {
 
   let currentSection = '';
 
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
     const trimmed = line.trim();
 
     // セクションを追跡
@@ -1403,27 +1475,55 @@ function extractTextDefinitions(lines: string[]): Definition[] {
       continue;
     }
 
+    // 節に入る前は RFC の表紙である。`Request for Comments: 7519` や
+    // `Category: Standards Track` を用語として出していた（実測 111 件）。
+    if (currentSection === '') continue;
+
     // 定義パターンを探す
     const defMatch = trimmed.match(defPattern);
-    if (defMatch) {
-      const term = defMatch[1].trim();
-      const definition = defMatch[2].trim();
+    if (!defMatch) continue;
 
-      // 短すぎる用語や一般的な単語は除外
-      if (
-        term.length >= DEFINITION_EXTRACTION.MIN_TERM_LENGTH &&
-        definition.length >= DEFINITION_EXTRACTION.MIN_DEFINITION_LENGTH
-      ) {
-        definitions.push({
-          term,
-          definition,
-          section: currentSection,
-        });
-      }
-    }
+    const term = defMatch[1].trim();
+    const definition = defMatch[2].trim();
+
+    if (term.length < DEFINITION_EXTRACTION.MIN_TERM_LENGTH) continue;
+    if (definition.length < DEFINITION_EXTRACTION.MIN_DEFINITION_LENGTH) continue;
+    if (!isDefinitionTerm(term)) continue;
+
+    // 段落の途中の行は定義ではない。
+    //
+    // これが誤りの主な出どころである。RFC の本文は 72 桁で折り返すので、
+    // 文の途中から始まる行がいくらでもある。RFC 6797 §4 の
+    //   "…is the overall name for the combined UA and server-side security"
+    // が「用語 = is the overall name for the combined UA」として出ていた。
+    //
+    // 定義の行は、空行のあとに来るか、前の行より深く字下げされている。
+    const previous = lines[index - 1] ?? '';
+    const indent = line.length - line.trimStart().length;
+    const previousIndent = previous.length - previous.trimStart().length;
+    if (previous.trim() !== '' && indent <= previousIndent) continue;
+
+    definitions.push({ term, definition, section: currentSection });
   }
 
-  return definitions;
+  return dropNonDefinitions(definitions);
+}
+
+/**
+ * 用語として認めるか。
+ *
+ * テキスト経路の定義は「行の中の `X: Y`」でしか見分けられない。同じ形は
+ * 用語以外にも出るので、用語の側で絞る。
+ */
+function isDefinitionTerm(term: string): boolean {
+  // IANA 登録票の項目（`o  Type name: application`、実測 58 件）。
+  if (/^o\s/.test(term)) return false;
+  // 用語は大文字・数字・引用符で始まる。小文字で始まる行は、折り返した文の
+  // 途中である（"is the overall name for…"、"are Private Names"）。
+  if (!/^[A-Z0-9"']/.test(term)) return false;
+  // 用語は短い。長いものは文である（"There are three classes of JWT Claim Names"）。
+  if (term.split(/\s+/).length > DEFINITION_EXTRACTION.MAX_TERM_WORDS) return false;
+  return true;
 }
 
 /**

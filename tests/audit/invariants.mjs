@@ -23,6 +23,14 @@ const DIAGRAM_PATTERNS = [
   /\S {3,}\S[^\n]* {3,}\S/,
 ];
 
+/** 定義の用語として認めない見出し。 */
+const NOT_A_TERM =
+  /^(?:Request for Comments|Category|ISSN|Obsoletes|Updates|Network Working Group|BCP|STD|FYI|EMail|Email|E-Mail|URI|URL|Phone|Fax|Tel|Telephone|NOTE|Note|Notes|Example|EXAMPLE|Examples)$|^o\s/;
+
+/** 題名の末尾に来ると折り返しを疑う語。 */
+const TRAILING_FUNCTION_WORD =
+  /\s(?:of|to|and|with|in|for|the|a|an|or|on|from|by|at|as|that|which|into|over|under)$/i;
+
 const looksLikeDiagram = (text) => DIAGRAM_PATTERNS.some((pattern) => pattern.test(text ?? ''));
 
 /** 題名の中の略語。ここに挙げた語のあとの `.` は文の終わりではない。 */
@@ -447,6 +455,52 @@ export const INVARIANTS = [
         .split('\n')
         .filter((line) => /^\s+\S/.test(line))
         .map((line) => line.slice(0, 60)),
+  },
+  {
+    id: 'G1',
+    description: '定義の用語が表紙・著者欄・注記の見出しでない',
+    // テキスト経路の定義は「行の中の `X: Y`」でしか見分けられない。同じ形が
+    // RFC の表紙（`Request for Comments: 7519`）、末尾の著者欄（`EMail: …`）、
+    // 本文の注記（`NOTE: …`）、IANA 登録票（`o  Type name: application`）にも
+    // 出る。実測（RFC 64 本）: 3,118 件のうち 660 件がこの 4 種だった。
+    check: ({ parsed }) =>
+      (parsed.definitions ?? [])
+        .filter((definition) => NOT_A_TERM.test(definition.term ?? ''))
+        .map((definition) => `"${definition.term}" は用語ではない`),
+  },
+  {
+    id: 'G2',
+    description: '同じ用語が 3 回以上出ていない',
+    // 見出しフィールドの例示（`Set-Cookie: SID=…`）が定義として並んでいた。
+    // RFC 6265 §3.1 は `Set-Cookie` を 10 回以上書く。実測: 633 件。
+    check: ({ parsed }) => {
+      const count = new Map();
+      for (const definition of parsed.definitions ?? []) {
+        count.set(definition.term, (count.get(definition.term) ?? 0) + 1);
+      }
+      return [...count.entries()]
+        .filter(([, times]) => times >= 3)
+        .map(([term, times]) => `"${term}" が ${times} 回`);
+    },
+  },
+  {
+    id: 'A8',
+    description: '節の題名が折り返しの途中で終わっていない',
+    // 題名は右余白で折り返す。2 行目を継がないと
+    // 「Sub-Namespace Registration of」「…with Self-Signed Public-Key」のように
+    // 前置詞・接続詞で終わる。何の登録か、何の証明書かが消える。
+    //
+    // 本物の題名にもこの形はある（RFC 2445 の "Sent By" "Related To"）。
+    // 基準に 5 件入れてある。
+    check: ({ parsed }) => {
+      const broken = [];
+      walk(parsed.sections, (section) => {
+        if (TRAILING_FUNCTION_WORD.test(section.title ?? '')) {
+          broken.push(`S${section.number} "${section.title}" が前置詞・接続詞で終わる`);
+        }
+      });
+      return broken;
+    },
   },
   {
     id: 'F3',
