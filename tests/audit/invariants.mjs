@@ -208,6 +208,19 @@ export const INVARIANTS = [
         .map((r) => `${r.id}: subject=${JSON.stringify(r.subject)}`),
   },
   {
+    id: 'B15',
+    description: '主語の先頭が削られていない',
+    check: ({ requirements }) =>
+      requirements
+        .filter((r) => {
+          if (!r.subject) return false;
+          const head = r.subject.split(/\s+/)[0].replace(/[^a-z0-9_-]/gi, '');
+          if (head.length < 3) return false;
+          return !new RegExp(`\\b${head}`, 'i').test(r.text ?? '');
+        })
+        .map((r) => `${r.id}: subject=${JSON.stringify(r.subject)}`),
+  },
+  {
     id: 'B3',
     description: '要件文が 1 行（改行と 4 個以上の連続空白が無い）',
     check: ({ requirements }) =>

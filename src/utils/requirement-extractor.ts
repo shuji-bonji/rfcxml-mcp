@@ -250,13 +250,15 @@ function parseRequirementComponents(text: string, level: RequirementLevel): Part
   //
   // `subject` は `generate_checklist` の `role` の絞り込みにも使う。取れないと
   // 絞り込みが効かず、`role: "client"` にサーバの要件が 865 件（8.9%）残っていた。
+  // 冠詞のあとには**必ず空白がある**。`\\s*` にすると、冠詞の候補が語の頭の
+  // 1 文字を食う。"Automated clients MUST" の "A" が冠詞として消費され、
+  // 主語が "utomated clients" になっていた（実測で 600 件、6.20%）。
   const subjectMatch = new RegExp(
-    `\\b(?:The|A|An|Each|Every|All)?\\s*([A-Za-z][\\w-]*(?:\\s+[A-Za-z][\\w-]*)?)\\s+${level.replace(' ', '\\s+')}\\b`,
+    `\\b(?:(?:The|A|An|Each|Every|All)\\s+)?([A-Za-z][\\w-]*(?:\\s+[A-Za-z][\\w-]*)?)\\s+${level.replace(' ', '\\s+')}\\b`,
     'i'
   ).exec(text);
   if (subjectMatch) {
-    // 冠詞は主語ではない。`(?:The|A|An)?` は任意なので、2 語の取り込みが
-    // 冠詞ごと拾うことがある（"A client MUST" → "a client"）。
+    // 2 語の取り込みが冠詞ごと拾うことがある（"of a client MUST" → "a client"）。
     const subject = subjectMatch[1]
       .toLowerCase()
       .replace(/^(?:the|a|an|each|every|all)\s+/, '')

@@ -96,3 +96,27 @@ describe('role の絞り込み', () => {
     expect(filterByRole(requirements, 'both')).toHaveLength(3);
   });
 });
+
+describe('role の絞り込みは複数形も見る', () => {
+  const make = (id: string, text: string, subject?: string) => ({
+    id,
+    level: 'MUST' as const,
+    text,
+    section: '8.3.1',
+    sectionTitle: 'Request Pseudo-Header Fields',
+    fullContext: text,
+    subject,
+  });
+
+  it('複数形で書かれた役割を振り分ける', () => {
+    // `\bserver\b` は "servers" に当たらない。実測で 449 件（4.6%）が
+    // どちらの role にも残っていた。
+    const requirements = [
+      make('R1', 'Other servers MUST perform scheme-based normalization.', 'other servers'),
+      make('R2', 'Clients MUST NOT generate a request with a Host header field.', 'clients'),
+    ];
+
+    expect(filterByRole(requirements, 'client').map((r) => r.id)).toEqual(['R2']);
+    expect(filterByRole(requirements, 'server').map((r) => r.id)).toEqual(['R1']);
+  });
+});

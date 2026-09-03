@@ -47,8 +47,11 @@ export function filterByRole(
     const subject = r.subject?.toLowerCase() ?? '';
     const haystack = subject || (r.text ?? '').toLowerCase();
 
-    const mentionsClient = /\bclient\b|\buser agent\b/.test(haystack);
-    const mentionsServer = /\bserver\b|\bproxy\b|\bgateway\b/.test(haystack);
+    // 複数形も見る。`\bserver\b` は "servers" に当たらない。実測（RFC 64 本・
+    // 要件 9,684 件）で、複数形だけで役割を書く要件が 449 件（4.6%）あり、
+    // どちらの role にも残っていた。
+    const mentionsClient = /\bclients?\b|\buser agents?\b/.test(haystack);
+    const mentionsServer = /\bservers?\b|\bproxy\b|\bproxies\b|\bgateways?\b/.test(haystack);
 
     // どちらにも触れないものは、どちらの実装にも関わりうるので残す
     if (!mentionsClient && !mentionsServer) return true;

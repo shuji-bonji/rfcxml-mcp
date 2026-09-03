@@ -89,7 +89,7 @@ args: {"rfc":6455,"section":"5.2"}
       "section": "5.2",
       "sectionTitle": "Base Framing Protocol",
       "fullContext": "Extension data: x bytes The \"Extension data\" is 0 bytes unless an extension has been negotiated. Any extension MUST specify the length of the \"Extension data\", or how that length may be calculated, and how the extension use MUST be negotiated during the opening handshake. If present, the \"Extension data\" is included in the total payload length.",
-      "subject": "ny extension",
+      "subject": "any extension",
       "action": "specify the length of the \"Extension data\", or how that length may be calculated, and how the extension use MUST be negotiated during the opening handshake"
     },
     {

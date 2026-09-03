@@ -121,7 +121,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.3",
       "sectionTitle": "Control Functions: RFC-854, pp. 7-8",
       "fullContext": "Both User and Server Telnets MAY support the control functions EOR, EC, EL, and Break, and MUST support AO, AYT, DM, IP, NOP, SB, and SE.",
-      "subject": "nd",
+      "subject": "and",
       "action": "support AO"
     },
     {
@@ -207,7 +207,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.5",
       "sectionTitle": "NVT Printer and Keyboard: RFC-854, p. 11",
       "fullContext": "In NVT mode, a Telnet SHOULD NOT send characters with the high-order bit 1, and MUST NOT send it as a parity bit. Implementations that pass the high-order bit to applications SHOULD negotiate binary mode (see Section 3.2.6).",
-      "subject": "nd",
+      "subject": "and",
       "action": "send it as a parity bit"
     },
     {

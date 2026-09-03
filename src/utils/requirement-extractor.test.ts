@@ -758,3 +758,37 @@ describe('主語の抽出', () => {
     );
   });
 });
+
+describe('主語の先頭を削らないこと', () => {
+  const subjectOf = (text: string, level = 'MUST') =>
+    extractRequirementsFromSections(
+      [
+        {
+          number: '4.3.4',
+          title: 'PUT',
+          content: [
+            {
+              type: 'text',
+              content: text,
+              requirements: [{ level, position: text.indexOf(level) }],
+              crossReferences: [],
+            },
+          ],
+          subsections: [],
+        },
+      ] as never,
+      undefined,
+      { parseComponents: true }
+    )[0]?.subject;
+
+  it('冠詞と同じ文字で始まる語を削らない', () => {
+    // `(?:A|An)?\s*` は空白ゼロを許すので、"Automated" の "A" を冠詞として
+    // 食っていた。実測（RFC 64 本・要件 9,684 件）で 600 件（6.2%）。
+    expect(subjectOf('Automated clients MUST log the error to an audit log.')).toBe(
+      'automated clients'
+    );
+    expect(subjectOf('An intermediary MAY combine Via header field values.', 'MAY')).toBe(
+      'intermediary'
+    );
+  });
+});

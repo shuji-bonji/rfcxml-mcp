@@ -1130,7 +1130,8 @@ function statementHasTerm(statement: string, term: string): boolean {
 export function findProhibitionViolation(
   statement: string,
   forbiddenAction: string,
-  subject: string | null
+  subject: string | null,
+  requirementSubject?: string
 ): { verb: string; sharedTerms: string[] } | null {
   const statementLower = statement.toLowerCase();
 
@@ -1157,7 +1158,15 @@ export function findProhibitionViolation(
   const sharedTerms: string[] = [];
   const seen = new Set<string>();
 
-  for (const word of forbiddenAction.toLowerCase().split(/[^a-z0-9]+/)) {
+  // 行為が短い禁止は、動詞を除くと共通語が 3 個に届かず落ちていた。
+  //
+  //   "clients MUST NOT show it to end users."（RFC 6455 §5.5.1）
+  //   → 行為 "show it to end users" の内容語は "end" と "users" の 2 個
+  //
+  // 何を誰に禁じているかは要件の主語にもあるので、そちらも語の元にする。
+  const pool = `${forbiddenAction} ${requirementSubject ?? ''}`;
+
+  for (const word of pool.toLowerCase().split(/[^a-z0-9]+/)) {
     if (!word || word === verb) continue;
     if (word.length < MATCHING_LIMITS.MIN_KEYWORD_LENGTH) continue;
     if (STOP_WORDS.has(word)) continue;
@@ -1305,7 +1314,8 @@ export function detectConflicts(statement: string, requirements: Requirement[]):
         const violation = findProhibitionViolation(
           statementLower,
           forbiddenAction,
-          statementSubject
+          statementSubject,
+          req.subject
         );
         if (violation) {
           conflicts.push({

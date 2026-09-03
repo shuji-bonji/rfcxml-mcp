@@ -954,3 +954,23 @@ describe('限定句を挟んだ主張', () => {
     expect(result.conflicts).toEqual([]);
   });
 });
+
+describe('行為が短い禁止', () => {
+  it('要件の主語も手がかりにして違反を挙げる', () => {
+    // RFC 6455 §5.5.1。行為 "show it to end users" の内容語は "end" と
+    // "users" の 2 個しかなく、共通語 3 個の下限に届かず落ちていた。
+    const requirement = {
+      id: 'R-5.5.1-102',
+      level: 'MUST NOT' as const,
+      section: '5.5.1',
+      sectionTitle: 'Close',
+      text: 'As the data is not guaranteed to be human readable, clients MUST NOT show it to end users.',
+      fullContext: '',
+      subject: 'clients',
+      action: 'show it to end users',
+    };
+    const result = matchStatement('Clients show it to end users.', [requirement]);
+
+    expect(result.conflicts.length).toBeGreaterThan(0);
+  });
+});
