@@ -33,6 +33,8 @@ import {
 const METADATA_EXTRACTION = {
   /** タイトル検索で走査する最大行数 */
   MAX_LINES_TO_SCAN: 30,
+  /** 字下げ無しでも題名とみなす最小文字数（行幅いっぱいの題名） */
+  WIDE_TITLE_MIN_LENGTH: 60,
   /** タイトルとして有効な最小文字数 */
   TITLE_MIN_LENGTH: 10,
   /**
@@ -450,8 +452,16 @@ function extractTextTitle(lines: string[]): string | undefined {
   while (index < limit && lines[index].trim() === '') index++;
   if (index >= limit) return undefined;
 
-  // 中央寄せなので字下げがある。無ければ題名ではない。
-  if (!/^\s/.test(lines[index])) return undefined;
+  // 中央寄せなので字下げがある。ただし行幅いっぱいの題名は 1 桁目から始まる。
+  // RFC 7489 の
+  // "Domain-based Message Authentication, Reporting, and Conformance (DMARC)"
+  // は 71 文字あり、字下げを課すと `metadata.title` が空になっていた。
+  if (
+    !/^\s/.test(lines[index]) &&
+    lines[index].trim().length < METADATA_EXTRACTION.WIDE_TITLE_MIN_LENGTH
+  ) {
+    return undefined;
+  }
 
   // 空行までを 1 つの題名として繋ぐ（2 行に折り返す題名がある）
   const parts: string[] = [];
@@ -584,7 +594,7 @@ function isValidSectionHeader(sectionNum: string, title: string): boolean {
  * §3.2.1 から §3.2.8 の 8 節が丸ごと落ちる（v0.6.14 まで落ちていた）。
  */
 const TITLE_ABBREVIATION =
-  /(?:^|[\s(])(?:pp?|vol|nos?|secs?|chs?|figs?|eds?|al|etc|cf|vs|e\.g|i\.e)\.$/i;
+  /(?:^|[\s(])(?:pp?|vol|nos?|secs?|chs?|figs?|eds?|al|etc|cf|vs|e\.g|i\.e|[A-Z]|[IVX]{1,4})\.$/i;
 
 /** 題名の中に、略語でない句点があるか。あればそれは題名ではなく本文である。 */
 function containsSentenceBreak(title: string): boolean {

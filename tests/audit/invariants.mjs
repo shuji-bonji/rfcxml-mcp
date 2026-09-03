@@ -27,7 +27,7 @@ const looksLikeDiagram = (text) => DIAGRAM_PATTERNS.some((pattern) => pattern.te
 
 /** 題名の中の略語。ここに挙げた語のあとの `.` は文の終わりではない。 */
 const TITLE_ABBREVIATION =
-  /(?:^|[\s(])(?:pp?|vol|nos?|secs?|chs?|figs?|eds?|al|etc|cf|vs|e\.g|i\.e)\.$/i;
+  /(?:^|[\s(])(?:pp?|vol|nos?|secs?|chs?|figs?|eds?|al|etc|cf|vs|e\.g|i\.e|[A-Z]|[IVX]{1,4})\.$/i;
 
 /** 題名の中に、略語でない句点があるか。 */
 const containsSentenceBreak = (title) => {
@@ -184,6 +184,22 @@ export const INVARIANTS = [
         .map((r) => `${r.id}: ${JSON.stringify(r.text)}`),
   },
   {
+    id: 'B13',
+    description: '要件文にキーワード以外の語がある',
+    check: ({ requirements }) =>
+      requirements
+        .filter(
+          (r) =>
+            !/[A-Za-z0-9]/.test(
+              (r.text ?? '').replace(
+                /\b(?:MUST|SHALL|SHOULD|MAY|REQUIRED|OPTIONAL|RECOMMENDED|NOT)\b/g,
+                ' '
+              )
+            )
+        )
+        .map((r) => `${r.id}: ${JSON.stringify(r.text)}`),
+  },
+  {
     id: 'B3',
     description: '要件文が 1 行（改行と 4 個以上の連続空白が無い）',
     check: ({ requirements }) =>
@@ -285,6 +301,14 @@ export const INVARIANTS = [
       parsed.definitions
         .filter((d) => /:\s*$/.test(d.term) || /^["'].*["']$/.test(d.term))
         .map((d) => `"${d.term}"`),
+  },
+  {
+    id: 'C5',
+    description: '用語に英数字が入っている',
+    check: ({ parsed }) =>
+      parsed.definitions
+        .filter((d) => !/[A-Za-z0-9]/.test(d.term ?? ''))
+        .map((d) => `"${d.term}" は記号だけ`),
   },
   {
     id: 'C2',

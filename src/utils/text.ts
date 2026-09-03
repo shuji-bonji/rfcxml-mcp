@@ -227,6 +227,8 @@ const DIAGRAM_PATTERNS: RegExp[] = [
   /\|[ \t]{2,}/, // 図の縦罫（"|   F   |"）
   /^[ \t]*\|.*\|[ \t]*$/m, // 罫線で囲んだ行（"|F|R|R|R| opcode|M| Payload len |"）
   /\S {3,}\S[^\n]* {3,}\S/, // 空白で桁を揃えた表の行（"Message   SHOULD   SHOULD   SHOULD"）
+  /^[ \t]*[A-Za-z][\w-]*[ \t]*::=/m, // ASN.1 の型定義（"TBSCertificate ::= SEQUENCE {"）
+  /\[\d+\]\s+(?:IMPLICIT|EXPLICIT)\b/, // ASN.1 のタグ（"[0] EXPLICIT Version"）
   /\/\*|\*\//, // 擬似コードの注釈（"/* OPTIONAL error counter step */"）
   /[{}][ \t]*$|^[ \t]*[{}]/m, // 擬似コードの波括弧
 ];
@@ -413,6 +415,31 @@ export function isQuotedKeyword(text: string, position: number, length: number):
 const BCP14_BOILERPLATE =
   /\bkey\s?words?\b[\s\S]{0,400}?\bare\s+to\s+be\s+interpreted\s+as\s+described\s+in\b/i;
 
+/**
+ * ASN.1 の定義の行。`OPTIONAL` はここでは BCP 14 のキーワードではない。
+ *
+ * RFC 5652 §5.3 は SignerInfo を次のように定義する。
+ *
+ * ```
+ * SignerInfo ::= SEQUENCE {
+ *   version CMSVersion,
+ *   signedAttrs [0] IMPLICIT SignedAttributes OPTIONAL,
+ *   unsignedAttrs [1] IMPLICIT UnsignedAttributes OPTIONAL }
+ * ```
+ *
+ * `[0] IMPLICIT` と `::=` は ASN.1 の構文で、散文には現れない。
+ * 実測（RFC 90 本・要件 10,196 件）で 42 件（0.41%）。
+ * すべて型定義で、要件は 1 件も無かった。RFC 5280 と RFC 5652 に出る。
+ */
+const ASN1_DEFINITION = /\[\d+\]\s+(?:IMPLICIT|EXPLICIT)\b|::=/;
+
+/** その位置を含む 1 行を返す。 */
+function lineAt(text: string, position: number): string {
+  const start = text.lastIndexOf('\n', position - 1) + 1;
+  const end = text.indexOf('\n', position);
+  return text.slice(start, end === -1 ? text.length : end);
+}
+
 export function extractRequirementMarkers(
   text: string
 ): Array<{ level: string; position: number }> {
@@ -424,6 +451,7 @@ export function extractRequirementMarkers(
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text)) !== null) {
     if (isQuotedKeyword(text, match.index, match[0].length)) continue;
+    if (ASN1_DEFINITION.test(lineAt(text, match.index))) continue;
     // 2 語のキーワードは改行をまたぐことがある。レベルは 1 個の空白に畳む。
     markers.push({ level: match[1].replace(/\s+/g, ' '), position: match.index });
   }

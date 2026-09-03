@@ -1,0 +1,45 @@
+# checklist-5652-5.3
+
+tool: generate_checklist
+args: {"rfc":5652,"sections":["5.3"]}
+
+--- markdown ---
+# RFC 5652 Implementation Checklist
+
+**Cryptographic Message Syntax (CMS)**
+
+Generated: <generatedAt>
+
+## Mandatory Requirements (MUST / REQUIRED / SHALL)
+
+- [ ] **MUST** If the SignerIdentifier is the CHOICE issuerAndSerialNumber, then the version MUST be 1. (§5.3)
+- [ ] **MUST** If the SignerIdentifier is subjectKeyIdentifier, then the version MUST be 3. (§5.3)
+- [ ] **MUST** Implementations MUST support the reception of the issuerAndSerialNumber and subjectKeyIdentifier forms of SignerIdentifier. (§5.3)
+- [ ] **MUST** However, subjectKeyIdentifier MUST be used to refer to a public key contained in a non-X.509 certificate. (§5.3)
+- [ ] **MUST** The field is optional, but it MUST be present if the content type of the EncapsulatedContentInfo value being signed is not id-data. (§5.3)
+- [ ] **MUST** SignedAttributes MUST be DER encoded, even if the rest of the structure is BER encoded. (§5.3)
+- [ ] **MUST** If the field is present, it MUST contain, at a minimum, the following two attributes: (§5.3)
+- [ ] **MUST NOT** However, the content-type attribute MUST NOT be used as part of a countersignature unsigned attribute as defined in Section 11.4. (§5.3)
+
+## Recommended Requirements (SHOULD / RECOMMENDED)
+
+- [ ] **SHOULD** The message digest algorithm SHOULD be among those listed in the digestAlgorithms field of the associated SignerData. (§5.3)
+
+## Optional Requirements (MAY / OPTIONAL)
+
+- [ ] **MAY** When generating a SignerIdentifier, implementations MAY support one of the forms (either issuerAndSerialNumber or subjectKeyIdentifier) and always use it, or implementations MAY arbitrarily mix the two forms. (§5.3)
+- [ ] **MAY** Implementations MAY fail to validate signatures that use a digest algorithm that is not included in the SignedData digestAlgorithms set. (§5.3)
+
+--- json ---
+{
+  "rfc": 5652,
+  "role": "both",
+  "stats": {
+    "must": 8,
+    "should": 1,
+    "may": 2,
+    "total": 11
+  },
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Checklist accuracy may be limited."
+}

@@ -126,6 +126,13 @@ export function extractRequirementsFromSections(
               continue;
             }
 
+            // キーワードのほかに語が無いものは要件文ではない。
+            // RFC 5280 §11.2 の ASN.1 の切れ端 `"OPTIONAL,"` `"} OPTIONAL,"` が
+            // 要件として出ていた（RFC 90 本・要件 9,584 件のうち 4 件）。
+            if (!hasSubstance(sentence)) {
+              continue;
+            }
+
             // 図・表の行から取った要件には主語も条件もアクションも無い。
             // RFC 2131 §4.3.1 の表の行 "Message SHOULD SHOULD SHOULD" に
             // `subject: "message should"` `action: "SHOULD SHOULD"` が付いていた。
@@ -173,6 +180,10 @@ export function extractRequirementsFromSections(
                 continue;
               }
 
+              if (!hasSubstance(itemText)) {
+                continue;
+              }
+
               const components = options.parseComponents
                 ? parseRequirementComponents(itemText, marker.level)
                 : {};
@@ -203,6 +214,21 @@ export function extractRequirementsFromSections(
   }
 
   return requirements;
+}
+
+/**
+ * 要件文に、キーワード以外の語があるか。
+ *
+ * ASN.1 の切れ端が要件として出ることがある。RFC 5280 §11.2 の
+ * `OPTIONAL,` や `} OPTIONAL,` は、キーワードを外すと何も残らない。
+ * 要件は「誰が何をするか」を書いた文であって、キーワード単体ではない。
+ */
+function hasSubstance(text: string): boolean {
+  const withoutKeywords = text.replace(
+    /\b(?:MUST|SHALL|SHOULD|MAY|REQUIRED|OPTIONAL|RECOMMENDED|NOT)\b/g,
+    ' '
+  );
+  return /[A-Za-z0-9]/.test(withoutKeywords);
 }
 
 /**

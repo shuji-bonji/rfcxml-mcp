@@ -50,7 +50,7 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 60 本に不変条件 33 種を当てる
+npm run audit         # 実物の RFC 64 本に不変条件 35 種を当てる
 npm run snapshot      # 代表的な出力 14 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
@@ -71,8 +71,8 @@ publish の前に、次を順に通す。
 |---|---|
 | `npm test` | 書いた条件の取りこぼし（367 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 60 本 × 33 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 21 本） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 64 本 × 35 種） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 22 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -530,6 +530,24 @@ RFC 8259 §3 は取りうる値を字下げして並べる。
 要件文が "false null true The literal names MUST be lowercase." になっていた。
 `looksLikeDiagram` は当たらない。ABNF の規則でも罫線でもなく、空白で桁を
 揃えてもいない、ただの短い語の並びである。`looksLikeDisplayBlock` で落とす。
+
+### ASN.1 の型定義は散文ではない
+
+RFC 5652 §5.3 や RFC 5280 §4.1 の `OPTIONAL` は ASN.1 の構文であって
+BCP 14 のキーワードではない。
+
+```
+SignerInfo ::= SEQUENCE {
+  signedAttrs [0] IMPLICIT SignedAttributes OPTIONAL,
+  unsignedAttrs [1] IMPLICIT UnsignedAttributes OPTIONAL }
+```
+
+`[0] IMPLICIT` と `::=` は散文に現れないので、`DIAGRAM_PATTERNS` に足して
+図・表と同じ扱いにする。実測（RFC 90 本・要件 10,196 件）で 42 件（0.41%）。
+すべて型定義で、要件は 1 件も無かった。
+
+要件文は文である。`hasSubstance` がキーワード以外の語を持たないものを落とす
+（RFC 5280 §11.2 の `OPTIONAL,` `} OPTIONAL,`）。
 
 ### 1 段目の節番号は 1 ずつ増える
 

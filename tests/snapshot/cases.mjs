@@ -45,6 +45,12 @@ export const CASES = [
 
   // --- get_requirements ---
   {
+    // ASN.1 の型定義。`OPTIONAL` は BCP 14 のキーワードではない。
+    name: 'checklist-5652-5.3',
+    tool: 'generate_checklist',
+    args: { rfc: 5652, sections: ['5.3'] },
+  },
+  {
     // 引用符を付けない BCP 14 の定型文。8 件の要件が出ていた。
     name: 'requirements-5652-1.2',
     tool: 'get_requirements',

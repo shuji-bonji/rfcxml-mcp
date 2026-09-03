@@ -781,7 +781,10 @@ function parseReference(ref: XmlNode, type: 'normative' | 'informative'): RFCRef
     anchor: ref['@_anchor'] || '',
     type,
     rfcNumber,
-    title: extractProse(front.title) || '',
+    // 題名の末尾の読点を落とす。テキスト経路と揃える。
+    // RFC 9180 の `<title>SEC 1: Elliptic Curve Cryptography,</title>` のように、
+    // 引用の書式をそのまま `<title>` に入れている RFC がある。
+    title: extractProse(front.title).replace(/[,;]$/, '') || '',
     target: ref['@_target'],
   };
 }
@@ -806,7 +809,7 @@ function extractDefinitions(rfc: XmlNode): Definition[] {
           const term = extractProse(dts[i]);
           const definition = extractProse(dds[i]);
 
-          if (term && isMeaningfulDefinition(definition)) {
+          if (isMeaningfulTerm(term) && isMeaningfulDefinition(definition)) {
             definitions.push({
               term: normalizeTerm(term),
               definition,
@@ -922,6 +925,16 @@ const EMPTY_DEFINITIONS = new Set(['n/a', 'na', 'none', 'not applicable', '-', '
  * RFC 9110 §14.6 の登録票は `Optional parameters: N/A` のように空欄を埋める。
  * これを定義として返しても何も伝えていない。
  */
+/**
+ * 用語として採れるか。
+ *
+ * 記号だけの `<dt>` がある。RFC 9147 §3 は表示の約束ごとを `<dl>` で書き、
+ * `'+'` `'*'` `'{}'` `'[]'` を項目にしている。これらは用語ではない。
+ */
+function isMeaningfulTerm(term: string): boolean {
+  return /[A-Za-z0-9]/.test(term ?? '');
+}
+
 function isMeaningfulDefinition(definition: string): boolean {
   const trimmed = definition.trim();
   if (trimmed.length < 3) return false;

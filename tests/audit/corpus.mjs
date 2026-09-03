@@ -38,6 +38,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 9000 },
     { rfc: 8878, note: 'BCP 14 キーワードを 1 つも使わない' },
     { rfc: 8949 },
+    { rfc: 9147, note: '表示の約束ごとを dl で書き、記号を項目にする' },
+    { rfc: 9180, note: '参照の title が読点で終わる' },
   ].map((entry) => ({ ...entry, kind: 'xml' })),
 
   '2010s-text': [
@@ -49,6 +51,7 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 7540 },
     { rfc: 8446, note: '題名が数字で始まる節 (0-RTT) がある' },
     { rfc: 7159, note: '参照が "Errata ID 3607, RFC 3607" と本文に番号を書く' },
+    { rfc: 7489, note: '題名が行幅いっぱいで 1 桁目から始まる' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '2000s-text': [
@@ -63,6 +66,7 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 6066 },
     { rfc: 5652, note: '引用符を付けずに BCP 14 の定型文を書く' },
     { rfc: 4253, note: '同上' },
+    { rfc: 5280, note: 'ASN.1 の型定義が多い。切れ端が要件になっていた' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-late-text': [

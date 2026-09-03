@@ -380,3 +380,24 @@ describe('引用符を付けない BCP 14 の定型文', () => {
     expect(extractRequirementMarkers(text)).toHaveLength(1);
   });
 });
+
+describe('ASN.1 の型定義から要件を出さない', () => {
+  it('タグ付きの行のキーワードは要件ではない', () => {
+    // RFC 5652 §5.3 と RFC 5280 §4.1。`[0] IMPLICIT` は ASN.1 の構文で
+    // 散文には現れない。実測（RFC 90 本・要件 10,196 件）で 42 件（0.41%）。
+    const text = [
+      'SignerInfo ::= SEQUENCE {',
+      '  version CMSVersion,',
+      '  signedAttrs [0] IMPLICIT SignedAttributes OPTIONAL,',
+      '  unsignedAttrs [1] IMPLICIT UnsignedAttributes OPTIONAL }',
+    ].join('\n');
+
+    expect(extractRequirementMarkers(text)).toEqual([]);
+  });
+
+  it('散文の OPTIONAL は要件として拾う', () => {
+    const text = 'The signedAttrs field is OPTIONAL for this content type.';
+
+    expect(extractRequirementMarkers(text)).toHaveLength(1);
+  });
+});

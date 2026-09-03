@@ -1466,3 +1466,43 @@ describe('題名が小文字で始まる節（大文字の並びで見分ける�
     expect(parsed.sections.map((s) => s.number)).toEqual(['3', '4']);
   });
 });
+
+describe('行幅いっぱいの題名', () => {
+  it('1 桁目から始まる長い題名を取る', () => {
+    // RFC 7489 の題名は 71 文字あり、中央寄せにならず 1 桁目から始まる。
+    // 字下げを課すと metadata.title が空になっていた。
+    const text = [
+      'Independent Submission                                 M. Kucherawy, Ed.',
+      'Request for Comments: 7489',
+      'Category: Informational                                   E. Zwicky, Ed.',
+      'ISSN: 2070-1721                                                   Yahoo!',
+      '                                                              March 2015',
+      '',
+      '',
+      'Domain-based Message Authentication, Reporting, and Conformance (DMARC)',
+      '',
+      'Abstract',
+      '',
+      '   DMARC is a scalable mechanism for domain-level policies.',
+      '',
+    ].join('\n');
+
+    expect(parseRFCText(text, 7489).metadata.title).toBe(
+      'Domain-based Message Authentication, Reporting, and Conformance (DMARC)'
+    );
+  });
+
+  it('1 桁目の短い行は題名にしない', () => {
+    const text = [
+      'Network Working Group                                          J. Doe',
+      'Request for Comments: 9999                                  June 2024',
+      '',
+      'Status of this Memo',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+
+    expect(parseRFCText(text, 9999).metadata.title).toBeUndefined();
+  });
+});

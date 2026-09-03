@@ -684,3 +684,32 @@ describe('condition と exception を分ける', () => {
     expect(result[0].exception).toBeUndefined();
   });
 });
+
+describe('キーワードだけの要件文を出さない', () => {
+  it('ASN.1 の切れ端を要件にしない', () => {
+    // RFC 5280 §11.2 の `OPTIONAL,` と `} OPTIONAL,`。
+    // キーワードを外すと何も残らない。要件は文である。
+    const content = '} OPTIONAL,';
+    const result = extractRequirementsFromSections(
+      [
+        {
+          number: '11.2',
+          title: 'ASN.1 Module',
+          content: [
+            {
+              type: 'text',
+              content,
+              requirements: [{ level: 'OPTIONAL', position: content.indexOf('OPTIONAL') }],
+              crossReferences: [],
+            },
+          ],
+          subsections: [],
+        },
+      ] as never,
+      undefined,
+      { parseComponents: true }
+    );
+
+    expect(result).toEqual([]);
+  });
+});
