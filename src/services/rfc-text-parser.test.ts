@@ -941,3 +941,113 @@ describe('題名の長さ', () => {
     );
   });
 });
+
+describe('字下げ見出しの取りこぼし', () => {
+  const numbers = (sections: Section[]): string[] =>
+    sections.flatMap((s) => [s.number ?? '', ...numbers(s.subsections)]);
+
+  it('引用符で始まる題名を落とさない', () => {
+    // RFC 1123 §4.1.4.2 の題名は `"QUOTE" Command`。先頭に大文字を求めると落ちる。
+    const text = [
+      '4.  FILE TRANSFER',
+      '',
+      '   Text.',
+      '',
+      '   4.1  FILE TRANSFER PROTOCOL -- FTP',
+      '',
+      '      4.1.1  INTRODUCTION',
+      '',
+      '         Text.',
+      '',
+      '      4.1.2  FTP/USER INTERFACE',
+      '',
+      '         Text.',
+      '',
+      '         4.1.2.1  Pathname Specification',
+      '',
+      '            Text.',
+      '',
+      '         4.1.2.2  "QUOTE" Command',
+      '',
+      '            A User-FTP program MUST implement a "QUOTE" command.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1123);
+
+    expect(numbers(parsed.sections)).toContain('4.1.2.2');
+  });
+
+  it('72 桁で折り返した題名を繋ぐ', () => {
+    // RFC 1122 §4.2.2.9 の題名は出典を含むため 2 行に分かれる。
+    // 「次の行が空く」だけを課すと §4.2.2.8 から §4.2.2.11 が落ちる。
+    const text = [
+      '4.  TRANSPORT PROTOCOLS',
+      '',
+      '   Text.',
+      '',
+      '   4.1  TRANSMISSION CONTROL PROTOCOL -- TCP',
+      '',
+      '      4.1.1  INTRODUCTION',
+      '',
+      '         Text.',
+      '',
+      '      4.1.2  PROTOCOL WALK-THROUGH',
+      '',
+      '         Text.',
+      '',
+      '         4.1.2.1  TCP Checksum: RFC-793 Section 3.1',
+      '',
+      '            Text.',
+      '',
+      '         4.1.2.2  Initial Sequence Number Selection: RFC-793 Section',
+      '            3.3, page 27',
+      '',
+      '            A TCP MUST use the specified clock-driven selection of',
+      '            initial sequence numbers.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1122);
+
+    expect(numbers(parsed.sections)).toContain('4.1.2.2');
+    const walk = (list: Section[]): Section[] => list.flatMap((s) => [s, ...walk(s.subsections)]);
+    const found = walk(parsed.sections).find((s) => s.number === '4.1.2.2');
+    expect(found?.title).toBe('Initial Sequence Number Selection: RFC-793 Section 3.3, page 27');
+  });
+
+  it('見出しの次に本文が続くものは節にしない', () => {
+    // 折り返しの条件を緩めすぎると、本文の 1 行目を題名に取り込む。
+    const text = [
+      '1.  Introduction',
+      '',
+      '   Text.',
+      '',
+      '   1.1  A section whose title is long enough to reach the wrap width',
+      '      but this line is followed by more body text, not a blank line,',
+      '      so it is a paragraph and not a wrapped heading at all.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1122);
+
+    const walk = (list: Section[]): Section[] => list.flatMap((s) => [s, ...walk(s.subsections)]);
+    // 折り返しとして受け入れるなら題名に本文が混ざる。節にしないのが正しい。
+    const found = walk(parsed.sections).find((s) => s.number === '1.1');
+    expect(found).toBeUndefined();
+  });
+});
+
+describe('三点リーダは文の終わりではない', () => {
+  it('"Headings: H1 ... H6" を題名として受け入れる', () => {
+    // RFC 1866 §5.4。"... H6" の最後の句点を文の終わりと見ると節が落ちる。
+    const text = [
+      '5.4. Headings: H1 ... H6',
+      '',
+      '   The six heading elements, <H1> through <H6>, denote section',
+      '   headings.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 1866);
+
+    expect(parsed.sections[0].number).toBe('5.4');
+    expect(parsed.sections[0].title).toBe('Headings: H1 ... H6');
+  });
+});

@@ -217,10 +217,15 @@ function parseRequirementComponents(text: string, level: RequirementLevel): Part
     result.subject = subjectMatch[1].toLowerCase();
   }
 
-  // 条件の抽出（"if", "when", "unless"）
+  // 条件の抽出（"if", "when", "where", "in case"）
+  //
+  // `unless` はここに入れない。例外の側と重なり、`condition` と `exception` に
+  // 同じ文字列が入る。実測（RFC 49 本・要件 7,797 件）で 247 件（3.2%）あった。
+  // 「X でない限り」は条件ではなく例外である。
+  //
   // 切り出しは clipAtClauseEnd に任せる。`[^,.]+` で止めると、括弧内のカンマや
   // 節番号のピリオドで切れて "this fails (e" のようになる。
-  const conditionMatch = text.match(/\b(if|when|unless|where|in case)\s+(.+)/is);
+  const conditionMatch = text.match(/\b(if|when|where|in case)\s+(.+)/is);
   if (conditionMatch) {
     const condition = clipAtClauseEnd(conditionMatch[2]);
     if (condition) result.condition = condition;

@@ -631,3 +631,56 @@ describe('箇条書きの項目を文の単位で切り出すこと', () => {
     expect(result[0].text).toBe(content);
   });
 });
+
+describe('condition と exception を分ける', () => {
+  const sectionWithText = (content: string, level: string) => [
+    {
+      number: '5.1',
+      title: 'Overview',
+      content: [
+        {
+          type: 'text',
+          content,
+          requirements: [{ level, position: content.indexOf(level) }],
+          crossReferences: [],
+        },
+      ],
+      subsections: [],
+    },
+  ];
+
+  it('"unless" は例外であって条件ではない', () => {
+    // v0.6.15 まで `unless` が条件と例外の両方に当たり、同じ文字列が
+    // 2 つの欄に入っていた（RFC 49 本・要件 7,797 件のうち 247 件、3.2%）。
+    const text =
+      'A host MUST always be zero, unless the host is an authoritative source of address mask information.';
+
+    const result = extractRequirementsFromSections(
+      sectionWithText(text, 'MUST') as never,
+      undefined,
+      {
+        parseComponents: true,
+      }
+    );
+
+    expect(result[0].exception).toBe(
+      'the host is an authoritative source of address mask information'
+    );
+    expect(result[0].condition).toBeUndefined();
+  });
+
+  it('"if" は条件として取る', () => {
+    const text = 'A client MUST close a connection if it detects a masked frame.';
+
+    const result = extractRequirementsFromSections(
+      sectionWithText(text, 'MUST') as never,
+      undefined,
+      {
+        parseComponents: true,
+      }
+    );
+
+    expect(result[0].condition).toBe('it detects a masked frame');
+    expect(result[0].exception).toBeUndefined();
+  });
+});

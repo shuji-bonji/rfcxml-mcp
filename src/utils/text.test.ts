@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import {
   clipAtClauseEnd,
   extractCrossReferences,
+  extractRequirementMarkers,
   extractSentence,
   foldWhitespace,
   isSentenceEnd,
@@ -312,5 +313,51 @@ describe('別文書の節の参照', () => {
     expect(refs).toContainEqual(
       expect.objectContaining({ type: 'external', target: 'RFC6691', section: '3.1' })
     );
+  });
+});
+
+describe('引用符に囲まれたキーワードは要件ではない', () => {
+  it('BCP 14 の定型文から要件を出さない', () => {
+    // ほぼすべての RFC が冒頭に置く。RFC 8259 の generate_checklist は
+    // 21 項目のうち 11 項目がこの 1 文だった。
+    const boilerplate =
+      'The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", ' +
+      '"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and ' +
+      '"OPTIONAL" in this document are to be interpreted as described in ' +
+      'BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as shown here.';
+
+    expect(extractRequirementMarkers(boilerplate)).toEqual([]);
+  });
+
+  it('72 桁で折り返した 2 語のキーワードも語の紹介とみなす', () => {
+    // RFC 3261 は `"NOT RECOMMENDED"` が改行をまたぐ。RECOMMENDED を単独で
+    // 拾うと引用符の判定が外れ、要件が 1 件出ていた。
+    const wrapped =
+      'the key words "MUST", "SHOULD", "NOT\nRECOMMENDED", and "MAY" are to be interpreted';
+
+    expect(extractRequirementMarkers(wrapped)).toEqual([]);
+  });
+
+  it('要求 ID の付いた語の説明から要件を出さない', () => {
+    // RFC 9293 §2.1
+    const labeling = 'Sentences using "MUST" are labeled as "MUST-X" with X being a number.';
+
+    expect(extractRequirementMarkers(labeling)).toEqual([]);
+  });
+
+  it('引用符の無いキーワードは要件として拾う', () => {
+    const requirement = 'The client MUST mask all frames that it sends to the server.';
+
+    expect(extractRequirementMarkers(requirement)).toEqual([
+      { level: 'MUST', position: requirement.indexOf('MUST') },
+    ]);
+  });
+
+  it('折り返した 2 語のキーワードのレベルは 1 個の空白に畳む', () => {
+    const wrapped = 'A client MUST\nNOT generate a request with a Host header field.';
+
+    expect(extractRequirementMarkers(wrapped)).toEqual([
+      { level: 'MUST NOT', position: wrapped.indexOf('MUST') },
+    ]);
   });
 });

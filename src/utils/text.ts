@@ -6,6 +6,7 @@
 import type { CrossReference } from '../types/index.js';
 import {
   createExternalSectionRegexes,
+  createRequirementRegex,
   createRFCReferenceRegex,
   createSectionReferenceRegex,
 } from '../constants.js';
@@ -344,4 +345,71 @@ export function requirementSource(
     position: position - runStart,
     prose: true,
   };
+}
+
+/**
+ * 引用符に囲まれたキーワードの前後に来る文字。
+ *
+ * 開き側と閉じ側を別に持つ。`"MUST"` のように、開いて閉じているときだけ
+ * 「語について書いている」とみなす。
+ */
+const QUOTE_OPEN = /["'“‘`]$/;
+/**
+ * 閉じ側。引用符のほか `-` も許す。
+ *
+ * RFC 9293 は要求に識別子を付けて `"MUST-14"` と書く。この `-` を閉じ側と
+ * みなさないと、§2.1 の説明文（"Sentences using \"MUST\" are labeled as
+ * \"MUST-X\""）から要件が出る。
+ */
+const QUOTE_CLOSE = /^(?:["'”’`]|-\w)/;
+
+/**
+ * 引用符に囲まれたキーワードは、要件ではなく語の紹介である。
+ *
+ * RFC はほぼすべて、冒頭に BCP 14 の定型文を置く。
+ *
+ * > The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+ * > "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+ * > "OPTIONAL" in this document are to be interpreted as described in
+ * > BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+ * > capitals, as shown here.
+ *
+ * この 1 文から 11 件の要件が出ていた。RFC 8259 の `generate_checklist` は
+ * 21 項目のうち 11 項目がこの文だった。
+ *
+ * 同じことは定型文以外でも起きる。RFC 9293 §2.1 の
+ * "Sentences using \"MUST\" are labeled as \"MUST-X\"" や、RFC 5322 §1.2.1 の
+ * "When the terms \"MUST\", \"SHOULD\", … appear capitalized" も語の説明である。
+ *
+ * 実測（RFC 49 本・要件 8,164 件）: 引用符に囲まれたキーワード 364 件（4.5%）。
+ * 内訳は BCP 14 の定型文 324 件と、語の説明 40 件。要件は 1 件も無かった。
+ */
+export function isQuotedKeyword(text: string, position: number, length: number): boolean {
+  if (position <= 0) return false;
+  return (
+    QUOTE_OPEN.test(text.slice(position - 1, position)) &&
+    QUOTE_CLOSE.test(text.slice(position + length))
+  );
+}
+
+/**
+ * 段落から要件マーカーを取り出す。
+ *
+ * XML 経路とテキスト経路で同じものを使う。片方だけに条件を足すと、
+ * 同じ RFC が経路によって違う要件を返す。
+ */
+export function extractRequirementMarkers(
+  text: string
+): Array<{ level: string; position: number }> {
+  const markers: Array<{ level: string; position: number }> = [];
+  const regex = createRequirementRegex();
+
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    if (isQuotedKeyword(text, match.index, match[0].length)) continue;
+    // 2 語のキーワードは改行をまたぐことがある。レベルは 1 個の空白に畳む。
+    markers.push({ level: match[1].replace(/\s+/g, ' '), position: match.index });
+  }
+
+  return markers;
 }

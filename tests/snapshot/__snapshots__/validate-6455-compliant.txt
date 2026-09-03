@@ -14,7 +14,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
   "isValid": true,
   "matchingRequirements": [
     {
-      "id": "R-5.3-95",
+      "id": "R-5.3-82",
       "level": "MUST",
       "text": "When preparing a masked frame, the client MUST pick a fresh masking key from the set of allowed 32-bit values.",
       "section": "5.3",
@@ -34,7 +34,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_levelMatch": true
     },
     {
-      "id": "R-5.1-79",
+      "id": "R-5.1-66",
       "level": "MUST",
       "text": "To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details).",
       "section": "5.1",
@@ -52,7 +52,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_levelMatch": true
     },
     {
-      "id": "R-5.1-83",
+      "id": "R-5.1-70",
       "level": "MUST",
       "text": "A client MUST close a connection if it detects a masked frame.",
       "section": "5.1",
@@ -72,7 +72,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_levelMatch": true
     },
     {
-      "id": "R-10.7-198",
+      "id": "R-10.7-185",
       "level": "MUST",
       "text": "Incoming data MUST always be validated by both clients and servers.",
       "section": "10.7",
@@ -91,7 +91,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_levelMatch": true
     },
     {
-      "id": "R-4.1-20",
+      "id": "R-4.1-7",
       "level": "MUST",
       "text": "When the client is to _Establish a WebSocket Connection_ given a set of (/host/, /port/, /resource name/, and /secure/ flag), along with a list of /protocols/ and /extensions/ to be used, and an /origin/ in the case of web browsers, it MUST open a connection, send an opening handshake, and read the server's handshake in response.",
       "section": "4.1",
@@ -109,7 +109,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_levelMatch": true
     },
     {
-      "id": "R-4.1-54",
+      "id": "R-4.1-41",
       "level": "MUST",
       "text": "Once the client's opening handshake has been sent, the client MUST wait for a response from the server before sending any further data.",
       "section": "4.1",
@@ -126,7 +126,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_levelMatch": true
     },
     {
-      "id": "R-4.1-55",
+      "id": "R-4.1-42",
       "level": "MUST",
       "text": "The client MUST validate the server's response as follows:",
       "section": "4.1",
@@ -144,7 +144,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_levelMatch": true
     },
     {
-      "id": "R-4.1-26",
+      "id": "R-4.1-13",
       "level": "MUST",
       "text": "If the client cannot determine the IP address of the remote host (for example, because all communication is being done through a proxy server that performs DNS queries itself), then the client MUST assume for the purposes of this step that each host name refers to a distinct remote host, and instead the client SHOULD limit the total number of simultaneous pending connections to a reasonably low number (e.g., the client might allow simultaneous pending connections to a.example.com and b.example.com, but if thirty simultaneous connections to a single host are requested, that may not be allowed).",
       "section": "4.1",
@@ -161,7 +161,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_levelMatch": true
     },
     {
-      "id": "R-4.1-32",
+      "id": "R-4.1-19",
       "level": "MUST",
       "text": "If /secure/ is true, the client MUST perform a TLS handshake over the connection after opening the connection and before sending the handshake data [RFC2818].",
       "section": "4.1",
@@ -178,7 +178,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_levelMatch": true
     },
     {
-      "id": "R-4.1-33",
+      "id": "R-4.1-20",
       "level": "MUST",
       "text": "If this fails (e.g., the server's certificate could not be verified), then the client MUST _Fail the WebSocket Connection_ and abort the connection.",
       "section": "4.1",

@@ -10,11 +10,14 @@ import type {
   ContentBlock,
   TextBlock,
   ParsedRFC,
-  RequirementLevel,
   RFCReference,
 } from '../types/index.js';
 import { createRequirementRegex, SECTION_HEADER_PATTERN } from '../constants.js';
-import { extractCrossReferences, looksLikeDiagram } from '../utils/text.js';
+import {
+  extractCrossReferences,
+  extractRequirementMarkers as extractMarkers,
+  looksLikeDiagram,
+} from '../utils/text.js';
 import {
   extractRequirementsFromSections,
   type RequirementFilter,
@@ -524,7 +527,10 @@ function containsSentenceBreak(title: string): boolean {
   const pattern = /[.!?]\s+\S/g;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(title)) !== null) {
-    if (!TITLE_ABBREVIATION.test(title.slice(0, match.index + 1))) return true;
+    const head = title.slice(0, match.index + 1);
+    // 三点リーダは文の終わりではない（RFC 1866 §5.4 "Headings: H1 ... H6"）。
+    if (/\.\.$/.test(head)) continue;
+    if (!TITLE_ABBREVIATION.test(head)) return true;
   }
   return false;
 }
@@ -617,17 +623,80 @@ function indentedSectionHeader(
   if (Math.abs(indent - (depth - 1) * INDENTED_HEADER_STEP) > INDENTED_HEADER_TOLERANCE)
     return null;
 
-  const title = match[2].trim();
-  if (title.length < 3 || !/^[A-Z]/.test(title) || /[.,;]$/.test(title)) return null;
+  let title = match[2].trim();
+
+  // 題名が読点で終わるときは、次の行が続きである。
+  // RFC 1122 §4.2.2.8 の
+  //   "4.2.2.8  TCP Connection State Diagram: RFC-793 Section 3.2,"
+  //   "   page 23"
+  // は 2 行に分かれる。「次の行が空く」だけを課すと §4.2.2.8 から §4.2.2.11 の
+  // 4 節が落ちる。
+  let end = index;
+  const continuation = wrappedHeaderContinuation(lines, index, indent);
+  if (continuation !== null) {
+    title = `${title} ${continuation}`;
+    end = index + 1;
+  }
+
+  // 先頭は大文字。引用符や括弧で始まる題名があるので、それは読み飛ばす
+  // （RFC 1123 §4.1.4.2 の `"QUOTE" Command`）。
+  if (title.length < 3 || !/^["'“([]?[A-Z]/.test(title) || /[.,;]$/.test(title)) return null;
   if (!isValidSectionHeader(number, title)) return null;
   if (!isSuccessorSectionNumber(previousNumber, number)) return null;
 
   // 見出しの次の行は空く。直前は図や表の行のことがあるので問わない
   // （RFC 1122 §1.4 と §4.2 は図表の直後に置かれている）。
-  const after = index + 1 < lines.length ? lines[index + 1] : '';
+  const after = end + 1 < lines.length ? lines[end + 1] : '';
   if (after.trim() !== '') return null;
 
   return { number, title };
+}
+
+/** 折り返した見出しとみなす続きの行の、最大の長さ。 */
+const HEADER_CONTINUATION_MAX_LENGTH = 40;
+
+/**
+ * 折り返しが起きたとみなす、見出しの行の最小の幅。
+ *
+ * RFC のテキストは 72 桁で折り返す。これより短い行は折り返されていないので、
+ * 次の行は続きではなく本文である。
+ */
+const HEADER_WRAP_WIDTH = 60;
+
+/**
+ * 見出しの続きの行を返す。続きでなければ `null`。
+ *
+ * RFC 1122 は出典を題名に書くため、題名が 72 桁で折り返す。
+ *
+ * ```
+ *          4.2.2.9  Initial Sequence Number Selection: RFC-793 Section
+ *             3.3, page 27
+ *
+ *             A TCP MUST use the specified clock-driven selection of
+ * ```
+ *
+ * 「次の行が空く」だけを課すと §4.2.2.8 から §4.2.2.11 の 4 節が落ち、
+ * その節の要件が §4.2.2.7 に付く。
+ *
+ * 折り返しとみなす条件は 3 つ。
+ *
+ * - 見出しの行が 60 桁以上ある（折り返しが起きる幅に達している）
+ * - 次の行が見出しより深く字下げされ、40 文字以下である
+ * - その次の行が空く（本文の段落は 2 行目で終わらない）
+ */
+function wrappedHeaderContinuation(lines: string[], index: number, indent: number): string | null {
+  const line = lines[index].replace(/\s+$/, '');
+  if (line.length < HEADER_WRAP_WIDTH) return null;
+
+  const next = index + 1 < lines.length ? lines[index + 1] : '';
+  const trimmed = next.trim();
+  if (trimmed === '' || trimmed.length > HEADER_CONTINUATION_MAX_LENGTH) return null;
+  if (next.length - next.trimStart().length <= indent) return null;
+
+  const after = index + 2 < lines.length ? lines[index + 2] : '';
+  if (after.trim() !== '') return null;
+
+  return trimmed;
 }
 
 /** 中央寄せの見出しとみなす最小の字下げ。 */
@@ -896,16 +965,8 @@ function createTextBlocks(text: string): ContentBlock[] {
     const trimmed = para.trim();
     if (!trimmed) continue;
 
-    // 要件マーカーを抽出
-    const requirements: TextBlock['requirements'] = [];
-    const regex = createRequirementRegex();
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(trimmed)) !== null) {
-      requirements.push({
-        level: match[1] as RequirementLevel,
-        position: match.index,
-      });
-    }
+    // 要件マーカーを抽出（XML 経路と同じもの）
+    const requirements = extractMarkers(trimmed) as TextBlock['requirements'];
 
     blocks.push({
       type: 'text',

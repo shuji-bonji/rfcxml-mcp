@@ -85,8 +85,7 @@ async function loadSource({ rfc, kind }) {
 
 async function auditOne(entry) {
   const source = await loadSource(entry);
-  const parsed =
-    entry.kind === 'xml' ? parseRFCXML(source) : parseRFCText(source, entry.rfc);
+  const parsed = entry.kind === 'xml' ? parseRFCXML(source) : parseRFCText(source, entry.rfc);
   const requirements = extractRequirementsFromSections(parsed.sections, undefined, {
     parseComponents: true,
   });
@@ -94,7 +93,7 @@ async function auditOne(entry) {
     generateChecklist(entry.rfc, parsed.metadata.title ?? '', requirements.slice(0, 300))
   );
 
-  const context = { rfc: entry.rfc, parsed, requirements, checklist };
+  const context = { rfc: entry.rfc, kind: entry.kind, source, parsed, requirements, checklist };
   const violations = {};
   for (const invariant of INVARIANTS) {
     const found = invariant.check(context);
@@ -211,8 +210,7 @@ async function main() {
       if (!examined.has(rfc)) continue;
       const actual = now[rfc] ?? 0;
       const expected = before[rfc] ?? 0;
-      if (actual > expected)
-        regressions.push({ invariant, rfc: Number(rfc), actual, expected });
+      if (actual > expected) regressions.push({ invariant, rfc: Number(rfc), actual, expected });
       else if (actual < expected)
         improvements.push({ invariant, rfc: Number(rfc), actual, expected });
     }
@@ -264,7 +262,8 @@ function printDetail(results, baseline) {
 
   for (const row of rows) {
     const mark = row.count === 0 ? 'OK  ' : row.count <= row.known ? '既知' : 'NEW ';
-    const suffix = row.count === 0 ? '' : ` ${row.count} 件${baseline ? `（基準 ${row.known}）` : ''}`;
+    const suffix =
+      row.count === 0 ? '' : ` ${row.count} 件${baseline ? `（基準 ${row.known}）` : ''}`;
     console.log(`  ${mark} ${row.id} ${row.description}${suffix}`);
   }
   console.log('');

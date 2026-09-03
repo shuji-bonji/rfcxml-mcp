@@ -7,7 +7,6 @@ import { XMLParser } from 'fast-xml-parser';
 import type {
   Section,
   Requirement,
-  RequirementLevel,
   Definition,
   RFCReference,
   TextBlock,
@@ -19,7 +18,11 @@ import type {
 // Re-export types for use in handlers
 export type { Section, ParsedRFC };
 import { createRequirementRegex } from '../constants.js';
-import { extractCrossReferences, toArray } from '../utils/text.js';
+import {
+  extractCrossReferences,
+  extractRequirementMarkers as extractMarkers,
+  toArray,
+} from '../utils/text.js';
 import { compareSectionNumbers, normalizeSectionNumber } from '../utils/section.js';
 import {
   extractRequirementsFromSections,
@@ -682,20 +685,11 @@ function extractXrefReferences(node: XmlNode): CrossReference[] {
 
 /**
  * 要件マーカーの抽出（<bcp14> 要素またはテキストから）
+ *
+ * 実体は `utils/text.ts` にある。テキスト経路と同じものを使う。
  */
 function extractRequirementMarkers(text: string): TextBlock['requirements'] {
-  const markers: TextBlock['requirements'] = [];
-  const regex = createRequirementRegex();
-
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(text)) !== null) {
-    markers.push({
-      level: match[1] as RequirementLevel,
-      position: match.index,
-    });
-  }
-
-  return markers;
+  return extractMarkers(text) as TextBlock['requirements'];
 }
 
 /**

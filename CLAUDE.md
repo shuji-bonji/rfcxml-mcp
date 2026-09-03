@@ -50,7 +50,7 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 49 本に不変条件 23 種を当てる
+npm run audit         # 実物の RFC 49 本に不変条件 27 種を当てる
 npm run snapshot      # 代表的な出力 14 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
@@ -71,7 +71,7 @@ publish の前に、次を順に通す。
 |---|---|
 | `npm test` | 書いた条件の取りこぼし（367 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 49 本 × 23 種） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 49 本 × 27 種） |
 | `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 14 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
@@ -426,6 +426,39 @@ Why: 受け入れると直前の節番号が戻り、`isSuccessorSectionNumber` 
 RFC 1123 は出典を題名に書く（`3.2.1  Option Negotiation: RFC-854, pp. 2-3`）。
 `pp.` を文の終わりと見ると §3.2.1 から §3.2.8 が丸ごと落ちる。
 `containsSentenceBreak` が `TITLE_ABBREVIATION` を除いてから判定する。
+
+### 引用符に囲まれたキーワードは要件ではない
+
+ほぼすべての RFC が冒頭に BCP 14 の定型文を置く。
+
+> The key words "MUST", "MUST NOT", … are to be interpreted as described in
+> BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all capitals.
+
+この 1 文から 11 件の要件が出ていた。RFC 8259 の `generate_checklist` は
+21 項目のうち 11 項目がこの文だった。同じことは RFC 9293 §2.1 の
+`"MUST-X"`（要求 ID の説明）や RFC 5322 §1.2.1 の用語説明でも起きる。
+
+`isQuotedKeyword` が、開き引用符と閉じ引用符に挟まれたキーワードを落とす。
+閉じ側は `-` も許す（`"MUST-14"`）。
+実測（RFC 49 本）: 8,164 件 → 7,797 件、うち定型文 324 件・語の説明 40 件。
+
+### 2 語のキーワードは改行をまたぐ
+
+RFC のテキストは 72 桁で折り返す。`SHOULD NOT` が
+`SHOULD\nNOT` に分かれると、`\b(SHOULD NOT|SHOULD)\b` は `SHOULD` に当たる。
+
+**要件のレベルが反転する。** `MUST NOT` を `MUST` として、`SHOULD NOT` を
+`SHOULD` として出していた。実測で 41 件・15 本の RFC。`generate_checklist` を
+読んで実装すると、RFC が禁じていることを実装することになる。
+
+`createRequirementRegex` はキーワードの空白を `\s+` にする。
+`extractRequirementMarkers` が `level` を 1 個の空白に畳んで返す。
+
+### `unless` は例外であって条件ではない
+
+`condition` の抽出に `unless` を入れると、`exception` と同じ文字列が入る。
+実測で 247 件（3.2%）あった。`if` / `when` / `where` / `in case` が条件、
+`unless` / `except` / `excluding` が例外である。
 
 ### 箇条書きの項目も文の単位で切り出す
 

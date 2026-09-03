@@ -7,6 +7,10 @@
  * 書式で破れる場所を出す。v0.6.9 以降の不具合はすべてこちらで見つかった。
  *
  * 各条件は `check` が破れの説明を配列で返す。空なら合格。
+ *
+ * A6（目次にある節が構造にある）は、節の欠落をそのまま測る。v0.6.15 で直した
+ * 6 件のうち 3 件が節の欠落で、どれも「その節の要件が手前の節に付く」という
+ * 形で表に出ていた。欠落は他の条件を破らないので、これを見ないと気づけない。
  */
 
 /** その語が図・表の行らしいか（要件の出どころを見分ける）。 */
@@ -22,14 +26,18 @@ const DIAGRAM_PATTERNS = [
 const looksLikeDiagram = (text) => DIAGRAM_PATTERNS.some((pattern) => pattern.test(text ?? ''));
 
 /** 題名の中の略語。ここに挙げた語のあとの `.` は文の終わりではない。 */
-const TITLE_ABBREVIATION = /(?:^|[\s(])(?:pp?|vol|nos?|secs?|chs?|figs?|eds?|al|etc|cf|vs|e\.g|i\.e)\.$/i;
+const TITLE_ABBREVIATION =
+  /(?:^|[\s(])(?:pp?|vol|nos?|secs?|chs?|figs?|eds?|al|etc|cf|vs|e\.g|i\.e)\.$/i;
 
 /** 題名の中に、略語でない句点があるか。 */
 const containsSentenceBreak = (title) => {
   const pattern = /[.!?]\s+\S/g;
   let match;
   while ((match = pattern.exec(title)) !== null) {
-    if (!TITLE_ABBREVIATION.test(title.slice(0, match.index + 1))) return true;
+    const head = title.slice(0, match.index + 1);
+    // 三点リーダは文の終わりではない（RFC 1866 §5.4 "Headings: H1 ... H6"）。
+    if (/\.\.$/.test(head)) continue;
+    if (!TITLE_ABBREVIATION.test(head)) return true;
   }
   return false;
 };
@@ -112,6 +120,30 @@ export const INVARIANTS = [
     },
   },
   {
+    id: 'A6',
+    description: '目次にある節が構造にある',
+    check: ({ kind, source, parsed }) => {
+      // 目次を持つのはテキスト経路だけ。RFCXML には目次の行が無い。
+      if (kind !== 'text') return [];
+
+      const have = new Set();
+      walk(parsed.sections, (section) => have.add(section.number));
+
+      // 目次の行「番号 題名 …… ページ」から番号を拾う
+      const toc = new Map();
+      for (const line of source.split('\n')) {
+        const match = /^\s{0,15}(\d+(?:\.\d+)*)\.?\s+(\S.*?)\s*(?:\.\s?){3,}\s*\d+\s*$/.exec(line);
+        if (match) toc.set(match[1], match[2]);
+      }
+      // 目次が短いものは、目次ではなく本文の並びを拾っている
+      if (toc.size < 5) return [];
+
+      return [...toc.keys()]
+        .filter((number) => !have.has(number))
+        .map((number) => `目次の S${number} "${toc.get(number).slice(0, 40)}" が構造に無い`);
+    },
+  },
+  {
     id: 'A5',
     description: 'メタデータに題名と公開日がある',
     check: ({ parsed }) => {
@@ -175,7 +207,9 @@ export const INVARIANTS = [
     description: '要件文にそのレベルのキーワードが入っている',
     check: ({ requirements }) =>
       requirements
-        .filter((r) => !new RegExp(`\\b${String(r.level).replace(' ', '\\s+')}\\b`).test(r.text ?? ''))
+        .filter(
+          (r) => !new RegExp(`\\b${String(r.level).replace(' ', '\\s+')}\\b`).test(r.text ?? '')
+        )
         .map((r) => `${r.id} に ${r.level} が無い`),
   },
   {
@@ -185,6 +219,55 @@ export const INVARIANTS = [
       requirements
         .filter((r) => looksLikeDiagram(r.text) && (r.subject || r.condition || r.action))
         .map((r) => `${r.id}: subject=${JSON.stringify(r.subject)}`),
+  },
+  {
+    id: 'B9',
+    description: 'BCP 14 の定型文から要件を出さない',
+    check: ({ requirements }) =>
+      requirements
+        .filter((r) => /\bare to be interpreted as described in\b/i.test(r.text ?? ''))
+        .map((r) => `${r.id}: ${(r.text ?? '').slice(0, 60)}`),
+  },
+  {
+    id: 'B10',
+    description: '引用符に囲まれたキーワードから要件を出さない',
+    check: ({ requirements }) =>
+      requirements
+        .filter((r) => {
+          const index = (r.text ?? '').indexOf(r.level);
+          if (index <= 0) return false;
+          const before = r.text[index - 1];
+          const after = r.text.slice(index + r.level.length);
+          return /["'“‘`]/.test(before) && /^(?:["'”’`]|-\w)/.test(after);
+        })
+        .map((r) => `${r.id}: ${(r.text ?? '').slice(0, 60)}`),
+  },
+  {
+    id: 'B11',
+    description: '否定のキーワードを肯定形として拾っていない',
+    check: ({ requirements }) =>
+      requirements
+        .filter((r) => {
+          if (/NOT/.test(r.level)) return false;
+          // 1 つの文が "MUST NOT X, and MUST Y" と書くことがあるので、
+          // レベルの出現が **すべて** NOT を伴うときだけ誤りとみなす。
+          const occurrences = [...(r.text ?? '').matchAll(new RegExp(`\\b${r.level}\\b`, 'g'))];
+          if (occurrences.length === 0) return false;
+          return occurrences.every((match) =>
+            /^\s+NOT\b/.test(r.text.slice(match.index + r.level.length))
+          );
+        })
+        .map(
+          (r) => `${r.id}: ${r.level} の出現がすべて NOT を伴う — ${(r.text ?? '').slice(0, 60)}`
+        ),
+  },
+  {
+    id: 'B12',
+    description: 'condition と exception に同じ文字列を入れない',
+    check: ({ requirements }) =>
+      requirements
+        .filter((r) => r.condition && r.exception && r.condition === r.exception)
+        .map((r) => `${r.id}: "${String(r.condition).slice(0, 50)}"`),
   },
   {
     id: 'C1',

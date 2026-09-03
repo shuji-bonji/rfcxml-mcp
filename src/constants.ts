@@ -54,7 +54,12 @@ export const REQUIREMENT_KEYWORDS: RequirementLevel[] = [
  * `extractRequirementsFromSections` の重複排除で解決している。
  */
 export function createRequirementRegex(): RegExp {
-  return new RegExp(`\\b(${REQUIREMENT_KEYWORDS.join('|')})\\b`, 'g');
+  // 2 語のキーワードは 72 桁の折り返しで改行をまたぐ。RFC 3261 の
+  // `"NOT\nRECOMMENDED"` を `RECOMMENDED` 単独で拾うと、引用符の判定が外れる。
+  const alternation = REQUIREMENT_KEYWORDS.map((keyword) => keyword.replace(/ /g, '\\s+')).join(
+    '|'
+  );
+  return new RegExp(`\\b(${alternation})\\b`, 'g');
 }
 
 /**
