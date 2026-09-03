@@ -31,6 +31,10 @@ const NOT_A_TERM =
 const FUNCTION_WORD_SUBJECT =
   /^(?:and|or|but|nor|so|then|it|its|this|that|these|those|they|them|we|you|he|she|which|who|whom|there|here|if|when|while|also|thus|hence|however|therefore|otherwise|the|a|an|of|to|in|on|at|by|as|for|from|with|is|are|was|were|be|been|being|has|have|had|not|no|all|any|each|every|such|other|both)$/i;
 
+/** 主語の末尾に来ると、機能語を巻き込んでいることを示す語。 */
+const TRAILING_SUBJECT_WORD =
+  /\s(?:and|or|but|nor|of|to|in|on|at|by|as|for|from|with|is|are|was|were|be|been|being|has|have|had|not|the|a|an|that|which|it|this)$/i;
+
 /** 参考文献の欄の見出し。 */
 const REFERENCE_HEADING =
   /^(?:\d+(?:\.\d+)*\.?\s+)?(?:(?:normative|informative)\s+)?(?:references(?:\s+and\s+bibliography)?|bibliography)\s*$/i;
@@ -237,13 +241,16 @@ export const INVARIANTS = [
   {
     id: 'B15',
     description: '主語の先頭が削られていない',
+    // 代名詞の主語は前の文から引き継ぐので、その語は要件文の中に無い。
+    // 段落（`fullContext`）まで見る。
     check: ({ requirements }) =>
       requirements
         .filter((r) => {
           if (!r.subject) return false;
           const head = r.subject.split(/\s+/)[0].replace(/[^a-z0-9_-]/gi, '');
           if (head.length < 3) return false;
-          return !new RegExp(`\\b${head}`, 'i').test(r.text ?? '');
+          const scope = `${r.text ?? ''} ${r.fullContext ?? ''}`;
+          return !new RegExp(`\\b${head}`, 'i').test(scope);
         })
         .map((r) => `${r.id}: subject=${JSON.stringify(r.subject)}`),
   },
@@ -508,6 +515,17 @@ export const INVARIANTS = [
     check: ({ requirements }) =>
       requirements
         .filter((requirement) => FUNCTION_WORD_SUBJECT.test(requirement.subject ?? ''))
+        .map((requirement) => `${requirement.id} の主語が "${requirement.subject}"`),
+  },
+  {
+    id: 'B17',
+    description: '主語の末尾が機能語でない',
+    // 主語はキーワードの直前 1〜2 語から取るので、機能語を巻き込むことがある
+    // （"response and MUST" → "response and"、"methods are REQUIRED" →
+    // "methods are"）。実測（RFC 67 本）: 375 件 → 0 件。
+    check: ({ requirements }) =>
+      requirements
+        .filter((requirement) => TRAILING_SUBJECT_WORD.test(requirement.subject ?? ''))
         .map((requirement) => `${requirement.id} の主語が "${requirement.subject}"`),
   },
   {

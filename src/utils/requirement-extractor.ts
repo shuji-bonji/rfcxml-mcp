@@ -138,7 +138,7 @@ export function extractRequirementsFromSections(
             // `subject: "message should"` `action: "SHOULD SHOULD"` が付いていた。
             const components =
               options.parseComponents && source.prose
-                ? parseRequirementComponents(sentence, marker.level)
+                ? parseRequirementComponents(sentence, marker.level, block.content)
                 : {};
 
             requirements.push({
@@ -185,7 +185,7 @@ export function extractRequirementsFromSections(
               }
 
               const components = options.parseComponents
-                ? parseRequirementComponents(itemText, marker.level)
+                ? parseRequirementComponents(itemText, marker.level, itemContext)
                 : {};
 
               requirements.push({
@@ -234,7 +234,11 @@ function hasSubstance(text: string): boolean {
 /**
  * 要件文から構成要素を解析
  */
-function parseRequirementComponents(text: string, level: RequirementLevel): Partial<Requirement> {
+function parseRequirementComponents(
+  text: string,
+  level: RequirementLevel,
+  context?: string
+): Partial<Requirement> {
   const result: Partial<Requirement> = {};
 
   // 主語の抽出（"The client MUST" → "client"）
@@ -269,7 +273,17 @@ function parseRequirementComponents(text: string, level: RequirementLevel): Part
       .toLowerCase()
       .replace(/^(?:the|a|an|each|every|all)\s+/, '')
       .trim();
-    if (subject && !NOT_A_SUBJECT.has(subject)) result.subject = subject;
+    if (subject && PRONOUN_SUBJECT.has(subject)) {
+      // 代名詞が指しているものは、同じ段落の前の文にある。
+      const antecedent = context ? subjectBeforeSentence(context, text) : undefined;
+      if (antecedent) result.subject = antecedent;
+    } else {
+      // 2 語の取り込みが機能語を巻き込むことがある（"response and MUST" →
+      // "response and"、"methods are REQUIRED" → "methods are"）。前後の機能語を
+      // 落として、残りを主語とする。全部落ちたら主語は無い。
+      const trimmed = trimFunctionWords(subject);
+      if (trimmed) result.subject = trimmed;
+    }
   }
 
   // 条件の抽出（"if", "when", "where", "in case"）
@@ -302,6 +316,68 @@ function parseRequirementComponents(text: string, level: RequirementLevel): Part
 
   return result;
 }
+
+/**
+ * 代名詞が指しているものを、同じ段落の前の文から取る。
+ *
+ * RFC 6455 §5.1 は
+ *
+ * > A client MUST close a connection if it detects a masked frame.
+ * > **In this case, it MAY use the status code 1002** (protocol error) …
+ *
+ * と書く。`it` は client を指す。取れないと `generate_checklist` の
+ * `role: "server"` にもこの項目が出る（主語が無ければ本文を見るが、本文にも
+ * client / server の語が無いため両方に残る）。
+ *
+ * 前の文の中で、キーワードの直前に置かれた語を採る。要件文と同じ取り方である。
+ */
+function subjectBeforeSentence(context: string, sentence: string): string | undefined {
+  // **文の全体で探す。** 頭の数十文字で探すと、同じ書き出しの文が段落に 2 つ
+  // あるときに手前の方に当たる。RFC 6455 §5.1 は "In this case, …" を 2 回書く
+  // ので、40 文字で探すと 1 つ目に当たり、引き継ぐ主語が server になっていた
+  // （正しくは直前の文の client）。
+  //
+  // 段落と文で空白の畳み方が違う（段落は改行を含み、文は切り出したまま）。
+  // 両方を畳んでから探す。
+  const folded = foldWhitespace(context);
+  const at = folded.indexOf(foldWhitespace(sentence));
+  if (at <= 0) return undefined;
+
+  const before = folded.slice(0, at);
+  let found: string | undefined;
+  //
+  // 冠詞は大文字で始まることがある（文頭の "A client MUST …"）。小文字だけで
+  // 書くと、文頭の文が当たらず、その手前の文の主語を引き継いでいた。
+  const pattern =
+    /\b(?:(?:[Tt]he|[Aa]n?|[Ee]ach|[Ee]very|[Aa]ll)\s+)?([A-Za-z][\w-]*(?:\s+[A-Za-z][\w-]*)?)\s+(?:MUST|SHALL|SHOULD|MAY|REQUIRED|RECOMMENDED|OPTIONAL)\b/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(before)) !== null) {
+    const candidate = match[1].toLowerCase().trim();
+    // 2 語の取り込みが接続詞を巻き込むことがある（"requests and MUST" →
+    // "requests and"）。1 語でも機能語が混じっていたら主語ではない。
+    if (candidate.split(/\s+/).some((word) => NOT_A_SUBJECT.has(word))) continue;
+    found = candidate;
+  }
+  return found;
+}
+
+/**
+ * 前後の機能語を落とす。残らなければ `undefined`。
+ *
+ * 主語はキーワードの直前 1〜2 語から取るので、機能語を巻き込むことがある。
+ * "An origin server MUST NOT generate a Date header field" の 2 語は
+ * "response and"（RFC 9110 §10.2.1）や "methods are"（同 §9.1）になる。
+ * 落とすと "response" "methods" が残る。両方とも機能語なら主語ではない。
+ */
+function trimFunctionWords(subject: string): string | undefined {
+  const words = subject.split(/\s+/).filter((word) => word.length > 0);
+  while (words.length > 0 && NOT_A_SUBJECT.has(words[words.length - 1])) words.pop();
+  while (words.length > 0 && NOT_A_SUBJECT.has(words[0])) words.shift();
+  return words.length > 0 ? words.join(' ') : undefined;
+}
+
+/** 前の文から引き継ぐ代名詞。 */
+const PRONOUN_SUBJECT = new Set(['it', 'they', 'them', 'this', 'these', 'those', 'he', 'she']);
 
 /** 主語として認めない語。接続詞・代名詞・関係詞。 */
 const NOT_A_SUBJECT = new Set([

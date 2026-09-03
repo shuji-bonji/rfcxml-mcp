@@ -50,7 +50,7 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 67 本に不変条件 43 種を当てる
+npm run audit         # 実物の RFC 67 本に不変条件 44 種を当てる
 npm run snapshot      # 代表的な出力 30 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
@@ -69,9 +69,9 @@ publish の前に、次を順に通す。
 
 | 手順 | 見るもの |
 |---|---|
-| `npm test` | 書いた条件の取りこぼし（459 件） |
+| `npm test` | 書いた条件の取りこぼし（462 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 43 種） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 44 種） |
 | `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 30 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
@@ -695,6 +695,39 @@ RFC の要件文は前置きから始まることが多い。
 
 `filterByRole` は主語が取れないときに要件文そのものを見る。どちらにも触れない
 要件は、どちらの実装にも関わりうるので両方に残す。冠詞は主語ではない。
+
+### 代名詞の主語は前の文から引き継ぐ
+
+RFC 6455 §5.1 は
+
+> A client MUST close a connection if it detects a masked frame.
+> **In this case, it MAY use the status code 1002** (protocol error) …
+
+と書く。`it` は client を指す。主語が付かないと `role` の絞り込みが本文に落ち、
+本文にも client / server の語が無いので**両方の一覧に出る**。
+
+`subjectBeforeSentence()` が、同じ段落の前の文で、キーワードの直前に置かれた語を
+引き継ぐ。2 つ落とし穴がある。
+
+1. **文の全体で探す。** 頭の数十文字で探すと、同じ書き出しの文が段落に 2 つ
+   あるときに手前に当たる。RFC 6455 §5.1 は "In this case, …" を 2 回書く。
+2. **冠詞は大文字で始まる。** 小文字だけで書くと文頭の "A client MUST …" が
+   当たらず、その手前の文の主語を引き継ぐ。
+
+実測（RFC 67 本）: 引き継いだ要件 213 件。RFC 6455 §5.1 の client / server は
+4 件ずつに分かれた。
+
+### 主語の機能語は、落とすのではなく切り詰める
+
+1〜2 語の取り込みなので `response and` `methods are` `it is` のようになる。
+
+| やり方 | 主語が付く要件 | `role` で両方に残る |
+|---|---:|---:|
+| そのまま | 87.2% | 2 |
+| **前後の機能語を切り詰める** | **85.0%** | **4** |
+| 機能語を含むものを丸ごと落とす | 74.6% | 3 |
+
+切り詰める方を採る。実測: 末尾が機能語の主語 375 件 → 0 件。
 
 ### 主語にならない語がある
 

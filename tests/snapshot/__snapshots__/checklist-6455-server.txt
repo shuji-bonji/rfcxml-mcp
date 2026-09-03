@@ -30,7 +30,6 @@ Generated: <generatedAt>
 ## Optional Requirements (MAY / OPTIONAL)
 
 - [ ] **MAY** In this case, a server MAY send a Close frame with a status code of 1002 (protocol error) as defined in Section 7.4.1. (§5.1)
-- [ ] **MAY** In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1. (§5.1)
 - [ ] **MAY** A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1). (§5.1)
 - [ ] **MAY** The first fragment MAY also be the final fragment. (§5.2)
 
@@ -41,8 +40,8 @@ Generated: <generatedAt>
   "stats": {
     "must": 12,
     "should": 0,
-    "may": 4,
-    "total": 16
+    "may": 3,
+    "total": 15
   },
   "_source": "text",
   "_sourceNote": "Warning: Parsed from text format. Checklist accuracy may be limited."

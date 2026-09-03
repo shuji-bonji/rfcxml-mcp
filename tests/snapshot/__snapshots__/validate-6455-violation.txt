@@ -53,6 +53,25 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_levelMatch": false
     },
     {
+      "id": "R-5.1-71",
+      "level": "MAY",
+      "text": "In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1.",
+      "section": "5.1",
+      "sectionTitle": "Overview",
+      "fullContext": "In the WebSocket Protocol, data is transmitted using a sequence of frames. To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details). (Note that masking is done whether or not the WebSocket Protocol is running over TLS.) The server MUST close the connection upon receiving a frame that is not masked. In this case, a server MAY send a Close frame with a status code of 1002 (protocol error) as defined in Section 7.4.1. A server MUST NOT mask any frames that it sends to the client. A client MUST close a connection if it detects a masked frame. In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1. (These rules might be relaxed in a future specification.) The base framing protocol defines a frame type with an opcode, a payload length, and designated locations for \"Extension data\" and \"Application data\", which together define the \"Payload data\". Certain bits and opcodes are reserved for future expansion of the protocol.",
+      "subject": "client",
+      "action": "use the status code 1002 (protocol error) as defined in Section 7.4.1",
+      "_matchScore": 13,
+      "_matchedKeywords": [
+        "client",
+        "sends",
+        "frames",
+        "server"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    },
+    {
       "id": "R-10.7-185",
       "level": "MUST",
       "text": "Incoming data MUST always be validated by both clients and servers.",
@@ -176,24 +195,6 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_matchedKeywords": [
         "client",
         "sends",
-        "server"
-      ],
-      "_subjectMatch": true,
-      "_levelMatch": false
-    },
-    {
-      "id": "R-5.1-72",
-      "level": "MAY",
-      "text": "A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1).",
-      "section": "5.1",
-      "sectionTitle": "Overview",
-      "fullContext": "A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1).",
-      "subject": "data frame",
-      "action": "be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1)",
-      "_matchScore": 12,
-      "_matchedKeywords": [
-        "client",
-        "frames",
         "server"
       ],
       "_subjectMatch": true,

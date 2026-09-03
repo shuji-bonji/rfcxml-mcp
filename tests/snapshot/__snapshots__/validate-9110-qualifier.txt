@@ -105,7 +105,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "section": "10.2.1",
       "sectionTitle": "Allow",
       "fullContext": "The actual set of allowed methods is defined by the origin server at the time of each request. An origin server MUST generate an Allow header field in a 405 (Method Not Allowed) response and MAY do so in any other response. An empty Allow field value indicates that the resource allows no methods, which might occur in a 405 response if the resource has been temporarily disabled by configuration.",
-      "subject": "response and",
+      "subject": "response",
       "action": "do so in any other response",
       "_matchScore": 15,
       "_matchedKeywords": [
@@ -185,7 +185,6 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "section": "12.5.5",
       "sectionTitle": "Vary",
       "fullContext": "To inform cache recipients that they MUST NOT use this response to satisfy a later request unless the later request has the same values for the listed header fields as the original request (Section 4.1 of [CACHING]) or reuse of the response has been validated by the origin server. In other words, Vary expands the cache key required to match a new request to the stored cache entry.",
-      "subject": "that they",
       "exception": "the later request has the same values for the listed header fields as the original request (Section 4.1 of [CACHING]) or reuse of the response has been validated by the origin server",
       "action": "use this response to satisfy a later request unless the later request has the same values for the listed header fields as the original request (Section 4.1 of [CACHING]) or reuse of the response has been validated by the origin server",
       "_matchScore": 15,

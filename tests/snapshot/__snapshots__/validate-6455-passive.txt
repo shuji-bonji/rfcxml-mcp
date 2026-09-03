@@ -142,7 +142,7 @@ args: {"rfc":6455,"statement":"The fragments of one message are interleaved betw
       "section": "5.4",
       "sectionTitle": "Fragmentation",
       "fullContext": "Clients and servers MUST support receiving both fragmented and unfragmented messages.",
-      "subject": "and servers",
+      "subject": "servers",
       "action": "support receiving both fragmented and unfragmented messages",
       "_matchScore": 6,
       "_matchedKeywords": [

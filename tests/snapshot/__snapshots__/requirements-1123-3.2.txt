@@ -215,7 +215,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.5",
       "sectionTitle": "NVT Printer and Keyboard: RFC-854, p. 11",
       "fullContext": "In NVT mode, a Telnet SHOULD NOT send characters with the high-order bit 1, and MUST NOT send it as a parity bit. Implementations that pass the high-order bit to applications SHOULD negotiate binary mode (see Section 3.2.6).",
-      "subject": "to applications",
+      "subject": "applications",
       "action": "negotiate binary mode (see Section 3.2.6)"
     },
     {
@@ -225,7 +225,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.5",
       "sectionTitle": "NVT Printer and Keyboard: RFC-854, p. 11",
       "fullContext": "However, there exist applications that really need an 8- bit NVT mode, which is currently not defined, and these existing applications do set the high-order bit during part or all of the life of a Telnet connection. Note that binary mode is not the same as 8-bit NVT mode, since binary mode turns off end-of-line processing. For this reason, the requirements on the high-order bit are stated as SHOULD, not MUST.",
-      "subject": "stated as"
+      "subject": "stated"
     },
     {
       "id": "R-3.2.5-21",
@@ -242,7 +242,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.6",
       "sectionTitle": "Telnet Command Structure: RFC-854, p. 13",
       "fullContext": "Since options may appear at any point in the data stream, a Telnet escape character (known as IAC, with the value 255) to be sent as data MUST be doubled.",
-      "subject": "as data",
+      "subject": "data",
       "action": "be doubled"
     },
     {

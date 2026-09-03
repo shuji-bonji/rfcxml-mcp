@@ -856,3 +856,66 @@ describe('主語にならない語', () => {
     expect(requirement.subject).toBe('automated clients');
   });
 });
+
+describe('代名詞の主語を前の文から引き継ぐ', () => {
+  // RFC 6455 §5.1。"it" は直前の文の client を指す。取れないと
+  // `generate_checklist` の role: "server" にもこの項目が出ていた。
+  const paragraph =
+    'A server MUST NOT mask any frames that it sends to the client. A client MUST close a connection if it detects a masked frame. In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1.';
+
+  const requirements = () =>
+    extractRequirementsFromSections([
+      {
+        number: '5.1',
+        title: 'Overview',
+        content: [
+          {
+            type: 'text',
+            content: paragraph,
+            requirements: [
+              { level: 'MUST NOT', position: 9 },
+              { level: 'MUST', position: 71 },
+              { level: 'MAY', position: 145 },
+            ],
+          },
+        ],
+        subsections: [],
+      },
+    ]);
+
+  it('直前の文の主語を採る', () => {
+    const [, , third] = requirements();
+
+    expect(third.text).toMatch(/^In this case, it MAY use/);
+    expect(third.subject).toBe('client');
+  });
+
+  it('同じ書き出しの文が 2 つあっても取り違えない', () => {
+    // 頭の数十文字で探すと手前の文に当たり、server を引き継いでいた。
+    const [, , third] = requirements();
+
+    expect(third.subject).not.toBe('server');
+  });
+});
+
+describe('主語の前後の機能語を落とす', () => {
+  it('末尾の接続詞を落とす', () => {
+    const [requirement] = extractRequirementsFromSections([
+      {
+        number: '10.2.1',
+        title: 'Allow',
+        content: [
+          {
+            type: 'text',
+            content:
+              'An origin server generates an Allow header field in a 405 response and MAY do so in any other response.',
+            requirements: [{ level: 'MAY', position: 71 }],
+          },
+        ],
+        subsections: [],
+      },
+    ]);
+
+    expect(requirement.subject).toBe('response');
+  });
+});
