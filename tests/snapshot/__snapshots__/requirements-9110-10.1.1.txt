@@ -1,0 +1,172 @@
+# requirements-9110-10.1.1
+
+tool: get_requirements
+args: {"rfc":9110,"section":"10.1.1"}
+
+--- json ---
+{
+  "rfc": 9110,
+  "filter": {
+    "section": "10.1.1",
+    "level": "all"
+  },
+  "stats": {
+    "total": 14,
+    "byLevel": {
+      "MAY": 4,
+      "MUST NOT": 2,
+      "MUST": 5,
+      "SHOULD NOT": 1,
+      "SHOULD": 2
+    }
+  },
+  "requirements": [
+    {
+      "id": "R-10.1.1-1",
+      "level": "MAY",
+      "text": "A server that receives an Expect field value containing a member other than 100-continue MAY respond with a 417 (Expectation Failed) status code to indicate that the unexpected expectation cannot be met.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "A server that receives an Expect field value containing a member other than 100-continue MAY respond with a 417 (Expectation Failed) status code to indicate that the unexpected expectation cannot be met.",
+      "subject": "continue",
+      "action": "respond with a 417 (Expectation Failed) status code to indicate that the unexpected expectation cannot be met"
+    },
+    {
+      "id": "R-10.1.1-2",
+      "level": "MUST NOT",
+      "text": "A client MUST NOT generate a 100-continue expectation in a request that does not include content.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "A client MUST NOT generate a 100-continue expectation in a request that does not include content.",
+      "subject": "client",
+      "action": "generate a 100-continue expectation in a request that does not include content"
+    },
+    {
+      "id": "R-10.1.1-3",
+      "level": "MUST",
+      "text": "A client that will wait for a 100 (Continue) response before sending the request content MUST send an Expect header field containing a 100-continue expectation.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "A client that will wait for a 100 (Continue) response before sending the request content MUST send an Expect header field containing a 100-continue expectation.",
+      "subject": "request content",
+      "action": "send an Expect header field containing a 100-continue expectation"
+    },
+    {
+      "id": "R-10.1.1-4",
+      "level": "MAY",
+      "text": "A client that sends a 100-continue expectation is not required to wait for any specific length of time; such a client MAY proceed to send the content even if it has not yet received a response.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "A client that sends a 100-continue expectation is not required to wait for any specific length of time; such a client MAY proceed to send the content even if it has not yet received a response. Furthermore, since 100 (Continue) responses cannot be sent through an HTTP/1.0 intermediary, such a client SHOULD NOT wait for an indefinite period before sending the content.",
+      "subject": "client",
+      "condition": "it has not yet received a response",
+      "action": "proceed to send the content even if it has not yet received a response"
+    },
+    {
+      "id": "R-10.1.1-5",
+      "level": "SHOULD NOT",
+      "text": "Furthermore, since 100 (Continue) responses cannot be sent through an HTTP/1.0 intermediary, such a client SHOULD NOT wait for an indefinite period before sending the content.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "A client that sends a 100-continue expectation is not required to wait for any specific length of time; such a client MAY proceed to send the content even if it has not yet received a response. Furthermore, since 100 (Continue) responses cannot be sent through an HTTP/1.0 intermediary, such a client SHOULD NOT wait for an indefinite period before sending the content.",
+      "subject": "client",
+      "action": "wait for an indefinite period before sending the content"
+    },
+    {
+      "id": "R-10.1.1-6",
+      "level": "SHOULD",
+      "text": "A client that receives a 417 (Expectation Failed) status code in response to a request containing a 100-continue expectation SHOULD repeat that request without a 100-continue expectation, since the 417 response merely indicates that the response chain does not support expectations (e.g., it passes through an HTTP/1.0 server).",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "A client that receives a 417 (Expectation Failed) status code in response to a request containing a 100-continue expectation SHOULD repeat that request without a 100-continue expectation, since the 417 response merely indicates that the response chain does not support expectations (e.g., it passes through an HTTP/1.0 server).",
+      "subject": "continue expectation",
+      "action": "repeat that request without a 100-continue expectation"
+    },
+    {
+      "id": "R-10.1.1-7",
+      "level": "MUST",
+      "text": "A server that receives a 100-continue expectation in an HTTP/1.0 request MUST ignore that expectation.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "A server that receives a 100-continue expectation in an HTTP/1.0 request MUST ignore that expectation.",
+      "subject": "request",
+      "action": "ignore that expectation"
+    },
+    {
+      "id": "R-10.1.1-8",
+      "level": "MAY",
+      "text": "A server MAY omit sending a 100 (Continue) response if it has already received some or all of the content for the corresponding request, or if the framing indicates that there is no content.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "A server MAY omit sending a 100 (Continue) response if it has already received some or all of the content for the corresponding request, or if the framing indicates that there is no content.",
+      "subject": "server",
+      "condition": "it has already received some or all of the content for the corresponding request, or if the framing indicates that there is no content",
+      "action": "omit sending a 100 (Continue) response if it has already received some or all of the content for the corresponding request, or if the framing indicates that there is no content"
+    },
+    {
+      "id": "R-10.1.1-9",
+      "level": "MUST",
+      "text": "A server that sends a 100 (Continue) response MUST ultimately send a final status code, once it receives and processes the request content, unless the connection is closed prematurely.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "A server that sends a 100 (Continue) response MUST ultimately send a final status code, once it receives and processes the request content, unless the connection is closed prematurely.",
+      "subject": "response",
+      "exception": "the connection is closed prematurely",
+      "action": "ultimately send a final status code"
+    },
+    {
+      "id": "R-10.1.1-10",
+      "level": "SHOULD",
+      "text": "A server that responds with a final status code before reading the entire request content SHOULD indicate whether it intends to close the connection (e.g., see Section 9.6 of [HTTP/1.1]) or continue reading the request content.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "A server that responds with a final status code before reading the entire request content SHOULD indicate whether it intends to close the connection (e.g., see Section 9.6 of [HTTP/1.1]) or continue reading the request content.",
+      "subject": "request content",
+      "action": "indicate whether it intends to close the connection (e.g., see Section 9.6 of [HTTP/1.1]) or continue reading the request content"
+    },
+    {
+      "id": "R-10.1.1-11",
+      "level": "MUST",
+      "text": "Upon receiving an HTTP/1.1 (or later) request that has a method, target URI, and complete header section that contains a 100-continue expectation and an indication that request content will follow, an origin server MUST send either: an immediate response with a final status code, if that status can be determined by examining just the method, target URI, and header fields, or an immediate 100 (Continue) response to encourage the client to send the request content.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "Upon receiving an HTTP/1.1 (or later) request that has a method, target URI, and complete header section that contains a 100-continue expectation and an indication that request content will follow, an origin server MUST send either: an immediate response with a final status code, if that status can be determined by examining just the method, target URI, and header fields, or an immediate 100 (Continue) response to encourage the client to send the request content.",
+      "subject": "origin server",
+      "condition": "that status can be determined by examining just the method, target URI, and header fields, or an immediate 100 (Continue) response to encourage the client to send the request content",
+      "action": "send either: an immediate response with a final status code"
+    },
+    {
+      "id": "R-10.1.1-12",
+      "level": "MUST NOT",
+      "text": "The origin server MUST NOT wait for the content before sending the 100 (Continue) response.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "The origin server MUST NOT wait for the content before sending the 100 (Continue) response.",
+      "subject": "origin server",
+      "action": "wait for the content before sending the 100 (Continue) response"
+    },
+    {
+      "id": "R-10.1.1-13",
+      "level": "MUST",
+      "text": "Upon receiving an HTTP/1.1 (or later) request that has a method, target URI, and complete header section that contains a 100-continue expectation and indicates a request content will follow, a proxy MUST either: send an immediate response with a final status code, if that status can be determined by examining just the method, target URI, and header fields, or forward the request toward the origin server by sending a corresponding request-line and header section to the next inbound server.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "Upon receiving an HTTP/1.1 (or later) request that has a method, target URI, and complete header section that contains a 100-continue expectation and indicates a request content will follow, a proxy MUST either: send an immediate response with a final status code, if that status can be determined by examining just the method, target URI, and header fields, or forward the request toward the origin server by sending a corresponding request-line and header section to the next inbound server.",
+      "subject": "proxy",
+      "condition": "that status can be determined by examining just the method, target URI, and header fields, or forward the request toward the origin server by sending a corresponding request-line and header section to the next inbound server",
+      "action": "either: send an immediate response with a final status code"
+    },
+    {
+      "id": "R-10.1.1-14",
+      "level": "MAY",
+      "text": "If the proxy believes (from configuration or past interaction) that the next inbound server only supports HTTP/1.0, the proxy MAY generate an immediate 100 (Continue) response to encourage the client to begin sending the content.",
+      "section": "10.1.1",
+      "sectionTitle": "Expect",
+      "fullContext": "If the proxy believes (from configuration or past interaction) that the next inbound server only supports HTTP/1.0, the proxy MAY generate an immediate 100 (Continue) response to encourage the client to begin sending the content.",
+      "subject": "proxy",
+      "condition": "the proxy believes (from configuration or past interaction) that the next inbound server only supports HTTP/1.0",
+      "action": "generate an immediate 100 (Continue) response to encourage the client to begin sending the content"
+    }
+  ],
+  "_source": "xml"
+}

@@ -481,6 +481,11 @@ function joinListItems(items: string[]): string {
   return /[.!?]$/.test(joined) ? joined : `${joined}.`;
 }
 
+/** 箇条書きの項目が、それ自体で BCP 14 の要件になっているか。 */
+function listCarriesRequirement(element: OrderedElement): boolean {
+  return (element.items ?? []).some((item) => createRequirementRegex().test(item));
+}
+
 function mergeContinuations(elements: OrderedElement[]): OrderedElement[] {
   const merged: OrderedElement[] = [];
   const consumed = new Set<number>();
@@ -498,10 +503,25 @@ function mergeContinuations(elements: OrderedElement[]): OrderedElement[] {
     const hasKeyword = createRequirementRegex().test(text);
 
     for (let step = 1; hasKeyword && step <= MAX_CONTINUATION_BLOCKS; step++) {
-      if (/[.!?:;]$/.test(text)) break;
-
       const next = elements[i + step];
       if (!next || consumed.has(i + step)) break;
+
+      // コロンで終わる文は、続く箇条書きで完結することがある。
+      //
+      //   <t>… an origin server <bcp14>MUST</bcp14> send either:</t>
+      //   <ul><li>an immediate response with a final status code, …</li>
+      //       <li>an immediate 100 (Continue) response …</li></ul>
+      //
+      // `<t>` だけを要件文にすると `MUST send either:` で終わり、**何を選ぶのかが
+      // 書かれていない**（RFC 9110 §10.1.1）。
+      //
+      // ただし項目自身がキーワードを持つなら取り込まない。その項目は独立した
+      // 要件であり、取り込むと項目の側の要件文が失われる。
+      const completesWithList =
+        /:$/.test(text) &&
+        (next.kind === 'list' ? !listCarriesRequirement(next) : next.kind !== 'text');
+
+      if (/[.!?:;]$/.test(text) && !completesWithList) break;
 
       if (next.kind === 'list') {
         const items = (next.items ?? []).filter((item) => item.length > 0);

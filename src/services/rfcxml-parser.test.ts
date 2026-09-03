@@ -945,3 +945,49 @@ ${items.map((item, index) => `        <li pn="section-9.3.5-5.${index + 1}">${it
     expect(requirement.text).not.toContain('..');
   });
 });
+
+describe('コロンで終わる段落と、続く箇条書き', () => {
+  const xml = `<?xml version="1.0"?>
+<rfc number="9110">
+  <middle>
+    <section anchor="expect" pn="section-10.1.1">
+      <name>Expect</name>
+      <t pn="section-10.1.1-14">Upon receiving a request that contains a 100-continue expectation, an origin server <bcp14>MUST</bcp14> send either:</t>
+      <ul pn="section-10.1.1-15">
+        <li pn="section-10.1.1-15.1">an immediate response with a final status code, or</li>
+        <li pn="section-10.1.1-15.2">an immediate 100 (Continue) response.</li>
+      </ul>
+    </section>
+    <section anchor="rules" pn="section-3.2">
+      <name>Rules</name>
+      <t pn="section-3.2-1">If the Timestamp option is implemented, the following rules apply, and it is <bcp14>OPTIONAL</bcp14>:</t>
+      <ul pn="section-3.2-2">
+        <li pn="section-3.2-2.1">The originating host <bcp14>MUST</bcp14> record a timestamp.</li>
+      </ul>
+    </section>
+  </middle>
+</rfc>`;
+
+  const requirementsOf = (section: string) =>
+    extractRequirements(parseRFCXML(xml).sections, { section });
+
+  it('項目を取り込む', () => {
+    // `<t>` だけを要件文にすると "MUST send either:" で終わり、
+    // 何を選ぶのかが書かれていない（RFC 9110 §10.1.1）。
+    const [requirement] = requirementsOf('10.1.1');
+
+    expect(requirement.text).toBe(
+      'Upon receiving a request that contains a 100-continue expectation, an origin server MUST send either: an immediate response with a final status code, or an immediate 100 (Continue) response.'
+    );
+  });
+
+  it('項目自身がキーワードを持つなら取り込まない', () => {
+    // 取り込むと、項目の側の要件文が失われる。
+    const requirements = requirementsOf('3.2');
+
+    expect(requirements.map((r) => r.text)).toContain(
+      'The originating host MUST record a timestamp.'
+    );
+    expect(requirements.some((r) => /rules apply.*originating host/s.test(r.text))).toBe(false);
+  });
+});

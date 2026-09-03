@@ -84,6 +84,12 @@ export const CASES = [
     tool: 'get_requirements',
     args: { rfc: 9110, section: '9.3.5' },
   },
+  {
+    // コロンで終わる `<t>` が、続く `<ul>` を取り込むこと。
+    name: 'requirements-9110-10.1.1',
+    tool: 'get_requirements',
+    args: { rfc: 9110, section: '10.1.1' },
+  },
 
   // --- get_definitions ---
   {
