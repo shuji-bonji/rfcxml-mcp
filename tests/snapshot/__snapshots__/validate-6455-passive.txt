@@ -191,7 +191,7 @@ args: {"rfc":6455,"statement":"The fragments of one message are interleaved betw
   ],
   "conflicts": [],
   "suggestions": [
-    "Cannot judge: requirement R-5.4-88 is written in the passive voice (\"MUST NOT be interleaved between the fragments of another message unle…\"), so the text names no actor. Read that requirement and decide."
+    "Cannot judge: requirement R-5.4-88 is written in the passive voice (\"MUST NOT be interleaved between the fragments of another message…\"), so the text names no actor. Read that requirement and decide."
   ],
   "_source": "text",
   "_sourceNote": "Warning: Parsed from text format. Validation accuracy may be limited."

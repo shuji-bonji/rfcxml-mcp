@@ -17,6 +17,7 @@ import {
   extractCrossReferences,
   extractRequirementMarkers as extractMarkers,
   dropNonDefinitions,
+  clipAtWord,
   SENTENCE_OPENER,
   RELATIVE_CLAUSE,
   looksLikeDiagram,
@@ -350,7 +351,14 @@ function parseTextReference(
   };
 }
 
-/** 引用符を使わない書式の項目から、題名にあたる部分を取る最大の長さ。 */
+/**
+ * 引用符を使わない書式の項目から、題名にあたる部分を取る最大の長さ。
+ *
+ * 上限で切るときは語の境目で切り、三点リーダを置く（`clipAtWord`）。以前は
+ * 途中で切っていたため、RFC 2822 の `[ASCII]` が
+ * "… American National Standard Code for Informatio" で終わっていた。
+ * 切ったことが分からないと、読み手はそれが題名の全部だと読む。
+ */
 const UNQUOTED_TITLE_MAX_LENGTH = 120;
 
 /**
@@ -376,7 +384,7 @@ function titleWithoutQuotes(entry: string): string | undefined {
   const unbalanced = /"([^"]+?)(?:,\s*(?:STD|RFC|BCP|Work in Progress)\b|$)/.exec(entry);
   if (unbalanced && (entry.match(/"/g) ?? []).length === 1) {
     const candidate = unbalanced[1].trim();
-    if (candidate.length >= 12) return candidate.slice(0, UNQUOTED_TITLE_MAX_LENGTH);
+    if (candidate.length >= 12) return clipAtWord(candidate, UNQUOTED_TITLE_MAX_LENGTH);
   }
 
   // 目印は題名ではない。RFC 1305 は `[BEL86]` を 1 行に置き、次の行から
@@ -401,7 +409,7 @@ function titleWithoutQuotes(entry: string): string | undefined {
 
   const longest = candidates.reduce((best, part) => (part.length > best.length ? part : best), '');
   if (longest.length >= 12 && parts.length >= 2) {
-    return longest.slice(0, UNQUOTED_TITLE_MAX_LENGTH).trim();
+    return clipAtWord(longest, UNQUOTED_TITLE_MAX_LENGTH);
   }
 
   // 文の切れ目が無い引用がある。RFC 5246 の
@@ -410,7 +418,7 @@ function titleWithoutQuotes(entry: string): string | undefined {
   // は句点で割れない。目印を外した本文をそのまま題名にする。
   // 落とすと、題名が目印（`X680`）のままになる。
   if (body.length >= 12) {
-    return body.slice(0, UNQUOTED_TITLE_MAX_LENGTH).trim();
+    return clipAtWord(body, UNQUOTED_TITLE_MAX_LENGTH);
   }
 
   return undefined;
@@ -1742,20 +1750,6 @@ function hangingDefinition(
   if (definition.length < DEFINITION_EXTRACTION.MIN_DEFINITION_LENGTH) return null;
 
   return { definition: { term, definition }, lastLine: cursor - 1 };
-}
-
-/**
- * 上限で切る。語の途中では切らず、末尾に三点リーダを置く。
- *
- * 切ったことが分からないと、読み手は文が終わっていると読む。RFC 2616 §14.9.2 の
- * no-store は "This directive applies to both non" で終わっていた。
- */
-function clipAtWord(text: string, max: number): string {
-  const trimmed = text.trim();
-  if (trimmed.length <= max) return trimmed;
-  const head = trimmed.slice(0, max);
-  const cut = head.lastIndexOf(' ');
-  return `${(cut > max / 2 ? head.slice(0, cut) : head).replace(/[\s,;:-]+$/, '')}…`;
 }
 
 /** ぶら下げの用語欄の字下げと長さ。 */

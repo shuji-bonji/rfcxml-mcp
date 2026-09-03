@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   dropNonDefinitions,
+  clipAtWord,
   clipAtClauseEnd,
   extractCrossReferences,
   extractRequirementMarkers,
@@ -444,5 +445,27 @@ describe('定義になっていないものを落とす', () => {
       { term: 'HSTS Host', definition: '2 回なら残す' },
     ]);
     expect(kept.map((d) => d.term)).toEqual(['HSTS Host', 'HSTS Host']);
+  });
+});
+
+describe('上限で切る', () => {
+  it('語の途中では切らず、三点リーダを置く', () => {
+    // RFC 2822 の [ASCII] の題名が "… Code for Informatio" で終わっていた。
+    expect(clipAtWord('Coded Character Set for Information Interchange', 30)).toBe(
+      'Coded Character Set for…'
+    );
+  });
+
+  it('上限に届かなければそのまま返す', () => {
+    expect(clipAtWord('Short title', 30)).toBe('Short title');
+  });
+
+  it('語の区切りが上限の手前半分より前なら、そこでは切らない', () => {
+    // 1 語が長いとき、頭だけを残しても意味が無い。
+    expect(clipAtWord('A verylongsinglewordwithoutspaces here', 20)).toBe('A verylongsingleword…');
+  });
+
+  it('末尾の読点は残さない', () => {
+    expect(clipAtWord('Coded Character Set, 7-Bit Standard', 20)).toBe('Coded Character…');
   });
 });

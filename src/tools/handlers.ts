@@ -30,6 +30,7 @@ import {
   findUndecidablePassiveProhibition,
   MATCHING_LIMITS,
 } from '../utils/statement-matcher.js';
+import { clipAtWord } from '../utils/text.js';
 
 // Re-export clearParseCache for testing
 export { clearParseCache };
@@ -368,11 +369,6 @@ export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
   };
 }
 
-/** 長い引用を切る。要求アクションは 1 文まるごとのことがある。 */
-function clip(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
-}
-
 /**
  * `isValid` が `null` のときに、なぜ判断しなかったかを返す。
  *
@@ -442,7 +438,7 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
   }
   if (undecidable) {
     suggestions.push(
-      `Cannot judge: requirement ${undecidable.id} is written in the passive voice ("${undecidable.level} ${clip(undecidable.action ?? '', 60)}"), so the text names no actor. Read that requirement and decide.`
+      `Cannot judge: requirement ${undecidable.id} is written in the passive voice ("${undecidable.level} ${clipAtWord(undecidable.action ?? '', 60)}"), so the text names no actor. Read that requirement and decide.`
     );
   }
   if (statementLevel && !statementSubject) {

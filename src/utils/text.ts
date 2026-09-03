@@ -514,3 +514,21 @@ export function dropNonDefinitions<T extends { term: string }>(definitions: T[])
       (count.get(definition.term) ?? 0) < MAX_TERM_OCCURRENCES
   );
 }
+
+/**
+ * 上限で切る。語の途中では切らず、末尾に三点リーダを置く。
+ *
+ * 切ったことが分からないと、読み手はそれが全部だと読む。実例:
+ *
+ * - RFC 2616 §14.9.2 の no-store の定義が
+ *   "This directive applies to both non" で終わっていた。
+ * - RFC 2822 の `[ASCII]` の題名が
+ *   "… American National Standard Code for Informatio" で終わっていた。
+ */
+export function clipAtWord(text: string, max: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= max) return trimmed;
+  const head = trimmed.slice(0, max);
+  const cut = head.lastIndexOf(' ');
+  return `${(cut > max / 2 ? head.slice(0, cut) : head).replace(/[\s,;:-]+$/, '')}…`;
+}
