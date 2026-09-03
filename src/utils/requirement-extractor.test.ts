@@ -919,3 +919,53 @@ describe('主語の前後の機能語を落とす', () => {
     expect(requirement.subject).toBe('response');
   });
 });
+
+describe('要件の id', () => {
+  const sections = [
+    {
+      number: '1',
+      title: 'Introduction',
+      content: [
+        {
+          type: 'text',
+          content: 'A client MUST send a request. A server MUST respond.',
+          requirements: [
+            { level: 'MUST', position: 9 },
+            { level: 'MUST', position: 40 },
+          ],
+        },
+      ],
+      subsections: [],
+    },
+    {
+      number: '2',
+      title: 'Details',
+      content: [
+        {
+          type: 'text',
+          content: 'A proxy MUST forward the request.',
+          requirements: [{ level: 'MUST', position: 8 }],
+        },
+      ],
+      subsections: [],
+    },
+  ];
+
+  it('連番は節ごとに 1 から始まる', () => {
+    const ids = extractRequirementsFromSections(sections).map((r) => r.id);
+
+    expect(ids).toEqual(['R-1-1', 'R-1-2', 'R-2-1']);
+  });
+
+  it('節を絞っても id が変わらない', () => {
+    // 全体から取った id と、その節だけを渡して取った id が一致すること。
+    // 文書全体で 1 本の連番にしていたため、`validate_statement` が報告する
+    // id を `get_requirements({ section })` で引けなかった。
+    const fromAll = extractRequirementsFromSections(sections)
+      .filter((r) => r.section === '2')
+      .map((r) => r.id);
+    const fromOne = extractRequirementsFromSections([sections[1]]).map((r) => r.id);
+
+    expect(fromOne).toEqual(fromAll);
+  });
+});

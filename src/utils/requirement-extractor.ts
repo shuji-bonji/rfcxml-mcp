@@ -80,7 +80,24 @@ export function extractRequirementsFromSections(
   options: ParseOptions = { parseComponents: true }
 ): Requirement[] {
   const requirements: Requirement[] = [];
-  let idCounter = 1;
+
+  /**
+   * 要件の id の連番。**節ごとに数える。**
+   *
+   * 文書全体で 1 本の連番にしていたため、同じ要件が呼び方で違う id を持って
+   * いた。`validate_statement` は全件から取るので RFC 9110 §6.6.1 の禁止を
+   * `R-6.6.1-76` と報告するが、利用者がそれを読もうと
+   * `get_requirements({ rfc: 9110, section: "6.6.1" })` を呼ぶと、返るのは
+   * `R-6.6.1-1` 〜 `R-6.6.1-7` で、**教えられた id が存在しない**。
+   *
+   * 節ごとに数えれば「その節の n 番目」という意味になり、絞り込みで変わらない。
+   */
+  const idCounters = new Map<string, number>();
+  const nextId = (sectionId: string): string => {
+    const next = (idCounters.get(sectionId) ?? 0) + 1;
+    idCounters.set(sectionId, next);
+    return `R-${sectionId}-${next}`;
+  };
 
   /**
    * 出力済みの要件を記録する。キーは「セクション + レベル + 要件文」。
@@ -142,7 +159,7 @@ export function extractRequirementsFromSections(
                 : {};
 
             requirements.push({
-              id: `R-${sectionId}-${idCounter++}`,
+              id: nextId(sectionId),
               level: marker.level,
               text: sentence,
               section: sectionId,
@@ -189,7 +206,7 @@ export function extractRequirementsFromSections(
                 : {};
 
               requirements.push({
-                id: `R-${sectionId}-${idCounter++}`,
+                id: nextId(sectionId),
                 level: marker.level,
                 text: itemText,
                 section: sectionId,

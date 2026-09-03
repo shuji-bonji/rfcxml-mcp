@@ -74,7 +74,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "default to"
     },
     {
-      "id": "R-3.2.2-6",
+      "id": "R-3.2.2-1",
       "level": "MUST",
       "text": "On a host that never sends the Telnet command Go Ahead (GA), the Telnet Server MUST attempt to negotiate the Suppress Go Ahead option (i.e., send \"WILL Suppress Go Ahead\").",
       "section": "3.2.2",
@@ -84,7 +84,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "attempt to negotiate the Suppress Go Ahead option (i.e., send \"WILL Suppress Go Ahead\")"
     },
     {
-      "id": "R-3.2.2-7",
+      "id": "R-3.2.2-2",
       "level": "MUST",
       "text": "A User or Server Telnet MUST always accept negotiation of the Suppress Go Ahead option.",
       "section": "3.2.2",
@@ -94,7 +94,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "always accept negotiation of the Suppress Go Ahead option"
     },
     {
-      "id": "R-3.2.2-8",
+      "id": "R-3.2.2-3",
       "level": "MAY",
       "text": "When it is driving a full-duplex terminal for which GA has no meaning, a User Telnet implementation MAY ignore GA commands.",
       "section": "3.2.2",
@@ -105,7 +105,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "ignore GA commands"
     },
     {
-      "id": "R-3.2.3-9",
+      "id": "R-3.2.3-1",
       "level": "MAY",
       "text": "Both User and Server Telnets MAY support the control functions EOR, EC, EL, and Break, and MUST support AO, AYT, DM, IP, NOP, SB, and SE.",
       "section": "3.2.3",
@@ -115,7 +115,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "support the control functions EOR"
     },
     {
-      "id": "R-3.2.3-10",
+      "id": "R-3.2.3-2",
       "level": "MUST",
       "text": "Both User and Server Telnets MAY support the control functions EOR, EC, EL, and Break, and MUST support AO, AYT, DM, IP, NOP, SB, and SE.",
       "section": "3.2.3",
@@ -124,7 +124,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "support AO"
     },
     {
-      "id": "R-3.2.3-11",
+      "id": "R-3.2.3-3",
       "level": "MUST",
       "text": "A host MUST be able to receive and ignore any Telnet control functions that it does not support.",
       "section": "3.2.3",
@@ -134,7 +134,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "be able to receive and ignore any Telnet control functions that it does not support"
     },
     {
-      "id": "R-3.2.4-12",
+      "id": "R-3.2.4-1",
       "level": "MUST",
       "text": "When it receives \"urgent\" TCP data, a User or Server Telnet MUST discard all data except Telnet commands until the DM (and end of urgent) is reached.",
       "section": "3.2.4",
@@ -146,7 +146,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "discard all data except Telnet commands until the DM (and end of urgent) is reached"
     },
     {
-      "id": "R-3.2.4-13",
+      "id": "R-3.2.4-2",
       "level": "SHOULD",
       "text": "When it sends Telnet IP (Interrupt Process), a User Telnet SHOULD follow it by the Telnet \"Synch\" sequence, i.e., send as TCP urgent data the sequence \"IAC IP IAC DM\".",
       "section": "3.2.4",
@@ -157,7 +157,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "follow it by the Telnet \"Synch\" sequence"
     },
     {
-      "id": "R-3.2.4-14",
+      "id": "R-3.2.4-3",
       "level": "MAY",
       "text": "When it receives a Telnet IP command, a Server Telnet MAY send a Telnet \"Synch\" sequence back to the user, to flush the output stream.",
       "section": "3.2.4",
@@ -168,7 +168,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "send a Telnet \"Synch\" sequence back to the user"
     },
     {
-      "id": "R-3.2.4-15",
+      "id": "R-3.2.4-4",
       "level": "MUST",
       "text": "When it receives a Telnet AO command, a Server Telnet MUST send a Telnet \"Synch\" sequence back to the user, to flush the output stream.",
       "section": "3.2.4",
@@ -179,7 +179,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "send a Telnet \"Synch\" sequence back to the user"
     },
     {
-      "id": "R-3.2.4-16",
+      "id": "R-3.2.4-5",
       "level": "SHOULD",
       "text": "A User Telnet SHOULD have the capability of flushing output when it sends a Telnet IP; see also Section 3.4.5.",
       "section": "3.2.4",
@@ -190,7 +190,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "have the capability of flushing output when it sends a Telnet IP; see also Section 3.4.5"
     },
     {
-      "id": "R-3.2.5-17",
+      "id": "R-3.2.5-1",
       "level": "SHOULD NOT",
       "text": "In NVT mode, a Telnet SHOULD NOT send characters with the high-order bit 1, and MUST NOT send it as a parity bit.",
       "section": "3.2.5",
@@ -200,7 +200,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "send characters with the high-order bit 1"
     },
     {
-      "id": "R-3.2.5-18",
+      "id": "R-3.2.5-2",
       "level": "MUST NOT",
       "text": "In NVT mode, a Telnet SHOULD NOT send characters with the high-order bit 1, and MUST NOT send it as a parity bit.",
       "section": "3.2.5",
@@ -209,7 +209,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "send it as a parity bit"
     },
     {
-      "id": "R-3.2.5-19",
+      "id": "R-3.2.5-3",
       "level": "SHOULD",
       "text": "Implementations that pass the high-order bit to applications SHOULD negotiate binary mode (see Section 3.2.6).",
       "section": "3.2.5",
@@ -219,7 +219,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "negotiate binary mode (see Section 3.2.6)"
     },
     {
-      "id": "R-3.2.5-20",
+      "id": "R-3.2.5-4",
       "level": "SHOULD",
       "text": "For this reason, the requirements on the high-order bit are stated as SHOULD, not MUST.",
       "section": "3.2.5",
@@ -228,7 +228,7 @@ args: {"rfc":1123,"section":"3.2"}
       "subject": "stated"
     },
     {
-      "id": "R-3.2.5-21",
+      "id": "R-3.2.5-5",
       "level": "MUST",
       "text": "For this reason, the requirements on the high-order bit are stated as SHOULD, not MUST.",
       "section": "3.2.5",
@@ -236,7 +236,7 @@ args: {"rfc":1123,"section":"3.2"}
       "fullContext": "However, there exist applications that really need an 8- bit NVT mode, which is currently not defined, and these existing applications do set the high-order bit during part or all of the life of a Telnet connection. Note that binary mode is not the same as 8-bit NVT mode, since binary mode turns off end-of-line processing. For this reason, the requirements on the high-order bit are stated as SHOULD, not MUST."
     },
     {
-      "id": "R-3.2.6-22",
+      "id": "R-3.2.6-1",
       "level": "MUST",
       "text": "Since options may appear at any point in the data stream, a Telnet escape character (known as IAC, with the value 255) to be sent as data MUST be doubled.",
       "section": "3.2.6",
@@ -246,7 +246,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "be doubled"
     },
     {
-      "id": "R-3.2.7-23",
+      "id": "R-3.2.7-1",
       "level": "MUST",
       "text": "However, the data stream MUST still be scanned for IAC characters, any embedded Telnet commands MUST be obeyed, and data bytes equal to IAC MUST be doubled.",
       "section": "3.2.7",
@@ -256,7 +256,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "still be scanned for IAC characters, any embedded Telnet commands MUST be obeyed, and data bytes equal to IAC MUST be doubled"
     },
     {
-      "id": "R-3.2.7-24",
+      "id": "R-3.2.7-2",
       "level": "MUST NOT",
       "text": "Other character processing (e.g., replacing CR by CR NUL or by CR LF) MUST NOT be done.",
       "section": "3.2.7",
@@ -265,7 +265,7 @@ args: {"rfc":1123,"section":"3.2"}
       "action": "be done"
     },
     {
-      "id": "R-3.2.8-25",
+      "id": "R-3.2.8-1",
       "level": "MUST",
       "text": "The Terminal-Type option MUST use the terminal type names officially defined in the Assigned Numbers RFC [INTRO:5], when they are available for the particular terminal. However, the receiver of a Terminal-Type option MUST accept any name.",
       "section": "3.2.8",

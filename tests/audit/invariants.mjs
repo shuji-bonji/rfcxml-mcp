@@ -553,6 +553,36 @@ export const INVARIANTS = [
         .map((definition) => `"${definition.term}" の S${definition.section} が引けない`),
   },
   {
+    id: 'B18',
+    description: '要件の id の連番が節ごとに 1 から始まる',
+    // 連番を文書全体で 1 本にしていたため、同じ要件が呼び方で違う id を持って
+    // いた。`validate_statement` は全件から取るので RFC 9110 §6.6.1 の禁止を
+    // `R-6.6.1-76` と報告するが、`get_requirements({ section: "6.6.1" })` が
+    // 返すのは `R-6.6.1-1` 〜 `R-6.6.1-7` で、教えられた id が存在しなかった。
+    // 実測（RFC 67 本）: 節を指定した取得 245 件のうち 194 件で id が食い違って
+    // いた（件数は同じ）。
+    check: ({ requirements }) => {
+      const bySection = new Map();
+      for (const requirement of requirements) {
+        const match = /^R-(.+)-(\d+)$/.exec(requirement.id ?? '');
+        if (!match) continue;
+        if (!bySection.has(match[1])) bySection.set(match[1], []);
+        bySection.get(match[1]).push(Number(match[2]));
+      }
+      const broken = [];
+      for (const [section, numbers] of bySection) {
+        const sorted = [...numbers].sort((a, b) => a - b);
+        if (sorted[0] !== 1) broken.push(`S${section} の連番が ${sorted[0]} から始まる`);
+        else if (sorted[sorted.length - 1] !== sorted.length) {
+          broken.push(
+            `S${section} の連番が飛んでいる（${sorted.length} 件で最大 ${sorted[sorted.length - 1]}）`
+          );
+        }
+      }
+      return broken;
+    },
+  },
+  {
     id: 'E7',
     description: '参考文献の欄があるなら参照が 1 件以上ある',
     // 見出しの語を `References` だけで見ていたため、`Bibliography` と書く RFC の

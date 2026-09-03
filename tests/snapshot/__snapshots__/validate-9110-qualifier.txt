@@ -12,10 +12,10 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
     "detectedSubject": "server"
   },
   "isValid": null,
-  "_verdictNote": "isValid is null: requirement R-6.6.1-76 turns on \"without\", a word the statement does not use, so whether they describe the same case cannot be decided. This is not a statement of compliance.",
+  "_verdictNote": "isValid is null: requirement R-6.6.1-4 turns on \"without\", a word the statement does not use, so whether they describe the same case cannot be decided. This is not a statement of compliance.",
   "matchingRequirements": [
     {
-      "id": "R-6.6.1-74",
+      "id": "R-6.6.1-2",
       "level": "MUST",
       "text": "An origin server with a clock (as defined in Section 5.6.7) MUST generate a Date header field in all 2xx (Successful), 3xx (Redirection), and 4xx (Client Error) responses, and MAY generate a Date header field in 1xx (Informational) and 5xx (Server Error) responses.",
       "section": "6.6.1",
@@ -36,7 +36,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "_levelMatch": false
     },
     {
-      "id": "R-6.6.1-75",
+      "id": "R-6.6.1-3",
       "level": "MAY",
       "text": "An origin server with a clock (as defined in Section 5.6.7) MUST generate a Date header field in all 2xx (Successful), 3xx (Redirection), and 4xx (Client Error) responses, and MAY generate a Date header field in 1xx (Informational) and 5xx (Server Error) responses.",
       "section": "6.6.1",
@@ -57,7 +57,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "_levelMatch": false
     },
     {
-      "id": "R-6.6.1-76",
+      "id": "R-6.6.1-4",
       "level": "MUST NOT",
       "text": "An origin server without a clock MUST NOT generate a Date header field.",
       "section": "6.6.1",
@@ -79,7 +79,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "_levelMatch": false
     },
     {
-      "id": "R-10.2.1-242",
+      "id": "R-10.2.1-1",
       "level": "MUST",
       "text": "An origin server MUST generate an Allow header field in a 405 (Method Not Allowed) response and MAY do so in any other response.",
       "section": "10.2.1",
@@ -99,7 +99,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "_levelMatch": false
     },
     {
-      "id": "R-10.2.1-243",
+      "id": "R-10.2.1-2",
       "level": "MAY",
       "text": "An origin server MUST generate an Allow header field in a 405 (Method Not Allowed) response and MAY do so in any other response.",
       "section": "10.2.1",
@@ -119,7 +119,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "_levelMatch": false
     },
     {
-      "id": "R-10.2.4-246",
+      "id": "R-10.2.4-1",
       "level": "MAY",
       "text": "An origin server MAY generate a Server header field in its responses.",
       "section": "10.2.4",
@@ -139,7 +139,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "_levelMatch": false
     },
     {
-      "id": "R-10.2.4-247",
+      "id": "R-10.2.4-2",
       "level": "SHOULD NOT",
       "text": "An origin server SHOULD NOT generate a Server header field containing needlessly fine-grained detail and SHOULD limit the addition of subproducts by third parties.",
       "section": "10.2.4",
@@ -159,7 +159,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "_levelMatch": false
     },
     {
-      "id": "R-10.2.4-248",
+      "id": "R-10.2.4-3",
       "level": "SHOULD",
       "text": "An origin server SHOULD NOT generate a Server header field containing needlessly fine-grained detail and SHOULD limit the addition of subproducts by third parties.",
       "section": "10.2.4",
@@ -179,7 +179,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "_levelMatch": false
     },
     {
-      "id": "R-12.5.5-270",
+      "id": "R-12.5.5-2",
       "level": "MUST NOT",
       "text": "To inform cache recipients that they MUST NOT use this response to satisfy a later request unless the later request has the same values for the listed header fields as the original request (Section 4.1 of [CACHING]) or reuse of the response has been validated by the origin server.",
       "section": "12.5.5",
@@ -199,7 +199,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "_levelMatch": false
     },
     {
-      "id": "R-12.5.5-271",
+      "id": "R-12.5.5-3",
       "level": "SHOULD",
       "text": "An origin server SHOULD generate a Vary header field on a cacheable response when it wishes that response to be selectively reused for subsequent requests.",
       "section": "12.5.5",
@@ -222,7 +222,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
   ],
   "conflicts": [],
   "suggestions": [
-    "Cannot judge: requirement R-6.6.1-76 turns on \"without\", a word the statement does not use. Read that requirement and decide whether the statement means the same case."
+    "Cannot judge: requirement R-6.6.1-4 turns on \"without\", a word the statement does not use. Read that requirement and decide whether the statement means the same case."
   ],
   "_source": "xml"
 }

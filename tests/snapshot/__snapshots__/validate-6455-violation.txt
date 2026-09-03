@@ -14,7 +14,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
   "isValid": false,
   "matchingRequirements": [
     {
-      "id": "R-5.1-66",
+      "id": "R-5.1-1",
       "level": "MUST",
       "text": "To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details).",
       "section": "5.1",
@@ -33,7 +33,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_levelMatch": false
     },
     {
-      "id": "R-5.1-70",
+      "id": "R-5.1-5",
       "level": "MUST",
       "text": "A client MUST close a connection if it detects a masked frame.",
       "section": "5.1",
@@ -53,7 +53,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_levelMatch": false
     },
     {
-      "id": "R-5.1-71",
+      "id": "R-5.1-6",
       "level": "MAY",
       "text": "In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1.",
       "section": "5.1",
@@ -72,7 +72,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_levelMatch": false
     },
     {
-      "id": "R-10.7-185",
+      "id": "R-10.7-1",
       "level": "MUST",
       "text": "Incoming data MUST always be validated by both clients and servers.",
       "section": "10.7",
@@ -91,7 +91,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_levelMatch": false
     },
     {
-      "id": "R-4.1-7",
+      "id": "R-4.1-2",
       "level": "MUST",
       "text": "When the client is to _Establish a WebSocket Connection_ given a set of (/host/, /port/, /resource name/, and /secure/ flag), along with a list of /protocols/ and /extensions/ to be used, and an /origin/ in the case of web browsers, it MUST open a connection, send an opening handshake, and read the server's handshake in response.",
       "section": "4.1",
@@ -109,7 +109,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_levelMatch": false
     },
     {
-      "id": "R-4.1-19",
+      "id": "R-4.1-14",
       "level": "MUST",
       "text": "If /secure/ is true, the client MUST perform a TLS handshake over the connection after opening the connection and before sending the handshake data [RFC2818].",
       "section": "4.1",
@@ -128,7 +128,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_levelMatch": false
     },
     {
-      "id": "R-4.1-20",
+      "id": "R-4.1-15",
       "level": "MUST",
       "text": "If this fails (e.g., the server's certificate could not be verified), then the client MUST _Fail the WebSocket Connection_ and abort the connection.",
       "section": "4.1",
@@ -147,7 +147,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_levelMatch": false
     },
     {
-      "id": "R-4.1-23",
+      "id": "R-4.1-18",
       "level": "MUST",
       "text": "Once a connection to the server has been established (including a connection via a proxy or over a TLS-encrypted tunnel), the client MUST send an opening handshake to the server.",
       "section": "4.1",
@@ -165,7 +165,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_levelMatch": false
     },
     {
-      "id": "R-4.1-41",
+      "id": "R-4.1-36",
       "level": "MUST",
       "text": "Once the client's opening handshake has been sent, the client MUST wait for a response from the server before sending any further data.",
       "section": "4.1",
@@ -183,7 +183,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_levelMatch": false
     },
     {
-      "id": "R-4.1-42",
+      "id": "R-4.1-37",
       "level": "MUST",
       "text": "The client MUST validate the server's response as follows:",
       "section": "4.1",
@@ -204,7 +204,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
   "conflicts": [
     {
       "requirement": {
-        "id": "R-5.1-66",
+        "id": "R-5.1-1",
         "level": "MUST",
         "text": "To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details).",
         "section": "5.1",
@@ -217,7 +217,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
     },
     {
       "requirement": {
-        "id": "R-6.1-125",
+        "id": "R-6.1-7",
         "level": "MUST",
         "text": "If the data is being sent by the client, the frame(s) MUST be masked as defined in Section 5.3.",
         "section": "6.1",
