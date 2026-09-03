@@ -50,7 +50,7 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 66 本に不変条件 41 種を当てる
+npm run audit         # 実物の RFC 67 本に不変条件 42 種を当てる
 npm run snapshot      # 代表的な出力 28 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
@@ -69,9 +69,9 @@ publish の前に、次を順に通す。
 
 | 手順 | 見るもの |
 |---|---|
-| `npm test` | 書いた条件の取りこぼし（437 件） |
+| `npm test` | 書いた条件の取りこぼし（444 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 66 本 × 41 種） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 42 種） |
 | `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 28 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
@@ -401,6 +401,55 @@ How to apply: 新しい抽出で「最初のピリオドまで」を書きたく
 読点の有無も同じである。RFC 6749 は `([RFC3986] Section 3.4)` と読点なしで書く。
 読点を必須にしていたため、この形が「RFC 6749 の §3.4」になり、
 `get_related_sections` が実在しない節を返していた（RFC 6749 に §3.4 は無い）。
+
+### 参考文献の欄の見出しは `References` だけではない
+
+| RFC | 見出し |
+|---|---|
+| 1034 / 1035 / 1058 | `REFERENCES and BIBLIOGRAPHY` |
+| 2822 | `6. Bibliography` |
+
+`References` だけを見ていたため、これらの参考文献が 1 件も取れていなかった。
+`get_rfc_dependencies` が空を返し、`referenceCount` も 0 になる。実測で 63 件。
+
+参考文献の欄が**本当に無い** RFC もある（RFC 854・896・2045 は本文の中で引く）。
+見出しの語を増やしても、そちらは 0 件のままである。不変条件 E7 は
+「欄があるのに 0 件」だけを見る。
+
+### 段落を繋ぐかどうかは 3 つで決める
+
+文末記号を持たない段落は、次の段落と繋ぐ（`joinUnterminatedParagraphs`）。
+ページの変わり目で切れた文を戻すための規則だが、繋いではいけない形が 3 つある。
+
+1. **箇条書きの項目のあとに地の文**。RFC 6455 §3 の `o  the query component` は
+   文末記号を持たないので次の段落と繋がれ、要件文が
+   `the query component Fragment identifiers are meaningless …` になっていた。
+   ただし**項目のあとに項目なら繋ぐ** — RFC 2616 §8.2.4 は箇条書きで 1 つの文を作る。
+2. **値の並び**（`looksLikeDisplayBlock`）。2 行以上を求めていたため、RFC 7159 §3 の
+   `false null true` が落ちて `false null true The literal names MUST be lowercase.`
+   になっていた。1 行の塊は、記号を含むか、機能語（the / of / is …）を 1 つも
+   含まない語の並びなら値とみなす。`the query component` は `the` があるので地の文。
+3. **ページの終わりに置かれた値の並び**。RFC 6749 §4.3.2 の
+   `grant_type=password&username=johndoe&password=A3ddj3w` はページの最終行にあり、
+   `stripPageFurniture` が次のページの地の文と同じ段落にしていた。装飾を外す側にも
+   同じ判定を置く。
+
+### 表の行を要件として出すかは、まだ決めていない
+
+図・表の行にキーワードが当たったときは、**その 1 行だけ**を要件文にする。
+RFC 2131 §4.3.1 の Table 3 は 2 ページにわたるので、段落全体を返すと
+`generate_checklist` に 2,000 文字の「要件」がレベルごとに 4 回並ぶ。
+
+その規則の結果として、ASN.1 の型定義の欄と値を並べた表から `OPTIONAL` の要件が出る。
+
+```
+   AuthorityKeyIdentifier ::= SEQUENCE {
+      keyIdentifier             [0] KeyIdentifier           OPTIONAL,
+```
+
+要件文は `keyIdentifier [0] KeyIdentifier OPTIONAL,` になる。RFC 4253 §6.3 の
+暗号方式の表も同じ。実測（RFC 67 本）: 86 件、うち RFC 5280 が 46 件、
+RFC 4253 が 12 件、RFC 5652 が 12 件。**判断待ちである。**
 
 ### 折り返した節の題名は、開始桁で継ぐ
 

@@ -27,6 +27,10 @@ const DIAGRAM_PATTERNS = [
 const NOT_A_TERM =
   /^(?:Request for Comments|Category|ISSN|Obsoletes|Updates|Network Working Group|BCP|STD|FYI|EMail|Email|E-Mail|URI|URL|Phone|Fax|Tel|Telephone|NOTE|Note|Notes|Example|EXAMPLE|Examples)$|^o\s/;
 
+/** 参考文献の欄の見出し。 */
+const REFERENCE_HEADING =
+  /^(?:\d+(?:\.\d+)*\.?\s+)?(?:(?:normative|informative)\s+)?(?:references(?:\s+and\s+bibliography)?|bibliography)\s*$/i;
+
 /** 文の書き出しに来る語。これで始まる「用語」は文である。 */
 const SENTENCE_OPENER =
   /^(?:The|This|These|Those|That|It|Its|A|An|Each|Every|All|There|If|When|Note that)\s/;
@@ -488,6 +492,24 @@ export const INVARIANTS = [
       return [...count.entries()]
         .filter(([, times]) => times >= 3)
         .map(([term, times]) => `"${term}" が ${times} 回`);
+    },
+  },
+  {
+    id: 'E7',
+    description: '参考文献の欄があるなら参照が 1 件以上ある',
+    // 見出しの語を `References` だけで見ていたため、`Bibliography` と書く RFC の
+    // 参考文献が 1 件も取れず、`get_rfc_dependencies` が空を返していた。
+    // RFC 1034 / 1035 / 1058 は `REFERENCES and BIBLIOGRAPHY`、RFC 2822 は
+    // `6. Bibliography`。実測で 63 件が落ちていた。
+    check: ({ kind, source, parsed }) => {
+      if (kind !== 'text') return [];
+      const hasHeading = source
+        .split('\n')
+        .some((line) => REFERENCE_HEADING.test(line.replace(/\s+$/, '').trim()));
+      if (!hasHeading) return [];
+      const count =
+        (parsed.references?.normative?.length ?? 0) + (parsed.references?.informative?.length ?? 0);
+      return count === 0 ? ['参考文献の欄はあるが参照が 0 件'] : [];
     },
   },
   {

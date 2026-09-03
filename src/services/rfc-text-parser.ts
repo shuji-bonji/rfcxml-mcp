@@ -137,16 +137,36 @@ export function stripPageFurniture(text: string): string {
     }
 
     // 文が途中なら段落を続ける。終わっていれば段落の切れ目として残す。
+    //
+    // 値の並びは文末記号を持たないが、文の途中でもない。RFC 6749 §4.3.2 の
+    // 例示 `grant_type=password&username=johndoe&password=A3ddj3w` はページの
+    // 終わりに置かれており、次のページの `The authorization server MUST:` と
+    // 同じ段落になっていた。要件文がその 2 つを繋いだものになる。
     const previous = out.length > 0 ? out[out.length - 1] : '';
-    if (!previous.trim() || /[.:;?!]\s*$/.test(previous)) out.push('');
+    if (!previous.trim() || /[.:;?!]\s*$/.test(previous) || looksLikeDisplayBlock(previous)) {
+      out.push('');
+    }
   }
 
   return out.join('\n');
 }
 
-/** 参考文献の欄の見出し。番号の有無どちらもある。 */
+/**
+ * 参考文献の欄の見出し。番号の有無どちらもある。
+ *
+ * `References` だけを見ていたため、`Bibliography` と書く RFC の参考文献が
+ * 1 件も取れていなかった。`get_rfc_dependencies` が空を返す。
+ *
+ * | RFC | 見出し |
+ * |---|---|
+ * | 1034 / 1035 / 1058 | `REFERENCES and BIBLIOGRAPHY` |
+ * | 2822 | `6. Bibliography` |
+ *
+ * 参考文献の欄が本当に無い RFC もある（RFC 854・896・2045 は本文の中で引く）。
+ * 見出しの語を増やしても、そちらは 0 件のままである。
+ */
 const REFERENCE_HEADING_PATTERN =
-  /^(?:\d+(?:\.\d+)*\.?\s+)?((?:normative|informative)\s+)?references\s*$/i;
+  /^(?:\d+(?:\.\d+)*\.?\s+)?((?:normative|informative)\s+)?(?:references(?:\s+and\s+bibliography)?|bibliography)\s*$/i;
 
 /**
  * 参考文献の 1 項目の始まり。
@@ -1395,13 +1415,106 @@ const DISPLAY_BLOCK_MAX_WORDS = 3;
  */
 function looksLikeDisplayBlock(text: string): boolean {
   const lines = text.split('\n').filter((line) => line.trim() !== '');
-  if (lines.length < 2) return false;
-  return lines.every((line) => {
+  if (lines.length === 0) return false;
+
+  const short = lines.every((line) => {
     const trimmed = line.trim();
     if (/[.!?]$/.test(trimmed)) return false;
     return trimmed.split(/\s+/).length <= DISPLAY_BLOCK_MAX_WORDS;
   });
+  if (!short) return false;
+  if (lines.length >= 2) return true;
+
+  // 1 行だけの塊は、地の文の折り返しか、値の並びかが分かれる。
+  //
+  // RFC 7159 §3 の `      false null true` は 1 行なので、2 行以上を求める
+  // 規則では落ちていた。続く段落と繋がれ、要件文が
+  // **"false null true The literal names MUST be lowercase."** になっていた。
+  // RFC 6749 §4.3.2 の `grant_type=password&username=johndoe&password=A3ddj3w`、
+  // RFC 3261 §19.1.1 の `parameter-name "=" parameter-value` も同じ形。
+  //
+  // 記号を含むか、機能語を 1 つも含まない語の並びなら、地の文ではない。
+  const only = lines[0].trim();
+  if (/["'=&<>{}|/\\_]|::=/.test(only)) return true;
+  const words = only.split(/\s+/);
+  return words.every((word) => /^[a-z][\w-]*$/.test(word) && !FUNCTION_WORDS.has(word));
 }
+
+/** 地の文にしか出ない語。1 語でもあれば、値の並びではない。 */
+const FUNCTION_WORDS = new Set([
+  'the',
+  'a',
+  'an',
+  'of',
+  'to',
+  'in',
+  'on',
+  'for',
+  'and',
+  'or',
+  'is',
+  'are',
+  'be',
+  'as',
+  'at',
+  'by',
+  'it',
+  'its',
+  'this',
+  'that',
+  'with',
+  'from',
+  'if',
+  'when',
+  'which',
+  'not',
+]);
+
+/**
+ * 箇条書きの項目で終わっているか。
+ *
+ * 項目は文末記号を持たないことが多い。RFC 6455 §3 は URI の組み立てを
+ *
+ * ```
+ *    o  "?" if the query component is non-empty
+ *
+ *    o  the query component
+ *
+ *    Fragment identifiers are meaningless in the context of WebSocket URIs
+ *    and MUST NOT be used on these URIs.
+ * ```
+ *
+ * と書く。`o  the query component` は文末記号を持たないので、次の段落と
+ * 繋がれ、要件文が **"the query component Fragment identifiers are
+ * meaningless …"** になっていた。項目は 1 つの単位であって、次の段落は
+ * その続きではない。
+ *
+ * ただし**項目のあとに項目が来るときは繋ぐ**。RFC 2616 §8.2.4 は
+ *
+ * ```
+ *    If at any point an error status is received, the client
+ *
+ *       - SHOULD NOT continue and
+ *
+ *       - SHOULD close the connection if it has not completed sending the
+ *         request message.
+ * ```
+ *
+ * と、箇条書きで 1 つの文を作る。ここで切ると要件文が
+ * "…the client - SHOULD NOT continue and" で終わる。
+ */
+function endsWithListItem(paragraph: string): boolean {
+  const lines = paragraph.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (line.trim() === '') continue;
+    return LIST_ITEM_START.test(line) || LIST_ITEM_START.test(lines[0] ?? '');
+  }
+  return false;
+}
+
+/** 箇条書きの項目の始まり。`o` は語と紛れるので空白 2 個を求める。 */
+const LIST_ITEM_START = /^\s*(?:o\s{2}|[-*+•]\s|\(\d+\)\s|\d+[.)]\s|[a-z][.)]\s)/;
 
 function joinUnterminatedParagraphs(paragraphs: string[]): string[] {
   const joined: string[] = [];
@@ -1415,6 +1528,9 @@ function joinUnterminatedParagraphs(paragraphs: string[]): string[] {
       !/[.!?:;]\s*$/.test(previous) &&
       !looksLikeDiagram(previous) &&
       !looksLikeDisplayBlock(previous) &&
+      // 項目のあとに地の文が来たら、そこで切る。項目のあとに項目が来るなら、
+      // 箇条書きが 1 つの文を作っている途中なので繋ぐ。
+      !(endsWithListItem(previous) && !LIST_ITEM_START.test(paragraph)) &&
       joinCount[last] < MAX_PARAGRAPH_JOINS &&
       // どちらかに BCP 14 キーワードがあること。要件に関わらない箇所では繋がない。
       // RFC 3261 §7.3.1 は "is equivalent to" と表示例を交互に並べる。繋ぐと
@@ -1595,10 +1711,24 @@ function hangingDefinition(
     cursor++;
   }
 
-  const definition = body.join(' ').slice(0, HANGING_BODY_MAX_LENGTH).trim();
+  const definition = clipAtWord(body.join(' '), HANGING_BODY_MAX_LENGTH);
   if (definition.length < DEFINITION_EXTRACTION.MIN_DEFINITION_LENGTH) return null;
 
   return { definition: { term, definition }, lastLine: cursor - 1 };
+}
+
+/**
+ * 上限で切る。語の途中では切らず、末尾に三点リーダを置く。
+ *
+ * 切ったことが分からないと、読み手は文が終わっていると読む。RFC 2616 §14.9.2 の
+ * no-store は "This directive applies to both non" で終わっていた。
+ */
+function clipAtWord(text: string, max: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= max) return trimmed;
+  const head = trimmed.slice(0, max);
+  const cut = head.lastIndexOf(' ');
+  return `${(cut > max / 2 ? head.slice(0, cut) : head).replace(/[\s,;:-]+$/, '')}…`;
 }
 
 /** ぶら下げの用語欄の字下げと長さ。 */

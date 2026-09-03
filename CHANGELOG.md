@@ -2,6 +2,72 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.27] - 2026-09-03
+
+**v0.6.26 を試用して見つけた 4 件。** 監査の RFC を 66 本から 67 本へ（RFC 2822）。
+
+### Fixed
+
+- **`Bibliography` と書く RFC の参考文献が 1 件も取れていなかった**:
+  - 見出しの語を `References` だけで見ていた。RFC 1034 / 1035 / 1058 は
+    `REFERENCES and BIBLIOGRAPHY`、RFC 2822 は `6. Bibliography` と書く。
+  - `get_rfc_dependencies` が空を返し、`get_rfc_structure` の
+    `referenceCount` も 0 になっていた。実測: **63 件が落ちていた**
+    （RFC 1034 で 28 件、1035 で 28 件、1058 で 7 件）。
+  - 参考文献の欄が本当に無い RFC もある（RFC 854・896・2045 は本文の中で引く）。
+    見出しの語を増やしても、そちらは 0 件のままである。
+
+- **箇条書きの項目を次の地の文と繋いでいた**:
+  - RFC 6455 §3 は URI の組み立てを `o  the query component` で終わる箇条書きで
+    書く。項目は文末記号を持たないので次の段落と繋がれ、要件文が
+    **`the query component Fragment identifiers are meaningless …`** になっていた。
+  - 項目のあとに地の文が来たら切る。**項目のあとに項目が来るなら繋ぐ** —
+    RFC 2616 §8.2.4 は `If at any point an error status is received, the client` /
+    `- SHOULD NOT continue and` / `- SHOULD close the connection …` と、
+    箇条書きで 1 つの文を作る。ここで切ると文が途中で終わる。
+
+- **1 行だけの値の並びを地の文と繋いでいた**:
+  - 「値の並び」の判定が 2 行以上を求めていた。RFC 7159 §3 の
+    `      false null true` は 1 行なので落ち、要件文が
+    **`false null true The literal names MUST be lowercase.`** になっていた。
+    RFC 3261 §19.1.1 の `parameter-name "=" parameter-value` も同じ。
+  - 1 行の塊は、記号を含むか、機能語（the / of / is …）を 1 つも含まない語の
+    並びなら値とみなす。`the query component` は `the` があるので地の文である。
+
+- **ページの終わりに置かれた値の並びを、次のページの地の文と繋いでいた**:
+  - RFC 6749 §4.3.2 の例示 `grant_type=password&username=johndoe&password=A3ddj3w`
+    はページの最終行にあり、次のページの `The authorization server MUST:` と
+    同じ段落になっていた。ページの装飾を外す側にも同じ判定を入れる。
+
+- **定義の途中切りが語の途中だった**: 500 文字で切るとき語の途中で切れ、
+  切ったことが分からなかった。RFC 2616 §14.9.2 の no-store は
+  `This directive applies to both non` で終わっていた。語の境目で切り、
+  末尾に三点リーダを置く。
+
+### Added
+
+- **不変条件を 1 種**（41 種 → 42 種）: E7「参考文献の欄があるなら参照が 1 件以上ある」。
+- **監査の RFC を 66 本から 67 本へ**: RFC 2822（参考文献の欄の見出しが `Bibliography`）。
+- **テストを 439 件から 444 件へ**。
+
+### 直していないもの
+
+ASN.1 の型定義の欄と、値を並べた表の行から、`OPTIONAL` の要件が出る。
+
+```
+   AuthorityKeyIdentifier ::= SEQUENCE {
+      keyIdentifier             [0] KeyIdentifier           OPTIONAL,
+```
+
+要件文は `keyIdentifier [0] KeyIdentifier OPTIONAL,` になる。RFC 4253 §6.3 の
+暗号方式の表（`blowfish-cbc  OPTIONAL  Blowfish in CBC mode`）も同じ。
+実測: 67 本で 86 件、うち RFC 5280 が 46 件、RFC 4253 が 12 件、RFC 5652 が 12 件。
+
+**これは表の行を要件として出すかどうかの判断であり、まだ決めていない。**
+図・表の行に当たったときは「その 1 行だけ」を要件文にする、という現在の作りは
+RFC 2131 §4.3.1 の Table 3 のために入れたものである（段落全体を返すと 2,000 文字の
+「要件」が 4 回並ぶ）。ASN.1 の欄も表も、その規則が働いた結果である。
+
 ## [0.6.26] - 2026-09-03
 
 **`get_definitions` がテキスト経路で最も多い形を 1 件も読めていなかった。**

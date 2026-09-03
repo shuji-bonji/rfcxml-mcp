@@ -76,6 +76,7 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 2131, note: '空白で桁を揃えた表がある' },
     { rfc: 2616, note: '参考文献の欄が 1 つしかない' },
     { rfc: 2068, note: '警告コードの表に "99 Miscellaneous warning" がある' },
+    { rfc: 2822, note: '参考文献の欄の見出しが Bibliography' },
     { rfc: 2445, note: '題名が小文字で始まる節 (iCalendar Object Specification)' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 

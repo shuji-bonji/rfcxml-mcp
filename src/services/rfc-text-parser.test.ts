@@ -1785,3 +1785,147 @@ describe('ぶら下げの用語欄', () => {
     expect(parseRFCText(text, 7231).definitions).toEqual([]);
   });
 });
+
+describe('参考文献の欄の見出し', () => {
+  const entries = [
+    '',
+    '   [RFC-742]  Harrenstien, K., "NAME/FINGER", RFC 742, December 1977.',
+    '',
+    '   [Quarterman 86]  Quarterman, J., "Notable Computer Networks", 1986.',
+    '',
+  ];
+
+  it('"REFERENCES and BIBLIOGRAPHY" を参考文献の欄として読む', () => {
+    // RFC 1034 / 1035 / 1058。`References` だけを見ていたため 0 件だった。
+    const text = [
+      '1.  Introduction',
+      '',
+      '   Body.',
+      '',
+      '9. REFERENCES and BIBLIOGRAPHY',
+      ...entries,
+    ].join('\n');
+    const refs = parseRFCText(text, 1035).references;
+    expect(refs.informative.map((r) => r.anchor)).toEqual(['RFC-742', 'Quarterman 86']);
+  });
+
+  it('"Bibliography" を参考文献の欄として読む', () => {
+    // RFC 2822 §6。
+    const text = ['1.  Introduction', '', '   Body.', '', '6. Bibliography', ...entries].join('\n');
+    const refs = parseRFCText(text, 2822).references;
+    expect(refs.informative.map((r) => r.anchor)).toEqual(['RFC-742', 'Quarterman 86']);
+  });
+});
+
+describe('箇条書きと次の段落', () => {
+  it('項目のあとの地の文を繋がない', () => {
+    // RFC 6455 §3。"o  the query component" は文末記号を持たないので次の段落と
+    // 繋がれ、要件文が "the query component Fragment identifiers are…" になっていた。
+    const text = [
+      '3.  WebSocket URIs',
+      '',
+      '   The "resource-name" can be constructed by concatenating:',
+      '',
+      '   o  "?" if the query component is non-empty',
+      '',
+      '   o  the query component',
+      '',
+      '   Fragment identifiers are meaningless in the context of WebSocket URIs',
+      '   and MUST NOT be used on these URIs.',
+      '',
+    ].join('\n');
+    const blocks = parseRFCText(text, 6455).sections.flatMap((s) => s.content ?? []);
+    const withRequirement = blocks.filter((b) => (b.requirements ?? []).length > 0);
+    expect(withRequirement).toHaveLength(1);
+    expect(withRequirement[0].content).toMatch(/^Fragment identifiers/);
+  });
+
+  it('項目のあとの項目は繋ぐ', () => {
+    // RFC 2616 §8.2.4 は箇条書きで 1 つの文を作る。
+    const text = [
+      '8.  Connections',
+      '',
+      '   If at any point an error status is received, the client',
+      '',
+      '      - SHOULD NOT continue and',
+      '',
+      '      - SHOULD close the connection if it has not completed sending the',
+      '        request message.',
+      '',
+    ].join('\n');
+    const blocks = parseRFCText(text, 2616).sections.flatMap((s) => s.content ?? []);
+    const withRequirement = blocks.filter((b) => (b.requirements ?? []).length > 0);
+    expect(withRequirement).toHaveLength(1);
+    // 2 つの項目が 1 つの塊に入り、文が最後まで残ること
+    expect(withRequirement[0].content).toMatch(/request message\.$/);
+    expect(withRequirement[0].requirements?.map((r) => r.level)).toEqual(['SHOULD NOT', 'SHOULD']);
+  });
+});
+
+describe('1 行だけの値の並び', () => {
+  it('地の文と繋がない', () => {
+    // RFC 7159 §3。`false null true` は 1 行なので、2 行以上を求める規則では
+    // 落ちていた。要件文が "false null true The literal names MUST be lowercase."
+    // になっていた。
+    const text = [
+      '3.  Values',
+      '',
+      '   A JSON value MUST be an object, array, number, or string, or one of',
+      '   the following three literal names:',
+      '',
+      '      false null true',
+      '',
+      '   The literal names MUST be lowercase.  No other literal names are',
+      '   allowed.',
+      '',
+    ].join('\n');
+    const contents = parseRFCText(text, 7159)
+      .sections.flatMap((s) => s.content ?? [])
+      .map((b) => b.content);
+    expect(contents).toContain(
+      'The literal names MUST be lowercase.  No other literal names are\n   allowed.'
+    );
+    expect(contents.some((c) => /^false null true The literal/.test(c))).toBe(false);
+  });
+
+  it('機能語を含む短い行は地の文として繋ぐ', () => {
+    const text = [
+      '3.  Values',
+      '',
+      '   The value is one of',
+      '',
+      '   the following names MUST be lowercase.',
+      '',
+    ].join('\n');
+    const contents = parseRFCText(text, 7159)
+      .sections.flatMap((s) => s.content ?? [])
+      .map((b) => b.content);
+    expect(contents.some((c) => /^The value is one of/.test(c) && /lowercase/.test(c))).toBe(true);
+  });
+});
+
+describe('ページの終わりに置かれた値の並び', () => {
+  it('次のページの地の文と繋がない', () => {
+    // RFC 6749 §4.3.2。例示がページの終わりにあり、次のページの
+    // "The authorization server MUST:" と同じ段落になっていた。
+    const text = [
+      '4.  Obtaining Authorization',
+      '',
+      '   For example, the client makes the following HTTP request:',
+      '',
+      '     grant_type=password&username=johndoe&password=A3ddj3w',
+      '',
+      'Hardt                        Standards Track                   [Page 38]',
+      '\f',
+      'RFC 6749                        OAuth 2.0                   October 2012',
+      '',
+      '   The authorization server MUST authenticate the client.',
+      '',
+    ].join('\n');
+    const contents = parseRFCText(text, 6749)
+      .sections.flatMap((s) => s.content ?? [])
+      .map((b) => b.content);
+    expect(contents.some((c) => /^grant_type=.*The authorization server/.test(c))).toBe(false);
+    expect(contents).toContain('The authorization server MUST authenticate the client.');
+  });
+});
