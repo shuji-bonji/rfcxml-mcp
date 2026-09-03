@@ -1,0 +1,444 @@
+# structure-8949
+
+tool: get_rfc_structure
+args: {"rfc":8949}
+
+--- json ---
+{
+  "metadata": {
+    "title": "Concise Binary Object Representation (CBOR)",
+    "docName": "draft-ietf-cbor-7049bis-16",
+    "number": 8949,
+    "date": "2020-12",
+    "category": "std",
+    "stream": "IETF",
+    "abstract": "The Concise Binary Object Representation (CBOR) is a data format whose design goals include the possibility of extremely small code size, fairly small message size, and extensibility without the need for version negotiation. These design goals make it different from earlier binary serializations such as ASN.1 and MessagePack.\n\n This document obsoletes RFC 7049, providing editorial improvements, new details, and errata fixes while keeping full compatibility with the interchange format of RFC 7049. It does not create a new version of the format."
+  },
+  "sections": [
+    {
+      "number": "1",
+      "title": "Introduction",
+      "anchor": "introduction",
+      "subsections": [
+        {
+          "number": "1.1",
+          "title": "Objectives",
+          "anchor": "objectives"
+        },
+        {
+          "number": "1.2",
+          "title": "Terminology",
+          "anchor": "terminology"
+        }
+      ]
+    },
+    {
+      "number": "2",
+      "title": "CBOR Data Models",
+      "anchor": "cbor-data-models",
+      "subsections": [
+        {
+          "number": "2.1",
+          "title": "Extended Generic Data Models",
+          "anchor": "extended-generic-data-models"
+        },
+        {
+          "number": "2.2",
+          "title": "Specific Data Models",
+          "anchor": "specific-data-models"
+        }
+      ]
+    },
+    {
+      "number": "3",
+      "title": "Specification of the CBOR Encoding",
+      "anchor": "encoding",
+      "subsections": [
+        {
+          "number": "3.1",
+          "title": "Major Types",
+          "anchor": "majortypes"
+        },
+        {
+          "number": "3.2",
+          "title": "Indefinite Lengths for Some Major Types",
+          "anchor": "indefinite",
+          "subsections": [
+            {
+              "number": "3.2.1",
+              "title": "The \"break\" Stop Code",
+              "anchor": "break"
+            },
+            {
+              "number": "3.2.2",
+              "title": "Indefinite-Length Arrays and Maps",
+              "anchor": "indef"
+            },
+            {
+              "number": "3.2.3",
+              "title": "Indefinite-Length Byte Strings and Text Strings",
+              "anchor": "indefinite-length-byte-strings-and-text-strings"
+            },
+            {
+              "number": "3.2.4",
+              "title": "Summary of Indefinite-Length Use of Major Types",
+              "anchor": "summary-of-indefinite-length-use-of-major-types"
+            }
+          ]
+        },
+        {
+          "number": "3.3",
+          "title": "Floating-Point Numbers and Values with No Content",
+          "anchor": "fpnocont"
+        },
+        {
+          "number": "3.4",
+          "title": "Tagging of Items",
+          "anchor": "tags",
+          "subsections": [
+            {
+              "number": "3.4.1",
+              "title": "Standard Date/Time String",
+              "anchor": "stringdatetimesect"
+            },
+            {
+              "number": "3.4.2",
+              "title": "Epoch-Based Date/Time",
+              "anchor": "epochdatetimesect"
+            },
+            {
+              "number": "3.4.3",
+              "title": "Bignums",
+              "anchor": "bignums"
+            },
+            {
+              "number": "3.4.4",
+              "title": "Decimal Fractions and Bigfloats",
+              "anchor": "fractions"
+            },
+            {
+              "number": "3.4.5",
+              "title": "Content Hints",
+              "anchor": "content-hints",
+              "subsections": [
+                {
+                  "number": "3.4.5.1",
+                  "title": "Encoded CBOR Data Item",
+                  "anchor": "embedded-di"
+                },
+                {
+                  "number": "3.4.5.2",
+                  "title": "Expected Later Encoding for CBOR-to-JSON Converters",
+                  "anchor": "convexpect"
+                },
+                {
+                  "number": "3.4.5.3",
+                  "title": "Encoded Text",
+                  "anchor": "encodedtext"
+                }
+              ]
+            },
+            {
+              "number": "3.4.6",
+              "title": "Self-Described CBOR",
+              "anchor": "self-describe"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "4",
+      "title": "Serialization Considerations",
+      "anchor": "serialization-considerations",
+      "subsections": [
+        {
+          "number": "4.1",
+          "title": "Preferred Serialization",
+          "anchor": "preferred"
+        },
+        {
+          "number": "4.2",
+          "title": "Deterministically Encoded CBOR",
+          "anchor": "det-enc",
+          "subsections": [
+            {
+              "number": "4.2.1",
+              "title": "Core Deterministic Encoding Requirements",
+              "anchor": "core-det"
+            },
+            {
+              "number": "4.2.2",
+              "title": "Additional Deterministic Encoding Considerations",
+              "anchor": "additional-deterministic-encoding-considerations"
+            },
+            {
+              "number": "4.2.3",
+              "title": "Length-First Map Key Ordering",
+              "anchor": "length-first"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "5",
+      "title": "Creating CBOR-Based Protocols",
+      "anchor": "creating-cbor-based-protocols",
+      "subsections": [
+        {
+          "number": "5.1",
+          "title": "CBOR in Streaming Applications",
+          "anchor": "cbor-in-streaming-applications"
+        },
+        {
+          "number": "5.2",
+          "title": "Generic Encoders and Decoders",
+          "anchor": "generic"
+        },
+        {
+          "number": "5.3",
+          "title": "Validity of Items",
+          "anchor": "semantic-errors",
+          "subsections": [
+            {
+              "number": "5.3.1",
+              "title": "Basic validity",
+              "anchor": "basic-validity"
+            },
+            {
+              "number": "5.3.2",
+              "title": "Tag validity",
+              "anchor": "tag-validity"
+            }
+          ]
+        },
+        {
+          "number": "5.4",
+          "title": "Validity and Evolution",
+          "anchor": "validity-checking"
+        },
+        {
+          "number": "5.5",
+          "title": "Numbers",
+          "anchor": "numbers"
+        },
+        {
+          "number": "5.6",
+          "title": "Specifying Keys for Maps",
+          "anchor": "map-keys",
+          "subsections": [
+            {
+              "number": "5.6.1",
+              "title": "Equivalence of Keys",
+              "anchor": "equivalence-of-keys"
+            }
+          ]
+        },
+        {
+          "number": "5.7",
+          "title": "Undefined Values",
+          "anchor": "undefined-values"
+        }
+      ]
+    },
+    {
+      "number": "6",
+      "title": "Converting Data between CBOR and JSON",
+      "anchor": "converting-data-between-cbor-and-json",
+      "subsections": [
+        {
+          "number": "6.1",
+          "title": "Converting from CBOR to JSON",
+          "anchor": "converting-from-cbor-to-json"
+        },
+        {
+          "number": "6.2",
+          "title": "Converting from JSON to CBOR",
+          "anchor": "converting-from-json"
+        }
+      ]
+    },
+    {
+      "number": "7",
+      "title": "Future Evolution of CBOR",
+      "anchor": "future-evolution-of-cbor",
+      "subsections": [
+        {
+          "number": "7.1",
+          "title": "Extension Points",
+          "anchor": "extension-points"
+        },
+        {
+          "number": "7.2",
+          "title": "Curating the Additional Information Space",
+          "anchor": "curating"
+        }
+      ]
+    },
+    {
+      "number": "8",
+      "title": "Diagnostic Notation",
+      "anchor": "diagnostic-notation",
+      "subsections": [
+        {
+          "number": "8.1",
+          "title": "Encoding Indicators",
+          "anchor": "encoding-indicators"
+        }
+      ]
+    },
+    {
+      "number": "9",
+      "title": "IANA Considerations",
+      "anchor": "ianacons",
+      "subsections": [
+        {
+          "number": "9.1",
+          "title": "CBOR Simple Values Registry",
+          "anchor": "ianasimple"
+        },
+        {
+          "number": "9.2",
+          "title": "CBOR Tags Registry",
+          "anchor": "ianatags"
+        },
+        {
+          "number": "9.3",
+          "title": "Media Types Registry",
+          "anchor": "media-type-mime-type"
+        },
+        {
+          "number": "9.4",
+          "title": "CoAP Content-Format Registry",
+          "anchor": "coap-content-format"
+        },
+        {
+          "number": "9.5",
+          "title": "Structured Syntax Suffix Registry",
+          "anchor": "the-cbor-structured-syntax-suffix-registration"
+        }
+      ]
+    },
+    {
+      "number": "10",
+      "title": "Security Considerations",
+      "anchor": "securitycons"
+    },
+    {
+      "number": "11",
+      "title": "References",
+      "subsections": [
+        {
+          "number": "11.1",
+          "title": "Normative References"
+        },
+        {
+          "number": "11.2",
+          "title": "Informative References"
+        }
+      ]
+    },
+    {
+      "number": "A",
+      "title": "Examples of Encoded CBOR Data Items",
+      "anchor": "examples"
+    },
+    {
+      "number": "B",
+      "title": "Jump Table for Initial Byte",
+      "anchor": "jump-table"
+    },
+    {
+      "number": "C",
+      "title": "Pseudocode",
+      "anchor": "pseudocode"
+    },
+    {
+      "number": "D",
+      "title": "Half-Precision",
+      "anchor": "half-precision"
+    },
+    {
+      "number": "E",
+      "title": "Comparison of Other Binary Formats to CBOR's Design Objectives",
+      "anchor": "comparison-app",
+      "subsections": [
+        {
+          "number": "E.1",
+          "title": "ASN.1 DER, BER, and PER",
+          "anchor": "asn1-der-ber-and-per"
+        },
+        {
+          "number": "E.2",
+          "title": "MessagePack",
+          "anchor": "messagepack"
+        },
+        {
+          "number": "E.3",
+          "title": "BSON",
+          "anchor": "bson"
+        },
+        {
+          "number": "E.4",
+          "title": "MSDTP: RFC 713",
+          "anchor": "msdtp-rfc-713"
+        },
+        {
+          "number": "E.5",
+          "title": "Conciseness on the Wire",
+          "anchor": "conciseness-on-the-wire"
+        }
+      ]
+    },
+    {
+      "number": "F",
+      "title": "Well-Formedness Errors and Examples",
+      "anchor": "errors",
+      "subsections": [
+        {
+          "number": "F.1",
+          "title": "Examples of CBOR Data Items That Are Not Well-Formed",
+          "anchor": "examples-for-cbor-data-items-that-are-not-well-formed"
+        }
+      ]
+    },
+    {
+      "number": "G",
+      "title": "Changes from RFC 7049",
+      "anchor": "changes-from-rfc-7049",
+      "subsections": [
+        {
+          "number": "G.1",
+          "title": "Errata Processing and Clerical Changes",
+          "anchor": "errata-processing-clerical-changes"
+        },
+        {
+          "number": "G.2",
+          "title": "Changes in IANA Considerations",
+          "anchor": "changes-in-iana-considerations"
+        },
+        {
+          "number": "G.3",
+          "title": "Changes in Suggestions and Other Informational Components",
+          "anchor": "changes-in-suggestions-and-other-informational-components"
+        }
+      ]
+    },
+    {
+      "number": "H",
+      "title": "Acknowledgements",
+      "anchor": "acknowledgements"
+    },
+    {
+      "number": "I",
+      "title": "Authors' Addresses",
+      "anchor": "authors-addresses"
+    }
+  ],
+  "referenceCount": {
+    "normative": 13,
+    "informative": 34
+  },
+  "_source": "xml"
+}

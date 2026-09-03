@@ -51,7 +51,7 @@ npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
 npm run audit         # 実物の RFC 67 本に不変条件 45 種を当てる
-npm run snapshot      # 代表的な出力 31 本を固定し、差分を見る
+npm run snapshot      # 代表的な出力 32 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
 npm start             # MCP サーバー起動
@@ -69,10 +69,10 @@ publish の前に、次を順に通す。
 
 | 手順 | 見るもの |
 |---|---|
-| `npm test` | 書いた条件の取りこぼし（465 件） |
+| `npm test` | 書いた条件の取りこぼし（469 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
 | `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 45 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 31 本） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 32 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -500,6 +500,22 @@ RFC 2131 §4.3.1 の Table 3 は 2 ページにわたるので、段落全体を
 要件文は `keyIdentifier [0] KeyIdentifier OPTIONAL,` になる。RFC 4253 §6.3 の
 暗号方式の表も同じ。実測（RFC 67 本）: 86 件、うち RFC 5280 が 46 件、
 RFC 4253 が 12 件、RFC 5652 が 12 件。**判断待ちである。**
+
+### 同じ RFC を両経路で読んで突き合わせる
+
+新しめの RFC は XML とテキストの両方で公開されている。両方を読んで節番号と題名を
+比べると、単体では気づかない食い違いが出る。v0.6.35 はこれで 2 件見つけた。
+
+| 見つかったもの | 中身 |
+|---|---|
+| 後付録の 2 段目が小文字 | RFC 8949 は `section-e.1`（RFC 9114 は `appendix.a.2`）。`normalizeSectionNumber` が `appendix.<文字>` しか直していなかった |
+| XML 経路に参考文献の欄が無い | テキスト経路は `19. References` を節として返す。同じ RFC の目次が経路で食い違っていた |
+
+**題名の食い違いは最初から 0 件。** 節の中身は両経路で一致している。
+
+残る差は Index・Acknowledgements・Authors' Addresses（RFC 9110 の C / D / E）。
+RFC の目次では番号が付いていないが、XML の `pn` は `section-appendix.c` の形で
+持つ。XML の道具立てが内部で振った番号であり、文書が振った番号ではない。
 
 ### 後付録は `<back>` にある（XML 経路）
 

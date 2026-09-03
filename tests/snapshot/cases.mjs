@@ -140,6 +140,12 @@ export const CASES = [
   {
     // 付録が 46 個ある。文字の番号を見ていなかったため 0 個で、中身は
     // §12.2「Informative References」に吸い込まれていた。
+    // 後付録の 2 段目が `section-e.1` の形になる（RFC 9114 は `appendix.a.2`）。
+    name: 'structure-8949',
+    tool: 'get_rfc_structure',
+    args: { rfc: 8949 },
+  },
+  {
     // 後付録が `<middle>` ではなく `<back>` にある（XML 経路）。
     name: 'structure-9114',
     tool: 'get_rfc_structure',

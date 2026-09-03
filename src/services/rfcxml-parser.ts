@@ -277,6 +277,10 @@ export function parseRFCXML(xml: string): ParsedRFC {
     // §A.2.5 として返すのに、その節が構造に無い状態だった。
     sections: [
       ...extractSections(rfc.middle?.section || []),
+      // 参考文献の欄も RFC の節である。テキスト経路は §19 References を
+      // 節として返すのに、XML 経路は返さず、同じ RFC の目次が経路によって
+      // 食い違っていた（RFC 9110 §19 / 9112 §13 / 9114 §12）。
+      ...extractReferenceSections(rfc.back?.references || []),
       ...extractSections(rfc.back?.section || []),
     ],
     references: extractReferences(rfc.back?.references || []),
@@ -345,6 +349,27 @@ export function extractPublicationDate(dateNode: XmlNode | undefined): string | 
 /**
  * セクション構造の抽出
  */
+/**
+ * `<references>` を節として返す。
+ *
+ * 中身は `<reference>` なので本文は無い。番号と題名だけを持つ節になる。
+ * 参照そのものは `get_rfc_dependencies` が返す。
+ */
+function extractReferenceSections(references: XmlNode | XmlNode[]): Section[] {
+  if (!references) return [];
+  const list = Array.isArray(references) ? references : [references];
+
+  return list.map(
+    (node): Section => ({
+      anchor: node['@_anchor'],
+      number: node['@_pn'],
+      title: extractProse(node.name) || 'References',
+      content: [],
+      subsections: extractReferenceSections(node.references),
+    })
+  );
+}
+
 function extractSections(sections: XmlNode | XmlNode[]): Section[] {
   if (!sections) return [];
 

@@ -56,11 +56,15 @@ describe('parseRFCXML', () => {
   it('should extract sections', () => {
     const result = parseRFCXML(minimalRFCXML);
 
-    expect(result.sections).toHaveLength(2);
+    // 本文の 2 節に加えて、参考文献の欄も節として返す。テキスト経路は
+    // §19 References を節として返すので、経路をそろえる。
+    expect(result.sections).toHaveLength(4);
     expect(result.sections[0].anchor).toBe('section-1');
     expect(result.sections[0].title).toBe('Introduction');
     expect(result.sections[1].anchor).toBe('section-2');
     expect(result.sections[1].title).toBe('Requirements');
+    expect(result.sections[2].title).toBe('Normative References');
+    expect(result.sections[3].title).toBe('Informative References');
   });
 
   it('should extract text blocks with requirements', () => {

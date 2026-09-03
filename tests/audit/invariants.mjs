@@ -83,7 +83,10 @@ const findSection = (sections, target) => {
   const normalize = (value) => {
     const bare = (value ?? '').replace(/^section-/, '');
     const appendix = /^appendix\.([a-z])((?:\.\d+)*)$/i.exec(bare);
-    return appendix ? `${appendix[1].toUpperCase()}${appendix[2]}` : bare;
+    if (appendix) return `${appendix[1].toUpperCase()}${appendix[2]}`;
+    // 後付録の下位節が `e.1` の形になる RFC がある（RFC 8949）。
+    const letterSection = /^([a-z])((?:\.\d+)*)$/.exec(bare);
+    return letterSection ? `${letterSection[1].toUpperCase()}${letterSection[2]}` : bare;
   };
   walk(sections, (section) => {
     if (found) return;

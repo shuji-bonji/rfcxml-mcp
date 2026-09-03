@@ -419,6 +419,20 @@ args: {"rfc":9114}
       ]
     },
     {
+      "number": "12",
+      "title": "References",
+      "subsections": [
+        {
+          "number": "12.1",
+          "title": "Normative References"
+        },
+        {
+          "number": "12.2",
+          "title": "Informative References"
+        }
+      ]
+    },
+    {
       "number": "A",
       "title": "Considerations for Transitioning from HTTP/2",
       "anchor": "h2-considerations",

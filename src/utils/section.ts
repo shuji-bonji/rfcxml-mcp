@@ -28,6 +28,13 @@ export function normalizeSectionNumber(sectionId: string): string {
   const appendix = /^appendix\.([a-z])((?:\.\d+)*)$/i.exec(bare);
   if (appendix) return `${appendix[1].toUpperCase()}${appendix[2]}`;
 
+  // 後付録の下位節は `e.1` の形になる RFC がある。RFC 8949 は 1 段目を
+  // `section-appendix.e`、2 段目を `section-e.1` と書く（RFC 9114 は
+  // 2 段目も `section-appendix.a.2`）。小文字のまま返すと、テキスト経路が
+  // 返す `E.1` と食い違う。
+  const letterSection = /^([a-z])((?:\.\d+)*)$/.exec(bare);
+  if (letterSection) return `${letterSection[1].toUpperCase()}${letterSection[2]}`;
+
   return bare;
 }
 
