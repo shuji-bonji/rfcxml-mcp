@@ -48,6 +48,7 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 7231 },
     { rfc: 7540 },
     { rfc: 8446, note: '題名が数字で始まる節 (0-RTT) がある' },
+    { rfc: 7159, note: '参照が "Errata ID 3607, RFC 3607" と本文に番号を書く' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '2000s-text': [
@@ -60,12 +61,16 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 5321, note: 'ABNF の注釈に要件がある' },
     { rfc: 5322, note: '罫線の表がある' },
     { rfc: 6066 },
+    { rfc: 5652, note: '引用符を付けずに BCP 14 の定型文を書く' },
+    { rfc: 4253, note: '同上' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-late-text': [
     { rfc: 2045 },
     { rfc: 2131, note: '空白で桁を揃えた表がある' },
     { rfc: 2616, note: '参考文献の欄が 1 つしかない' },
+    { rfc: 2068, note: '警告コードの表に "99 Miscellaneous warning" がある' },
+    { rfc: 2445, note: '題名が小文字で始まる節 (iCalendar Object Specification)' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-early-text': [

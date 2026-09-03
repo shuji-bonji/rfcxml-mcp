@@ -361,3 +361,22 @@ describe('引用符に囲まれたキーワードは要件ではない', () => {
     ]);
   });
 });
+
+describe('引用符を付けない BCP 14 の定型文', () => {
+  it('要件を出さない', () => {
+    // RFC 5652 §1.2 と RFC 4253 §1.1 は引用符を付けずに書く。
+    // isQuotedKeyword は当たらないので 8 件の要件が出ていた。
+    const text =
+      'In this document, the key words MUST, MUST NOT, REQUIRED, SHOULD,\n' +
+      '   SHOULD NOT, RECOMMENDED, MAY, and OPTIONAL are to be interpreted as\n' +
+      '   described in [STDWORDS].';
+
+    expect(extractRequirementMarkers(text)).toEqual([]);
+  });
+
+  it('定型文でない段落からは要件を出す', () => {
+    const text = 'The signature MUST be verified before the content is used.';
+
+    expect(extractRequirementMarkers(text)).toHaveLength(1);
+  });
+});

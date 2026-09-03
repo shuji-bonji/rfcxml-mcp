@@ -1,6 +1,6 @@
 # 監査（`npm run audit`）
 
-実物の RFC 55 本に不変条件 33 種を当てる。
+実物の RFC 60 本に不変条件 33 種を当てる。
 
 ```sh
 npm run build && npm run audit
@@ -39,6 +39,7 @@ npm run audit -- --update            # 基準値を書き換える
 | A6   | 1157                         | 目次は §8 §9 と番号を振るが、本文の見出しは `Security Considerations` と番号なしで書かれている |
 | B11  | 4271                         | 原文が「the route MAY NOT serve as an input」と書く。`MAY NOT` は BCP 14 に無い                |
 | E5   | 6455, 7540, 8878, 8949, 9204 | 原文の題名が目印と同じ（`<title>MessagePack</title>` と `anchor="MessagePack"`）               |
+| E4   | 7159                         | 原文が `Errata ID 3607, RFC 3607` と、引用の中に番号を書く。引用と題名が分かれていない         |
 
 D1 の 2 件は原文の誤りで、パーサ側で直せるものではない。
 A6 の 2 件は、番号のない見出しを目次の題名と突き合わせれば拾えるが、

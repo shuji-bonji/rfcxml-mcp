@@ -45,6 +45,12 @@ export const CASES = [
 
   // --- get_requirements ---
   {
+    // 引用符を付けない BCP 14 の定型文。8 件の要件が出ていた。
+    name: 'requirements-5652-1.2',
+    tool: 'get_requirements',
+    args: { rfc: 5652, section: '1.2' },
+  },
+  {
     // ABNF の注釈に要件を書く。
     name: 'requirements-6455-5.2',
     tool: 'get_requirements',
@@ -88,6 +94,13 @@ export const CASES = [
     name: 'structure-1035',
     tool: 'get_rfc_structure',
     args: { rfc: 1035 },
+  },
+  {
+    // 警告コードの表に "99 Miscellaneous warning" がある。§99 として
+    // 受け入れると以降の 30 節が落ちていた。
+    name: 'structure-2068',
+    tool: 'get_rfc_structure',
+    args: { rfc: 2068 },
   },
   {
     // 節に番号が無い（1980 年代）。番号を頼りにすると 1 つも取れない。

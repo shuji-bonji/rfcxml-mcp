@@ -398,9 +398,26 @@ export function isQuotedKeyword(text: string, position: number, length: number):
  * XML 経路とテキスト経路で同じものを使う。片方だけに条件を足すと、
  * 同じ RFC が経路によって違う要件を返す。
  */
+/**
+ * BCP 14 の定型文。ここからは要件を出さない。
+ *
+ * 引用符を付けない書き方がある。RFC 5652 §1.2 は
+ *
+ * > In this document, the key words MUST, MUST NOT, REQUIRED, SHOULD,
+ * > SHOULD NOT, RECOMMENDED, MAY, and OPTIONAL are to be interpreted as
+ * > described in [STDWORDS].
+ *
+ * と書く。`isQuotedKeyword` は当たらないので、8 件の要件が出ていた。
+ * RFC 4253 §1.1 も同じ書き方である。
+ */
+const BCP14_BOILERPLATE =
+  /\bkey\s?words?\b[\s\S]{0,400}?\bare\s+to\s+be\s+interpreted\s+as\s+described\s+in\b/i;
+
 export function extractRequirementMarkers(
   text: string
 ): Array<{ level: string; position: number }> {
+  if (BCP14_BOILERPLATE.test(text)) return [];
+
   const markers: Array<{ level: string; position: number }> = [];
   const regex = createRequirementRegex();
 

@@ -1412,3 +1412,57 @@ describe('参照の題名', () => {
     expect(refsOf(text, 1305)[0].title).not.toMatch(/^\[/);
   });
 });
+
+describe('1 段目の節番号の飛び', () => {
+  it('表の中の大きな番号を節にしない', () => {
+    // RFC 2068 は Warning ヘッダの警告コードを表にして
+    // "99 Miscellaneous warning" を 1 桁目に置く。§99 として受け入れると
+    // 以降の §15 §16 が「番号が戻る」として落ち、30 節が消えていた。
+    const text = [
+      '13.  Caching in HTTP',
+      '',
+      '   Text.',
+      '',
+      '14  Header Field Definitions',
+      '',
+      '   Text.',
+      '',
+      '99 Miscellaneous warning',
+      '',
+      '  The warning text may include arbitrary information.',
+      '',
+      '15 Security Considerations',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 2068);
+
+    expect(parsed.sections.map((s) => s.number)).toEqual(['13', '14', '15']);
+  });
+});
+
+describe('題名が小文字で始まる節（大文字の並びで見分ける）', () => {
+  it('ページの区切りの直後でも節にする', () => {
+    // RFC 2445 §4 の "4 iCalendar Object Specification" は番号に句点が無く、
+    // ページの区切りの直後なので直前も空行ではない。
+    const text = [
+      '3 Registration Information',
+      '',
+      '   Text that runs to the end of the page without a full stop and',
+      '   continues past the page break',
+      '',
+      'Dawson & Stenerson          Standards Track                    [Page 12]',
+      '\f',
+      'RFC 2445                       iCalendar                   November 1998',
+      '',
+      '4 iCalendar Object Specification',
+      '',
+      '   The following sections define the details of a Calendaring object.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 2445);
+
+    expect(parsed.sections.map((s) => s.number)).toEqual(['3', '4']);
+  });
+});

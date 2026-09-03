@@ -602,6 +602,32 @@ function containsSentenceBreak(title: string): boolean {
 /**
  * セクション構造の抽出（テキストから）
  */
+/**
+ * 題名らしい大文字の並びか。
+ *
+ * 小文字で始まる題名を、本文の折り返しと見分ける 3 つ目の手がかりである。
+ * RFC 2445 §4 の `4 iCalendar Object Specification` は、番号に句点が無く、
+ * ページの区切りの直後なので直前も空行ではない。それでも題名である。
+ *
+ * - `iCalendar Object Specification` → 3 語中 3 語が大文字始まり
+ * - `characters, arriving from the user at 200ms intervals, would` → 0 語
+ *
+ * 1 語だけの題名（`origin-form`）はこの手がかりを使わない。判断できない。
+ */
+function looksLikeTitleCase(title: string): boolean {
+  const words = title
+    .trim()
+    .split(/\s+/)
+    .filter((word) => /[A-Za-z]{3}/.test(word));
+  if (words.length < 2) return false;
+
+  const capitalized = words.filter((word) => /^[A-Z]/.test(word)).length;
+  return capitalized * 2 >= words.length;
+}
+
+/** 1 段目の節番号に許す飛び。RFC には欠番がある。 */
+const MAX_SECTION_NUMBER_GAP = 5;
+
 /** 字下げした見出しの、1 段あたりの字下げ幅。 */
 const INDENTED_HEADER_STEP = 3;
 
@@ -836,6 +862,13 @@ function acceptsSectionNumber(
   const topLevel = Number(candidate.split('.')[0]);
   if (!Number.isInteger(topLevel)) return false;
   if (state.seen.size > 0 && topLevel < state.maxTopLevel) return false;
+  // 1 段目の番号が大きく飛ぶ行は節ではない。
+  //
+  // RFC 2068 は Warning ヘッダの警告コードを表にして、`99 Miscellaneous warning`
+  // を 1 桁目に置く。これを §99 として受け入れると `maxTopLevel` が 99 になり、
+  // **そのあとの §14.46・§15・§15.1〜15.9・§16 が丸ごと落ちていた（30 節）。**
+  // 節番号は 1 ずつ増える。欠番があっても数個である。
+  if (state.seen.size > 0 && topLevel > state.maxTopLevel + MAX_SECTION_NUMBER_GAP) return false;
 
   return true;
 }
@@ -923,7 +956,7 @@ function extractTextSections(lines: string[]): Section[] {
       if (
         isValidSectionHeader(sectionNum, title) &&
         acceptsSectionNumber(numbering, sectionNum) &&
-        (!startsLowercase || numberEndsWithPeriod || followsBlankLine)
+        (!startsLowercase || numberEndsWithPeriod || followsBlankLine || looksLikeTitleCase(title))
       ) {
         // 前のセクションを保存
         if (currentSection) {
@@ -1188,7 +1221,6 @@ const DISPLAY_BLOCK_MAX_WORDS = 3;
 function looksLikeDisplayBlock(text: string): boolean {
   const lines = text.split('\n').filter((line) => line.trim() !== '');
   if (lines.length < 2) return false;
-
   return lines.every((line) => {
     const trimmed = line.trim();
     if (/[.!?]$/.test(trimmed)) return false;

@@ -1,0 +1,20 @@
+# requirements-5652-1.2
+
+tool: get_requirements
+args: {"rfc":5652,"section":"1.2"}
+
+--- json ---
+{
+  "rfc": 5652,
+  "filter": {
+    "section": "1.2",
+    "level": "all"
+  },
+  "stats": {
+    "total": 0,
+    "byLevel": {}
+  },
+  "requirements": [],
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Requirement extraction accuracy may be limited."
+}

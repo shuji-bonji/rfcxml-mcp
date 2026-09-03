@@ -1,0 +1,1104 @@
+# structure-2068
+
+tool: get_rfc_structure
+args: {"rfc":2068}
+
+--- json ---
+{
+  "metadata": {
+    "title": "Hypertext Transfer Protocol -- HTTP/1.1",
+    "number": 2068,
+    "date": "1997-01",
+    "category": "std",
+    "stream": "IETF",
+    "abstract": "The Hypertext Transfer Protocol (HTTP) is an application-level protocol for distributed, collaborative, hypermedia information systems. [STANDARDS-TRACK]"
+  },
+  "sections": [
+    {
+      "number": "1",
+      "title": "Introduction",
+      "subsections": [
+        {
+          "number": "1.1",
+          "title": "Purpose"
+        },
+        {
+          "number": "1.2",
+          "title": "Requirements"
+        },
+        {
+          "number": "1.3",
+          "title": "Terminology"
+        },
+        {
+          "number": "1.4",
+          "title": "Overall Operation"
+        }
+      ]
+    },
+    {
+      "number": "2",
+      "title": "Notational Conventions and Generic Grammar",
+      "subsections": [
+        {
+          "number": "2.1",
+          "title": "Augmented BNF"
+        },
+        {
+          "number": "2.2",
+          "title": "Basic Rules"
+        }
+      ]
+    },
+    {
+      "number": "3",
+      "title": "Protocol Parameters",
+      "subsections": [
+        {
+          "number": "3.1",
+          "title": "HTTP Version"
+        },
+        {
+          "number": "3.2",
+          "title": "Uniform Resource Identifiers",
+          "subsections": [
+            {
+              "number": "3.2.1",
+              "title": "General Syntax"
+            },
+            {
+              "number": "3.2.2",
+              "title": "http URL"
+            },
+            {
+              "number": "3.2.3",
+              "title": "URI Comparison"
+            }
+          ]
+        },
+        {
+          "number": "3.3",
+          "title": "Date/Time Formats",
+          "subsections": [
+            {
+              "number": "3.3.1",
+              "title": "Full Date"
+            },
+            {
+              "number": "3.3.2",
+              "title": "Delta Seconds"
+            }
+          ]
+        },
+        {
+          "number": "3.4",
+          "title": "Character Sets"
+        },
+        {
+          "number": "3.5",
+          "title": "Content Codings"
+        },
+        {
+          "number": "3.6",
+          "title": "Transfer Codings"
+        },
+        {
+          "number": "3.7",
+          "title": "Media Types",
+          "subsections": [
+            {
+              "number": "3.7.1",
+              "title": "Canonicalization and Text Defaults"
+            },
+            {
+              "number": "3.7.2",
+              "title": "Multipart Types"
+            }
+          ]
+        },
+        {
+          "number": "3.8",
+          "title": "Product Tokens"
+        },
+        {
+          "number": "3.9",
+          "title": "Quality Values"
+        },
+        {
+          "number": "3.10",
+          "title": "Language Tags"
+        },
+        {
+          "number": "3.11",
+          "title": "Entity Tags"
+        },
+        {
+          "number": "3.12",
+          "title": "Range Units"
+        }
+      ]
+    },
+    {
+      "number": "4",
+      "title": "HTTP Message",
+      "subsections": [
+        {
+          "number": "4.1",
+          "title": "Message Types"
+        },
+        {
+          "number": "4.2",
+          "title": "Message Headers"
+        },
+        {
+          "number": "4.3",
+          "title": "Message Body"
+        },
+        {
+          "number": "4.4",
+          "title": "Message Length"
+        },
+        {
+          "number": "4.5",
+          "title": "General Header Fields"
+        }
+      ]
+    },
+    {
+      "number": "5",
+      "title": "Request",
+      "subsections": [
+        {
+          "number": "5.1",
+          "title": "Request-Line",
+          "subsections": [
+            {
+              "number": "5.1.1",
+              "title": "Method"
+            },
+            {
+              "number": "5.1.2",
+              "title": "Request-URI"
+            }
+          ]
+        },
+        {
+          "number": "5.2",
+          "title": "The Resource Identified by a Request"
+        },
+        {
+          "number": "5.3",
+          "title": "Request Header Fields"
+        }
+      ]
+    },
+    {
+      "number": "6",
+      "title": "Response",
+      "subsections": [
+        {
+          "number": "6.1",
+          "title": "Status-Line",
+          "subsections": [
+            {
+              "number": "6.1.1",
+              "title": "Status Code and Reason Phrase"
+            }
+          ]
+        },
+        {
+          "number": "6.2",
+          "title": "Response Header Fields"
+        }
+      ]
+    },
+    {
+      "number": "7",
+      "title": "Entity",
+      "subsections": [
+        {
+          "number": "7.1",
+          "title": "Entity Header Fields"
+        },
+        {
+          "number": "7.2",
+          "title": "Entity Body",
+          "subsections": [
+            {
+              "number": "7.2.1",
+              "title": "Type"
+            },
+            {
+              "number": "7.2.2",
+              "title": "Length"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "8",
+      "title": "Connections",
+      "subsections": [
+        {
+          "number": "8.1",
+          "title": "Persistent Connections",
+          "subsections": [
+            {
+              "number": "8.1.1",
+              "title": "Purpose"
+            },
+            {
+              "number": "8.1.2",
+              "title": "Overall Operation",
+              "subsections": [
+                {
+                  "number": "8.1.2.1",
+                  "title": "Negotiation"
+                },
+                {
+                  "number": "8.1.2.2",
+                  "title": "Pipelining"
+                }
+              ]
+            },
+            {
+              "number": "8.1.3",
+              "title": "Proxy Servers"
+            },
+            {
+              "number": "8.1.4",
+              "title": "Practical Considerations"
+            }
+          ]
+        },
+        {
+          "number": "8.2",
+          "title": "Message Transmission Requirements"
+        }
+      ]
+    },
+    {
+      "number": "9",
+      "title": "Method Definitions",
+      "subsections": [
+        {
+          "number": "9.1",
+          "title": "Safe and Idempotent Methods",
+          "subsections": [
+            {
+              "number": "9.1.1",
+              "title": "Safe Methods"
+            },
+            {
+              "number": "9.1.2",
+              "title": "Idempotent Methods"
+            }
+          ]
+        },
+        {
+          "number": "9.2",
+          "title": "OPTIONS"
+        },
+        {
+          "number": "9.3",
+          "title": "GET"
+        },
+        {
+          "number": "9.4",
+          "title": "HEAD"
+        },
+        {
+          "number": "9.5",
+          "title": "POST"
+        },
+        {
+          "number": "9.6",
+          "title": "PUT"
+        },
+        {
+          "number": "9.7",
+          "title": "DELETE"
+        },
+        {
+          "number": "9.8",
+          "title": "TRACE"
+        }
+      ]
+    },
+    {
+      "number": "10",
+      "title": "Status Code Definitions",
+      "subsections": [
+        {
+          "number": "10.1",
+          "title": "Informational 1xx",
+          "subsections": [
+            {
+              "number": "10.1.1",
+              "title": "100 Continue"
+            },
+            {
+              "number": "10.1.2",
+              "title": "101 Switching Protocols"
+            }
+          ]
+        },
+        {
+          "number": "10.2",
+          "title": "Successful 2xx",
+          "subsections": [
+            {
+              "number": "10.2.1",
+              "title": "200 OK"
+            },
+            {
+              "number": "10.2.2",
+              "title": "201 Created"
+            },
+            {
+              "number": "10.2.3",
+              "title": "202 Accepted"
+            },
+            {
+              "number": "10.2.4",
+              "title": "203 Non-Authoritative Information"
+            },
+            {
+              "number": "10.2.5",
+              "title": "204 No Content"
+            },
+            {
+              "number": "10.2.6",
+              "title": "205 Reset Content"
+            },
+            {
+              "number": "10.2.7",
+              "title": "206 Partial Content"
+            }
+          ]
+        },
+        {
+          "number": "10.3",
+          "title": "Redirection 3xx",
+          "subsections": [
+            {
+              "number": "10.3.1",
+              "title": "300 Multiple Choices"
+            },
+            {
+              "number": "10.3.2",
+              "title": "301 Moved Permanently"
+            },
+            {
+              "number": "10.3.3",
+              "title": "302 Moved Temporarily"
+            },
+            {
+              "number": "10.3.4",
+              "title": "303 See Other"
+            },
+            {
+              "number": "10.3.5",
+              "title": "304 Not Modified"
+            },
+            {
+              "number": "10.3.6",
+              "title": "305 Use Proxy"
+            }
+          ]
+        },
+        {
+          "number": "10.4",
+          "title": "Client Error 4xx",
+          "subsections": [
+            {
+              "number": "10.4.1",
+              "title": "400 Bad Request"
+            },
+            {
+              "number": "10.4.2",
+              "title": "401 Unauthorized"
+            },
+            {
+              "number": "10.4.3",
+              "title": "402 Payment Required"
+            },
+            {
+              "number": "10.4.4",
+              "title": "403 Forbidden"
+            },
+            {
+              "number": "10.4.5",
+              "title": "404 Not Found"
+            },
+            {
+              "number": "10.4.6",
+              "title": "405 Method Not Allowed"
+            },
+            {
+              "number": "10.4.7",
+              "title": "406 Not Acceptable"
+            },
+            {
+              "number": "10.4.8",
+              "title": "407 Proxy Authentication Required"
+            },
+            {
+              "number": "10.4.9",
+              "title": "408 Request Timeout"
+            },
+            {
+              "number": "10.4.10",
+              "title": "409 Conflict"
+            },
+            {
+              "number": "10.4.11",
+              "title": "410 Gone"
+            },
+            {
+              "number": "10.4.12",
+              "title": "411 Length Required"
+            },
+            {
+              "number": "10.4.13",
+              "title": "412 Precondition Failed"
+            },
+            {
+              "number": "10.4.14",
+              "title": "413 Request Entity Too Large"
+            },
+            {
+              "number": "10.4.15",
+              "title": "414 Request-URI Too Long"
+            },
+            {
+              "number": "10.4.16",
+              "title": "415 Unsupported Media Type"
+            }
+          ]
+        },
+        {
+          "number": "10.5",
+          "title": "Server Error 5xx",
+          "subsections": [
+            {
+              "number": "10.5.1",
+              "title": "500 Internal Server Error"
+            },
+            {
+              "number": "10.5.2",
+              "title": "501 Not Implemented"
+            },
+            {
+              "number": "10.5.3",
+              "title": "502 Bad Gateway"
+            },
+            {
+              "number": "10.5.4",
+              "title": "503 Service Unavailable"
+            },
+            {
+              "number": "10.5.5",
+              "title": "504 Gateway Timeout"
+            },
+            {
+              "number": "10.5.6",
+              "title": "505 HTTP Version Not Supported"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "11",
+      "title": "Access Authentication",
+      "subsections": [
+        {
+          "number": "11.1",
+          "title": "Basic Authentication Scheme"
+        },
+        {
+          "number": "11.2",
+          "title": "Digest Authentication Scheme"
+        }
+      ]
+    },
+    {
+      "number": "12",
+      "title": "Content Negotiation",
+      "subsections": [
+        {
+          "number": "12.1",
+          "title": "Server-driven Negotiation"
+        },
+        {
+          "number": "12.2",
+          "title": "Agent-driven Negotiation"
+        },
+        {
+          "number": "12.3",
+          "title": "Transparent Negotiation"
+        }
+      ]
+    },
+    {
+      "number": "13",
+      "title": "Caching in HTTP",
+      "subsections": [
+        {
+          "number": "13.1.1",
+          "title": "Cache Correctness"
+        },
+        {
+          "number": "13.1.2",
+          "title": "Warnings"
+        },
+        {
+          "number": "13.1.3",
+          "title": "Cache-control Mechanisms"
+        },
+        {
+          "number": "13.1.4",
+          "title": "Explicit User Agent Warnings"
+        },
+        {
+          "number": "13.1.5",
+          "title": "Exceptions to the Rules and Warnings"
+        },
+        {
+          "number": "13.1.6",
+          "title": "Client-controlled Behavior"
+        },
+        {
+          "number": "13.2",
+          "title": "Expiration Model",
+          "subsections": [
+            {
+              "number": "13.2.1",
+              "title": "Server-Specified Expiration"
+            },
+            {
+              "number": "13.2.2",
+              "title": "Heuristic Expiration"
+            },
+            {
+              "number": "13.2.3",
+              "title": "Age Calculations"
+            },
+            {
+              "number": "13.2.4",
+              "title": "Expiration Calculations"
+            },
+            {
+              "number": "13.2.5",
+              "title": "Disambiguating Expiration Values"
+            },
+            {
+              "number": "13.2.6",
+              "title": "Disambiguating Multiple Responses"
+            }
+          ]
+        },
+        {
+          "number": "13.3",
+          "title": "Validation Model",
+          "subsections": [
+            {
+              "number": "13.3.1",
+              "title": "Last-modified Dates"
+            },
+            {
+              "number": "13.3.2",
+              "title": "Entity Tag Cache Validators"
+            },
+            {
+              "number": "13.3.3",
+              "title": "Weak and Strong Validators"
+            },
+            {
+              "number": "13.3.4",
+              "title": "Rules for When to Use Entity Tags and Last-modified Dates"
+            },
+            {
+              "number": "13.3.5",
+              "title": "Non-validating Conditionals"
+            }
+          ]
+        },
+        {
+          "number": "13.4",
+          "title": "Response Cachability"
+        },
+        {
+          "number": "13.5",
+          "title": "Constructing Responses From Caches",
+          "subsections": [
+            {
+              "number": "13.5.1",
+              "title": "End-to-end and Hop-by-hop Headers"
+            },
+            {
+              "number": "13.5.2",
+              "title": "Non-modifiable Headers"
+            },
+            {
+              "number": "13.5.3",
+              "title": "Combining Headers"
+            },
+            {
+              "number": "13.5.4",
+              "title": "Combining Byte Ranges"
+            }
+          ]
+        },
+        {
+          "number": "13.6",
+          "title": "Caching Negotiated Responses"
+        },
+        {
+          "number": "13.7",
+          "title": "Shared and Non-Shared Caches"
+        },
+        {
+          "number": "13.8",
+          "title": "Errors or Incomplete Response Cache Behavior"
+        },
+        {
+          "number": "13.9",
+          "title": "Side Effects of GET and HEAD"
+        },
+        {
+          "number": "13.10",
+          "title": "Invalidation After Updates or Deletions"
+        },
+        {
+          "number": "13.11",
+          "title": "Write-Through Mandatory"
+        },
+        {
+          "number": "13.12",
+          "title": "Cache Replacement"
+        },
+        {
+          "number": "13.13",
+          "title": "History Lists"
+        }
+      ]
+    },
+    {
+      "number": "14",
+      "title": "Header Field Definitions",
+      "subsections": [
+        {
+          "number": "14.1",
+          "title": "Accept"
+        },
+        {
+          "number": "14.2",
+          "title": "Accept-Charset"
+        },
+        {
+          "number": "14.3",
+          "title": "Accept-Encoding"
+        },
+        {
+          "number": "14.4",
+          "title": "Accept-Language"
+        },
+        {
+          "number": "14.5",
+          "title": "Accept-Ranges"
+        },
+        {
+          "number": "14.6",
+          "title": "Age"
+        },
+        {
+          "number": "14.7",
+          "title": "Allow"
+        },
+        {
+          "number": "14.8",
+          "title": "Authorization"
+        },
+        {
+          "number": "14.9",
+          "title": "Cache-Control",
+          "subsections": [
+            {
+              "number": "14.9.1",
+              "title": "What is Cachable"
+            },
+            {
+              "number": "14.9.2",
+              "title": "What May be Stored by Caches"
+            },
+            {
+              "number": "14.9.3",
+              "title": "Modifications of the Basic Expiration Mechanism"
+            },
+            {
+              "number": "14.9.4",
+              "title": "Cache Revalidation and Reload Controls"
+            },
+            {
+              "number": "14.9.5",
+              "title": "No-Transform Directive"
+            },
+            {
+              "number": "14.9.6",
+              "title": "Cache Control Extensions"
+            }
+          ]
+        },
+        {
+          "number": "14.10",
+          "title": "Connection"
+        },
+        {
+          "number": "14.11",
+          "title": "Content-Base"
+        },
+        {
+          "number": "14.12",
+          "title": "Content-Encoding"
+        },
+        {
+          "number": "14.13",
+          "title": "Content-Language"
+        },
+        {
+          "number": "14.14",
+          "title": "Content-Length"
+        },
+        {
+          "number": "14.15",
+          "title": "Content-Location"
+        },
+        {
+          "number": "14.16",
+          "title": "Content-MD5"
+        },
+        {
+          "number": "14.17",
+          "title": "Content-Range"
+        },
+        {
+          "number": "14.18",
+          "title": "Content-Type"
+        },
+        {
+          "number": "14.19",
+          "title": "Date"
+        },
+        {
+          "number": "14.20",
+          "title": "ETag"
+        },
+        {
+          "number": "14.21",
+          "title": "Expires"
+        },
+        {
+          "number": "14.22",
+          "title": "From"
+        },
+        {
+          "number": "14.23",
+          "title": "Host"
+        },
+        {
+          "number": "14.24",
+          "title": "If-Modified-Since"
+        },
+        {
+          "number": "14.25",
+          "title": "If-Match"
+        },
+        {
+          "number": "14.26",
+          "title": "If-None-Match"
+        },
+        {
+          "number": "14.27",
+          "title": "If-Range"
+        },
+        {
+          "number": "14.28",
+          "title": "If-Unmodified-Since"
+        },
+        {
+          "number": "14.29",
+          "title": "Last-Modified"
+        },
+        {
+          "number": "14.30",
+          "title": "Location"
+        },
+        {
+          "number": "14.31",
+          "title": "Max-Forwards"
+        },
+        {
+          "number": "14.32",
+          "title": "Pragma"
+        },
+        {
+          "number": "14.33",
+          "title": "Proxy-Authenticate"
+        },
+        {
+          "number": "14.34",
+          "title": "Proxy-Authorization"
+        },
+        {
+          "number": "14.35",
+          "title": "Public"
+        },
+        {
+          "number": "14.36",
+          "title": "Range",
+          "subsections": [
+            {
+              "number": "14.36.1",
+              "title": "Byte Ranges"
+            },
+            {
+              "number": "14.36.2",
+              "title": "Range Retrieval Requests"
+            }
+          ]
+        },
+        {
+          "number": "14.37",
+          "title": "Referer"
+        },
+        {
+          "number": "14.38",
+          "title": "Retry-After"
+        },
+        {
+          "number": "14.39",
+          "title": "Server"
+        },
+        {
+          "number": "14.40",
+          "title": "Transfer-Encoding"
+        },
+        {
+          "number": "14.41",
+          "title": "Upgrade"
+        },
+        {
+          "number": "14.42",
+          "title": "User-Agent"
+        },
+        {
+          "number": "14.43",
+          "title": "Vary"
+        },
+        {
+          "number": "14.44",
+          "title": "Via"
+        },
+        {
+          "number": "14.45",
+          "title": "Warning"
+        },
+        {
+          "number": "14.46",
+          "title": "WWW-Authenticate"
+        }
+      ]
+    },
+    {
+      "number": "15",
+      "title": "Security Considerations",
+      "subsections": [
+        {
+          "number": "15.1",
+          "title": "Authentication of Clients"
+        },
+        {
+          "number": "15.2",
+          "title": "Offering a Choice of Authentication Schemes"
+        },
+        {
+          "number": "15.3",
+          "title": "Abuse of Server Log Information"
+        },
+        {
+          "number": "15.4",
+          "title": "Transfer of Sensitive Information"
+        },
+        {
+          "number": "15.5",
+          "title": "Attacks Based On File and Path Names"
+        },
+        {
+          "number": "15.6",
+          "title": "Personal Information"
+        },
+        {
+          "number": "15.7",
+          "title": "Privacy Issues Connected to Accept Headers"
+        },
+        {
+          "number": "15.8",
+          "title": "DNS Spoofing"
+        },
+        {
+          "number": "15.9",
+          "title": "Location Headers and Spoofing"
+        }
+      ]
+    },
+    {
+      "number": "16",
+      "title": "Acknowledgments"
+    },
+    {
+      "number": "17",
+      "title": "References"
+    },
+    {
+      "number": "18",
+      "title": "Authors' Addresses"
+    },
+    {
+      "number": "19",
+      "title": "Appendices",
+      "subsections": [
+        {
+          "number": "19.1",
+          "title": "Internet Media Type message/http"
+        },
+        {
+          "number": "19.2",
+          "title": "Internet Media Type multipart/byteranges"
+        },
+        {
+          "number": "19.3",
+          "title": "Tolerant Applications"
+        },
+        {
+          "number": "19.4",
+          "title": "Differences Between HTTP Entities and MIME Entities",
+          "subsections": [
+            {
+              "number": "19.4.1",
+              "title": "Conversion to Canonical Form"
+            },
+            {
+              "number": "19.4.2",
+              "title": "Conversion of Date Formats"
+            },
+            {
+              "number": "19.4.3",
+              "title": "Introduction of Content-Encoding"
+            },
+            {
+              "number": "19.4.4",
+              "title": "No Content-Transfer-Encoding"
+            },
+            {
+              "number": "19.4.5",
+              "title": "HTTP Header Fields in Multipart Body-Parts"
+            },
+            {
+              "number": "19.4.6",
+              "title": "Introduction of Transfer-Encoding"
+            },
+            {
+              "number": "19.4.7",
+              "title": "MIME-Version"
+            }
+          ]
+        },
+        {
+          "number": "19.5",
+          "title": "Changes from HTTP/1.0",
+          "subsections": [
+            {
+              "number": "19.5.1",
+              "title": "Changes to Simplify Multi-homed Web Servers and Conserve IP"
+            }
+          ]
+        },
+        {
+          "number": "19.6",
+          "title": "Additional Features",
+          "subsections": [
+            {
+              "number": "19.6.1",
+              "title": "Additional Request Methods",
+              "subsections": [
+                {
+                  "number": "19.6.1.1",
+                  "title": "PATCH"
+                },
+                {
+                  "number": "19.6.1.2",
+                  "title": "LINK"
+                },
+                {
+                  "number": "19.6.1.3",
+                  "title": "UNLINK"
+                }
+              ]
+            },
+            {
+              "number": "19.6.2",
+              "title": "Additional Header Field Definitions",
+              "subsections": [
+                {
+                  "number": "19.6.2.1",
+                  "title": "Alternates"
+                },
+                {
+                  "number": "19.6.2.2",
+                  "title": "Content-Version"
+                },
+                {
+                  "number": "19.6.2.3",
+                  "title": "Derived-From"
+                },
+                {
+                  "number": "19.6.2.4",
+                  "title": "Link"
+                },
+                {
+                  "number": "19.6.2.5",
+                  "title": "URI"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "number": "19.7",
+          "title": "Compatibility with Previous Versions",
+          "subsections": [
+            {
+              "number": "19.7.1",
+              "title": "Compatibility with HTTP/1.0 Persistent Connections",
+              "subsections": [
+                {
+                  "number": "19.7.1.1",
+                  "title": "The Keep-Alive Header"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "referenceCount": {
+    "normative": 0,
+    "informative": 32
+  },
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Accuracy may be limited."
+}

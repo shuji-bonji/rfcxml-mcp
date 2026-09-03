@@ -50,7 +50,7 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 55 本に不変条件 33 種を当てる
+npm run audit         # 実物の RFC 60 本に不変条件 33 種を当てる
 npm run snapshot      # 代表的な出力 14 本を固定し、差分を見る
 npm run lint          # リント
 npm run format        # フォーマット
@@ -71,8 +71,8 @@ publish の前に、次を順に通す。
 |---|---|
 | `npm test` | 書いた条件の取りこぼし（367 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 55 本 × 33 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 19 本） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 60 本 × 33 種） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 21 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
@@ -440,6 +440,11 @@ RFC 1123 は出典を題名に書く（`3.2.1  Option Negotiation: RFC-854, pp. 
 
 `isQuotedKeyword` が、開き引用符と閉じ引用符に挟まれたキーワードを落とす。
 閉じ側は `-` も許す（`"MUST-14"`）。
+
+引用符を付けない書き方もある。RFC 5652 §1.2 と RFC 4253 §1.1 は
+`the key words MUST, MUST NOT, … are to be interpreted as described in` と
+裸で書く。`BCP14_BOILERPLATE` が定型文そのものを目印にする。72 桁の折り返しで
+「interpreted as / described in」が改行をまたぐので、空白をまたいで照合する。
 実測（RFC 49 本）: 8,164 件 → 7,797 件、うち定型文 324 件・語の説明 40 件。
 
 ### 2 語のキーワードは改行をまたぐ
@@ -525,6 +530,29 @@ RFC 8259 §3 は取りうる値を字下げして並べる。
 要件文が "false null true The literal names MUST be lowercase." になっていた。
 `looksLikeDiagram` は当たらない。ABNF の規則でも罫線でもなく、空白で桁を
 揃えてもいない、ただの短い語の並びである。`looksLikeDisplayBlock` で落とす。
+
+### 1 段目の節番号は 1 ずつ増える
+
+RFC 2068 は Warning ヘッダの警告コードを表にして `99 Miscellaneous warning` を
+1 桁目に置く。これを §99 として受け入れると、`acceptsSectionNumber` の
+「1 段目の番号は前に戻らない」から見て以降の節がすべて後戻りになり、
+**§14.46 以降の 30 節が丸ごと落ちていた。**
+
+自分で入れた規則が、1 件の誤検出で文書の後半を捨てる形になっていた。
+最大値より `MAX_SECTION_NUMBER_GAP`（5）を超えて飛ぶ番号は節ではない。
+
+### 小文字で始まる題名の 3 つ目の手がかり
+
+v0.6.19 の 2 つ（番号の句点・直前の空行）ではまだ足りない。RFC 2445 §4 の
+`4 iCalendar Object Specification` は、句点が無く、ページの区切りの直後なので
+直前も空行ではない。
+
+`looksLikeTitleCase` が題名らしい大文字の並びを見る。
+
+- `iCalendar Object Specification` → 3 語中 3 語が大文字始まり
+- `characters, arriving from the user at 200ms intervals, would` → 0 語
+
+1 語だけの題名（`origin-form`）には使わない。判断できない。
 
 ### 参照の題名と番号は、引用の部分から取る
 
