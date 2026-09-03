@@ -469,3 +469,28 @@ describe('上限で切る', () => {
     expect(clipAtWord('Coded Character Set, 7-Bit Standard', 20)).toBe('Coded Character…');
   });
 });
+
+describe('句点のあとの閉じ括弧', () => {
+  it('括弧を閉じた直後を文の切れ目とみなす', () => {
+    // RFC 9051。`.` の次が `)` なので文末と見ておらず、要件文が注記の括弧から
+    // 始まっていた。
+    const text =
+      '(See Section 6.3.9.7 for more details.) Mailboxes created in one IMAP session MAY be announced.';
+    expect(extractSentence(text, text.indexOf('MAY'))).toBe(
+      'Mailboxes created in one IMAP session MAY be announced.'
+    );
+  });
+
+  it('閉じ括弧はその文のものとして残す', () => {
+    const text = 'The server closes it. (This is a note.) Next sentence here.';
+    expect(extractSentence(text, text.indexOf('note'))).toBe('(This is a note.)');
+  });
+
+  it('引用の中の疑問符では切らない', () => {
+    // RFC 2616 §13.9。閉じ引用符まで許すと `"?"` が文末になり、要件文が
+    // `in the rel_path part) to perform …` と括弧の途中から始まっていた。
+    const text =
+      'Applications have used query URLs (those containing a "?" in the rel_path part) to perform operations that MUST NOT be cached.';
+    expect(extractSentence(text, text.indexOf('MUST NOT'))).toBe(text);
+  });
+});

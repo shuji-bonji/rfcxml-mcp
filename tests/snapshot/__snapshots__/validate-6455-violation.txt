@@ -217,7 +217,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
     },
     {
       "requirement": {
-        "id": "R-6.1-7",
+        "id": "R-6.1-8",
         "level": "MUST",
         "text": "If the data is being sent by the client, the frame(s) MUST be masked as defined in Section 5.3.",
         "section": "6.1",

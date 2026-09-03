@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.39] - 2026-09-03
+
+**要件文が注記の括弧から始まっていた。** RFC 9110 のサーバ側チェックリストを
+実装者として読み、その流れで全 RFC のチェックリストを眺めて見つけた。
+
+### Fixed
+
+- **句点のあとの閉じ括弧を、文の切れ目と見ていなかった**:
+  - `isSentenceEnd` は句点の**次の 1 文字**が空白かどうかで判定する。
+    RFC 9051 の `(See Section 6.3.9.7 for more details.) Mailboxes created in
+    one IMAP session MAY be announced.` は `.` の次が `)` なので文末と読まれず、
+    要件文が**注記の括弧から始まって**いた。
+  - RFC 6455 §5.1 も
+    `(Note that masking is done whether or not the WebSocket Protocol is
+    running over TLS.) The server MUST close the connection …` だった。
+  - 句点のあとの閉じ括弧を読み飛ばしてから、空白かどうかを見る。
+    閉じ括弧はその文のものとして残す（落とすと括弧が釣り合わない）。
+  - **閉じ引用符は入れない。** 入れると引用の中の疑問符が文末になる。
+    RFC 2616 §13.9 の `query URLs (those containing a "?" in the rel_path part)
+    to perform …` は、要件文が **`in the rel_path part) to perform …`** と
+    括弧の途中から始まっていた。実装の途中でこれを踏み、測って気づいた。
+  - 実測（RFC 67 本）: 注記の括弧から始まる要件 **85 件 → 45 件**。
+    括弧が釣り合わない要件 63 件 → **61 件**。残る 45 件は文の全体が括弧に
+    入っているもので、原文がそう書いている。
+
+### Added
+
+- **不変条件を 1 種**（46 種 → 47 種）: B19「要件文が注記の括弧から始まっていない」。
+  括弧の中が 1 つの文になっているものだけを見る。箇条書きの記号
+  （RFC 1122 の `(b)`）も、規則の名前（RFC 2045 §6.7 の
+  `(Literal representation)`）も注記ではなく、要件文の一部である。
+- **テストを 475 件から 478 件へ**。
+
+### 読んで、直さなかったもの
+
+RFC 9110 のサーバ側チェックリスト（§9.3.1〜9.3.5 で 18 項目）を実装者として読んだ。
+
+`An origin server SHOULD NOT rely on private agreements to receive content …` が
+3 回出るので重複を疑ったが、**RFC 9110 が GET・HEAD・DELETE の 3 つの節に同じ文を
+書いている**。3 件で正しい。
+
+チェックリスト 9,871 項目を機械で眺め、小文字で始まるもの 273 件・45 文字未満の
+もの 217 件も見たが、どちらも原文どおりだった（RFC 6749 の
+`client_id REQUIRED.` など）。
+
 ## [0.6.38] - 2026-09-03
 
 **チェックリストの項目に、何を指しているか分からないものがあった。**

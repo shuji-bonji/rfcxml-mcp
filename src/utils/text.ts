@@ -31,7 +31,14 @@ export function isSentenceEnd(text: string, index: number): boolean {
   const char = text[index];
   if (char !== '.' && char !== '!' && char !== '?') return false;
 
-  const next = text[index + 1];
+  // 句点のあとに閉じ括弧・閉じ引用符が来ることがある。RFC 9051 は
+  // `(See Section 6.3.9.7 for more details.) Mailboxes created in one IMAP
+  // session MAY …` と書く。`.` の次が `)` なので文末と見ておらず、要件文が
+  // **注記の括弧から始まって**いた（実測 80 件）。
+  let after = index + 1;
+  while (after < text.length && SENTENCE_CLOSERS.includes(text[after])) after++;
+
+  const next = text[after];
   if (next !== undefined && !/\s/.test(next)) return false;
 
   if (char !== '.') return true;
@@ -39,6 +46,16 @@ export function isSentenceEnd(text: string, index: number): boolean {
   const tail = text.slice(Math.max(0, index - 4), index + 1).toLowerCase();
   return !ABBREVIATIONS.some((abbreviation) => tail.endsWith(abbreviation));
 }
+
+/**
+ * 句点のあとに続きうる閉じ記号。**括弧だけ**にする。
+ *
+ * 閉じ引用符を入れると、引用の中の疑問符が文末になる。RFC 2616 §13.9 の
+ * `query URLs (those containing a "?" in the rel_path part) to perform …` は
+ * `"?"` の `?` が文末と読まれ、要件文が **`in the rel_path part) to perform …`**
+ * と括弧の途中から始まっていた。
+ */
+const SENTENCE_CLOSERS = ')]}';
 
 /**
  * 指定位置を含む文を抽出
@@ -59,7 +76,15 @@ export function extractSentence(text: string, position: number): string {
     end++;
   }
 
-  return text.substring(start, end + 1).trim();
+  // 句点のあとの閉じ記号は、この文のものである。落とすと括弧が釣り合わない。
+  let stop = end + 1;
+  while (stop < text.length && SENTENCE_CLOSERS.includes(text[stop])) stop++;
+
+  // 直前の文の閉じ記号が頭に残ることがある。
+  let from = start;
+  while (from < stop && (SENTENCE_CLOSERS.includes(text[from]) || /\s/.test(text[from]))) from++;
+
+  return text.substring(from, stop).trim();
 }
 
 /**

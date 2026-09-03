@@ -50,7 +50,7 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 67 本に不変条件 46 種を当てる
+npm run audit         # 実物の RFC 67 本に不変条件 47 種を当てる
 npm run crosscheck    # 7 つのツールの出力が互いに矛盾しないかを見る
 npm run snapshot      # 代表的な出力 33 本を固定し、差分を見る
 npm run lint          # リント
@@ -70,9 +70,9 @@ publish の前に、次を順に通す。
 
 | 手順 | 見るもの |
 |---|---|
-| `npm test` | 書いた条件の取りこぼし（475 件） |
+| `npm test` | 書いた条件の取りこぼし（478 件） |
 | `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 46 種） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 47 種） |
 | `npm run crosscheck` | 出力どうしの食い違い（RFC 67 本 × 10 種） |
 | `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 33 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
@@ -828,6 +828,25 @@ RFC 6455 §5.1 は
 91.8% → 85.2%。`role` の絞り込みは `subject` が無ければ本文を見るので影響しない。
 
 残る短い主語（`ua` 35 件、`ca` 6 件、`tu` 4 件、`dn` 3 件）は本物の略語である。
+
+### 句点のあとの閉じ括弧も文の切れ目
+
+`isSentenceEnd` は句点の**次の 1 文字**が空白かどうかで判定していた。RFC 9051 の
+
+```
+(See Section 6.3.9.7 for more details.) Mailboxes created in one IMAP session MAY …
+```
+
+は `.` の次が `)` なので文末と読まれず、要件文が注記の括弧から始まっていた。
+句点のあとの閉じ括弧を読み飛ばしてから空白を見る。閉じ括弧はその文のものとして
+残す（落とすと括弧が釣り合わない）。
+
+**閉じ引用符は入れない。** 入れると引用の中の疑問符が文末になる。RFC 2616 §13.9 の
+`query URLs (those containing a "?" in the rel_path part) to perform …` は、
+要件文が `in the rel_path part) to perform …` と括弧の途中から始まる。
+
+実測（RFC 67 本）: 注記の括弧から始まる要件 85 件 → 45 件。括弧が釣り合わない要件
+63 件 → 61 件。残る 45 件は文の全体が括弧に入っているもので、原文がそう書いている。
 
 ### チェックリストは並べ替えるので、指示語の指すものが離れる
 

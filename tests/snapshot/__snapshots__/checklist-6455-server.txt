@@ -14,7 +14,7 @@ Generated: <generatedAt>
 
 ## Mandatory Requirements (MUST / REQUIRED / SHALL)
 
-- [ ] **MUST** (Note that masking is done whether or not the WebSocket Protocol is running over TLS.) The server MUST close the connection upon receiving a frame that is not masked. (§5.1)
+- [ ] **MUST** The server MUST close the connection upon receiving a frame that is not masked. (§5.1)
 - [ ] **MUST NOT** A server MUST NOT mask any frames that it sends to the client. (§5.1)
 - [ ] **MUST** RSV1, RSV2, RSV3: 1 bit each MUST be 0 unless an extension is negotiated that defines meanings for non-zero values. (§5.2)
 - [ ] **MUST** If a nonzero value is received and none of the negotiated extensions defines the meaning of such a nonzero value, the receiving endpoint MUST _Fail the WebSocket Connection_. (§5.2)

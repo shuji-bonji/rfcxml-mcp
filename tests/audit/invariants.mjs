@@ -35,6 +35,15 @@ const FUNCTION_WORD_SUBJECT =
 const TRAILING_SUBJECT_WORD =
   /\s(?:and|or|but|nor|of|to|in|on|at|by|as|for|from|with|is|are|was|were|be|been|being|has|have|had|not|the|a|an|that|which|it|this)$/i;
 
+/**
+ * 閉じた括弧のあとに本文が続く形。注記が要件文の頭に残っている。
+ *
+ * **括弧の中が 1 つの文になっているものだけ**を見る。箇条書きの記号
+ * （RFC 1122 の `(b)`）も、規則の名前（RFC 2045 §6.7 の
+ * `(Literal representation)`）も注記ではなく、要件文の一部である。
+ */
+const OPENS_WITH_ASIDE = /^\([^)]*[.!?]\)\s+\S/;
+
 /** 参考文献の欄の見出し。 */
 const REFERENCE_HEADING =
   /^(?:\d+(?:\.\d+)*\.?\s+)?(?:(?:normative|informative)\s+)?(?:references(?:\s+and\s+bibliography)?|bibliography)\s*$/i;
@@ -581,6 +590,18 @@ export const INVARIANTS = [
       }
       return broken;
     },
+  },
+  {
+    id: 'B19',
+    description: '要件文が注記の括弧から始まっていない',
+    // `.` の次が `)` のとき文末と見ていなかったため、要件文が
+    // `(See Section 6.3.9.7 for more details.) Mailboxes created …` のように
+    // 注記から始まっていた（実測 85 件 → 45 件）。残る 45 件は文の全体が括弧に
+    // 入っているもので、原文がそう書いている。
+    check: ({ requirements }) =>
+      requirements
+        .filter((requirement) => OPENS_WITH_ASIDE.test(requirement.text ?? ''))
+        .map((requirement) => `${requirement.id} が注記の括弧から始まる`),
   },
   {
     id: 'E7',
