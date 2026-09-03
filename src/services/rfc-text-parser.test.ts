@@ -1072,12 +1072,17 @@ describe('番号なしの見出しで節を取る', () => {
       '',
       '   A TELNET connection is a TCP connection.',
       '',
+      'TELNET COMMAND STRUCTURE',
+      '',
+      '   All TELNET commands consist of at least a two byte sequence.',
+      '',
     ].join('\n');
     const parsed = parseRFCText(text, 854);
 
     expect(parsed.sections.map((s) => `${s.number}. ${s.title}`)).toEqual([
       '1. INTRODUCTION',
       '2. GENERAL CONSIDERATIONS',
+      '3. TELNET COMMAND STRUCTURE',
     ]);
   });
 
@@ -1099,10 +1104,18 @@ describe('番号なしの見出しで節を取る', () => {
       '',
       '   ICMP messages are sent using the basic IP header.',
       '',
+      'Time Exceeded Message',
+      '',
+      '   If the gateway processing a datagram finds the time to live zero.',
+      '',
     ].join('\n');
     const parsed = parseRFCText(text, 792);
 
-    expect(parsed.sections.map((s) => s.title)).toEqual(['Introduction', 'Message Formats']);
+    expect(parsed.sections.map((s) => s.title)).toEqual([
+      'Introduction',
+      'Message Formats',
+      'Time Exceeded Message',
+    ]);
   });
 
   it('番号の付いた見出しがあるときは、そちらを使う', () => {
@@ -1123,6 +1136,151 @@ describe('番号なしの見出しで節を取る', () => {
     const parsed = parseRFCText(text, 9999);
 
     expect(parsed.sections.map((s) => s.number)).toEqual(['1', '2']);
+  });
+});
+
+describe('番号なしの見出しの階層と番号', () => {
+  const numbers = (sections: Section[]): string[] =>
+    sections.flatMap((s) => [`${s.number} ${s.title}`, ...numbers(s.subsections)]);
+
+  it('字下げの深さで入れ子にする', () => {
+    // RFC 854 は THE NETWORK VIRTUAL TERMINAL の下に TRANSMISSION OF DATA を
+    // 3 桁字下げ、その下に Interrupt Process (IP) を 6 桁字下げで置く。
+    const text = [
+      'INTRODUCTION',
+      '',
+      '   Text.',
+      '',
+      'THE NETWORK VIRTUAL TERMINAL',
+      '',
+      '   Text.',
+      '',
+      '   TRANSMISSION OF DATA',
+      '',
+      '      Text.',
+      '',
+      '      Interrupt Process (IP)',
+      '',
+      '         Text.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 854);
+
+    expect(numbers(parsed.sections)).toEqual([
+      '1 INTRODUCTION',
+      '2 THE NETWORK VIRTUAL TERMINAL',
+      '2.1 TRANSMISSION OF DATA',
+      '2.1.1 Interrupt Process (IP)',
+    ]);
+  });
+
+  it('あとから浅い見出しが来ても番号が重複しない', () => {
+    // RFC 855 は `Section 1 - …` を 3 桁字下げで並べ、そのあとに 1 桁目の
+    // `A Note on "Subnegotiation"` を置く。文書全体の字下げを先に集めると
+    // 3 桁が 2 段目になり、親のない 1.1 から始まってしまう。
+    const text = [
+      '   Section 1 - Command Name and Option Code',
+      '',
+      '      Text.',
+      '',
+      '   Section 2 - Command Meanings',
+      '',
+      '      Text.',
+      '',
+      'A Note on Subnegotiation',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 855);
+
+    expect(numbers(parsed.sections)).toEqual([
+      '1 Section 1 - Command Name and Option Code',
+      '2 Section 2 - Command Meanings',
+      '3 A Note on Subnegotiation',
+    ]);
+  });
+
+  it('表の見出しを節にしない', () => {
+    // RFC 854 の "NAME                  CODE         MEANING"
+    const text = [
+      'THE NVT PRINTER AND KEYBOARD',
+      '',
+      '   Text.',
+      '',
+      '   NAME                  CODE         MEANING',
+      '',
+      '   NULL (NUL)              0      No Operation',
+      '',
+      'TELNET COMMAND STRUCTURE',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 854);
+
+    expect(numbers(parsed.sections)).toEqual([
+      '1 THE NVT PRINTER AND KEYBOARD',
+      '2 TELNET COMMAND STRUCTURE',
+    ]);
+  });
+});
+
+describe('小文字で始まる題名の節', () => {
+  it('番号が句点で終わるものは節にする', () => {
+    // RFC 7230 §5.3.1。直前は ABNF の行で、空行ではない。
+    const text = [
+      '5.3.  Request Target',
+      '',
+      '   request-target = origin-form',
+      '                  / absolute-form',
+      '                  / asterisk-form',
+      '5.3.1.  origin-form',
+      '',
+      '   The most common form of request-target is the origin-form.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 7230);
+
+    const walk = (list: Section[]): string[] =>
+      list.flatMap((s) => [s.number ?? '', ...walk(s.subsections)]);
+    expect(walk(parsed.sections)).toContain('5.3.1');
+  });
+
+  it('番号に句点が無くても、直前が空行なら節にする', () => {
+    // RFC 2616 §3.2.2 は "3.2.2 http URL" と句点なしで書く。
+    const text = [
+      '3.2  Uniform Resource Identifiers',
+      '',
+      '   Text.',
+      '',
+      '3.2.2 http URL',
+      '',
+      '   The "http" scheme is used to locate network resources.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 2616);
+
+    const walk = (list: Section[]): string[] =>
+      list.flatMap((s) => [s.number ?? '', ...walk(s.subsections)]);
+    expect(walk(parsed.sections)).toContain('3.2.2');
+  });
+
+  it('どちらでもない折り返しは節にしない', () => {
+    // RFC 896 の本文。句点も無く、直前も空行ではない。
+    const text = [
+      'Congestion Control in IP/TCP Internetworks',
+      '',
+      '   The next',
+      '24 characters, arriving from the user at 200ms  intervals,  would',
+      '   be held pending a message from the distant host.',
+      '',
+    ].join('\n');
+    const parsed = parseRFCText(text, 896);
+
+    const walk = (list: Section[]): string[] =>
+      list.flatMap((s) => [s.number ?? '', ...walk(s.subsections)]);
+    expect(walk(parsed.sections)).not.toContain('24');
   });
 });
 

@@ -24,7 +24,77 @@ args: {"rfc":854}
     },
     {
       "number": "3",
-      "title": "THE NETWORK VIRTUAL TERMINAL"
+      "title": "THE NETWORK VIRTUAL TERMINAL",
+      "subsections": [
+        {
+          "number": "3.1",
+          "title": "TRANSMISSION OF DATA"
+        },
+        {
+          "number": "3.2",
+          "title": "STANDARD REPRESENTATION OF CONTROL FUNCTIONS",
+          "subsections": [
+            {
+              "number": "3.2.1",
+              "title": "Interrupt Process (IP)"
+            },
+            {
+              "number": "3.2.2",
+              "title": "Abort Output (AO)"
+            },
+            {
+              "number": "3.2.3",
+              "title": "Are You There (AYT)"
+            },
+            {
+              "number": "3.2.4",
+              "title": "Erase Character (EC)"
+            },
+            {
+              "number": "3.2.5",
+              "title": "Erase Line (EL)"
+            }
+          ]
+        },
+        {
+          "number": "3.3",
+          "title": "THE TELNET \"SYNCH\" SIGNAL"
+        },
+        {
+          "number": "3.4",
+          "title": "THE NVT PRINTER AND KEYBOARD",
+          "subsections": [
+            {
+              "number": "3.4.1",
+              "title": "Synch"
+            },
+            {
+              "number": "3.4.2",
+              "title": "Break (BRK)"
+            },
+            {
+              "number": "3.4.3",
+              "title": "Interrupt Process (IP)"
+            },
+            {
+              "number": "3.4.4",
+              "title": "Abort Output (AO)"
+            },
+            {
+              "number": "3.4.5",
+              "title": "Are You There (AYT)"
+            },
+            {
+              "number": "3.4.6",
+              "title": "Erase Character (EC)"
+            },
+            {
+              "number": "3.4.7",
+              "title": "Erase Line (EL)"
+            }
+          ]
+        }
+      ]
     },
     {
       "number": "4",
@@ -32,7 +102,13 @@ args: {"rfc":854}
     },
     {
       "number": "5",
-      "title": "CONNECTION ESTABLISHMENT"
+      "title": "CONNECTION ESTABLISHMENT",
+      "subsections": [
+        {
+          "number": "5.1",
+          "title": "Port Assignment"
+        }
+      ]
     }
   ],
   "referenceCount": {

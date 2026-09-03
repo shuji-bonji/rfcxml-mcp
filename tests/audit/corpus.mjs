@@ -89,6 +89,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 854, note: '節に番号が無い。見出しは全部大文字' },
     { rfc: 894, note: '節に番号が無い。見出しは Title Case' },
     { rfc: 862, note: '節が 2 つしかない' },
+    { rfc: 855, note: '上位の見出しを字下げし、途中から 1 桁目に戻る' },
+    { rfc: 896, note: '見出しが 1 つも無い。本文の折り返しを節にしていた' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 };
 

@@ -834,7 +834,33 @@ function extractTextSections(lines: string[]): Section[] {
       const title = match[2];
 
       // セクションヘッダーとして妥当性を検証
-      if (isValidSectionHeader(sectionNum, title) && acceptsSectionNumber(numbering, sectionNum)) {
+      // 小文字で始まる題名は、番号が句点で終わるか、直前が空行のときだけ
+      // 節とみなす。
+      //
+      // RFC 896 の本文は "…and would be sent immediately.  The next" のあと
+      // "24 characters, arriving from the user at 200ms  intervals,  would"
+      // と折り返す。これが番号 24 の節として通っていた。この RFC には節が
+      // 1 つも無いので、`get_rfc_structure` はこの 1 件だけを返していた。
+      //
+      // 2 つの条件はどちらか一方では足りない。
+      //
+      // | RFC | 行 | 番号の句点 | 直前が空行 |
+      // |---|---|---|---|
+      // | 7230 §5.3.1 | `5.3.1.  origin-form` | あり | 無し（前ページの最終行が ABNF の `/ asterisk-form`） |
+      // | 2616 §3.2.2 | `3.2.2 http URL` | 無し | あり |
+      // | 896（本文） | `24 characters, arriving from…` | 無し | 無し |
+      //
+      // 大文字で始まる題名には課さない。RFC 1122 §1.4 と §4.2 は図表の直後に
+      // 置かれており、空行を課すと 123 節が 64 節に減る。
+      const startsLowercase = /^[a-z]/.test(title.trim());
+      const numberEndsWithPeriod = match[1].endsWith('.');
+      const followsBlankLine = (index > 0 ? lines[index - 1] : '').trim() === '';
+
+      if (
+        isValidSectionHeader(sectionNum, title) &&
+        acceptsSectionNumber(numbering, sectionNum) &&
+        (!startsLowercase || numberEndsWithPeriod || followsBlankLine)
+      ) {
         // 前のセクションを保存
         if (currentSection) {
           currentSection.content = createTextBlocks(currentContent.join('\n'));
@@ -883,9 +909,16 @@ function extractTextSections(lines: string[]): Section[] {
 /** ここに満たないときは、番号なしの見出しで取り直す。 */
 const MIN_NUMBERED_SECTIONS = 2;
 
-/** 番号なしの見出しとみなす行の、文字数と語数の上限。 */
+/** 番号なしの見出しとみなす行の、文字数・語数・字下げの上限。 */
 const UNNUMBERED_HEADER_MAX_LENGTH = 60;
 const UNNUMBERED_HEADER_MAX_WORDS = 8;
+const UNNUMBERED_HEADER_MAX_INDENT = 12;
+
+/** 番号なしの見出しで取り直すのに必要な、見出しの最小数。 */
+const MIN_UNNUMBERED_HEADINGS = 2;
+
+/** 番号なしの見出しで作る階層の深さの上限。 */
+const UNNUMBERED_HEADER_MAX_DEPTH = 4;
 
 /**
  * 番号なしの見出しで節を取る。
@@ -904,48 +937,61 @@ const UNNUMBERED_HEADER_MAX_WORDS = 8;
  * RFC 894（IP over Ethernet）が含まれる。どれも RFC 1122 や RFC 1123 が
  * 繰り返し参照する文書で、`get_rfc_structure` が何も返していなかった。
  *
- * 見出しとみなす条件は 5 つ。番号は文書に現れる順に 1 から振る。
+ * 見出しとみなす条件は 6 つ。
  *
- * - 1 桁目から始まる（字下げが無い）
  * - 前後が空行
  * - 3 文字以上 60 文字以下、8 語以下
  * - 文末記号（`.` `!` `?` `,` `;` `:`）で終わらない
  * - 小文字だけの行ではない
+ * - ページの飾り（`RFC 792`）や表の見出しではない
+ * - 字下げが 12 桁以内
+ *
+ * **番号は字下げの深さから作る。** 原文に番号は無いので、`§3.2` はこちらが
+ * 振った番号である。RFC 854 は `THE NETWORK VIRTUAL TERMINAL` の下に
+ * `TRANSMISSION OF DATA` を 3 桁字下げ、その下に `Interrupt Process (IP)` を
+ * 6 桁字下げで置く。文書の見た目だけが唯一の構造である。
  */
 function extractUnnumberedSections(lines: string[]): Section[] {
-  const sections: Section[] = [];
-  let current: Section | null = null;
-  let content: string[] = [];
-  let number = 0;
+  const candidates = unnumberedHeadings(lines);
+  if (candidates.length < MIN_UNNUMBERED_HEADINGS) return [];
 
-  const isHeading = (index: number): boolean => {
-    const line = lines[index];
-    if (/^[ \t]/.test(line)) return false;
+  // 字下げの深さを段の深さに直す。値そのものではなく、**そこまでに現れた**
+  // 字下げを浅い順に並べた順位を使う。
+  //
+  // 文書全体の字下げを先に集めると、上位の見出しが後ろに出る文書で番号が
+  // 狂う。RFC 855 は `Section 1 - …` を 3 桁字下げで先に並べ、そのあとに
+  // 1 桁目の `A Note on "Subnegotiation"` を置く。先に集めると 3 桁が 2 段目に
+  // なり、親のない `1.1` から始まってしまう。
+  const seen: number[] = [];
+  const counters: number[] = [];
 
-    const trimmed = line.trim();
-    if (trimmed.length < 3 || trimmed.length > UNNUMBERED_HEADER_MAX_LENGTH) return false;
-    if (!/^[A-Za-z]/.test(trimmed)) return false;
-    if (/[.!?,;:]$/.test(trimmed)) return false;
-    if (trimmed.split(/\s+/).length > UNNUMBERED_HEADER_MAX_WORDS) return false;
-    if (trimmed === trimmed.toLowerCase()) return false;
-    // ページの飾り。RFC 792 はページ見出しを "RFC 792" の 1 行で書くため、
-    // 前後が空行になり見出しの条件を満たしてしまう。
-    if (/^RFC[\s-]*\d+$/i.test(trimmed)) return false;
-
-    const before = index > 0 ? lines[index - 1] : '';
-    const after = index + 1 < lines.length ? lines[index + 1] : '';
-    return before.trim() === '' && after.trim() === '';
+  const numberFor = (indent: number): string => {
+    if (!seen.includes(indent)) {
+      seen.push(indent);
+      seen.sort((a, b) => a - b);
+    }
+    const depth = Math.min(seen.indexOf(indent), UNNUMBERED_HEADER_MAX_DEPTH - 1);
+    while (counters.length <= depth) counters.push(0);
+    counters.length = depth + 1;
+    counters[depth] += 1;
+    return counters.map((n) => Math.max(n, 1)).join('.');
   };
 
+  const flat: Section[] = [];
+  let current: Section | null = null;
+  let content: string[] = [];
+  let next = 0;
+
   for (let index = 0; index < lines.length; index++) {
-    if (isHeading(index)) {
+    if (next < candidates.length && candidates[next].index === index) {
       if (current) {
         current.content = createTextBlocks(content.join('\n'));
-        sections.push(current);
+        flat.push(current);
       }
+      const heading = candidates[next++];
       current = {
-        number: String(++number),
-        title: lines[index].trim(),
+        number: numberFor(heading.indent),
+        title: heading.title,
         content: [],
         subsections: [],
       };
@@ -957,10 +1003,43 @@ function extractUnnumberedSections(lines: string[]): Section[] {
 
   if (current) {
     current.content = createTextBlocks(content.join('\n'));
-    sections.push(current);
+    flat.push(current);
   }
 
-  return sections;
+  return organizeSections(flat);
+}
+
+/** 番号なしの見出しの候補を、文書に現れる順に返す。 */
+function unnumberedHeadings(
+  lines: string[]
+): Array<{ index: number; indent: number; title: string }> {
+  const found: Array<{ index: number; indent: number; title: string }> = [];
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    const trimmed = line.trim();
+    if (trimmed.length < 3 || trimmed.length > UNNUMBERED_HEADER_MAX_LENGTH) continue;
+    if (!/^[A-Za-z]/.test(trimmed)) continue;
+    if (/[.!?,;:]$/.test(trimmed)) continue;
+    if (trimmed.split(/\s+/).length > UNNUMBERED_HEADER_MAX_WORDS) continue;
+    if (trimmed === trimmed.toLowerCase()) continue;
+    // ページの飾り。RFC 792 はページ見出しを "RFC 792" の 1 行で書くため、
+    // 前後が空行になり見出しの条件を満たしてしまう。
+    if (/^RFC[\s-]*\d+$/i.test(trimmed)) continue;
+    // 表の見出し（RFC 854 の "NAME                  CODE         MEANING"）。
+    if (looksLikeDiagram(trimmed)) continue;
+
+    const indent = line.length - line.trimStart().length;
+    if (indent > UNNUMBERED_HEADER_MAX_INDENT) continue;
+
+    const before = index > 0 ? lines[index - 1] : '';
+    const after = index + 1 < lines.length ? lines[index + 1] : '';
+    if (before.trim() !== '' || after.trim() !== '') continue;
+
+    found.push({ index, indent, title: trimmed });
+  }
+
+  return found;
 }
 
 /**
