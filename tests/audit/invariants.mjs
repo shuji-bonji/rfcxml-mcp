@@ -85,6 +85,15 @@ const walk = (sections, fn) => {
   }
 };
 
+/** `pn`（`section-h` / `section-appendix.a.2`）を、印字する節番号に直す。 */
+const printedNumber = (value) => {
+  const bare = (value ?? '').replace(/^section-/, '');
+  const appendix = /^appendix\.([a-z])((?:\.\d+)*)$/i.exec(bare);
+  if (appendix) return `${appendix[1].toUpperCase()}${appendix[2]}`;
+  const letterSection = /^([a-z])((?:\.\d+)*)$/.exec(bare);
+  return letterSection ? `${letterSection[1].toUpperCase()}${letterSection[2]}` : bare;
+};
+
 const findSection = (sections, target) => {
   let found = null;
   // 後付録は `section-appendix.a.2.5` の形で入っている。製品側の
@@ -630,15 +639,55 @@ export const INVARIANTS = [
     // 要件文は `M MAX (search result option) … MUST (specification
     // requirement term) …` である。索引の節を持つ RFC は 67 本中 6 本
     // （9110 / 9111 / 9112 / 9114 / 9051 / 2616）。
-    check: ({ sections, requirements }) => {
-      const index = new Set(
-        sections.filter((section) => /^index$/i.test((section.title ?? '').trim())).map((s) => s.number)
-      );
+    check: ({ parsed, requirements }) => {
+      const index = new Set();
+      const walk = (list) => {
+        for (const section of list ?? []) {
+          if (/^index$/i.test((section.title ?? '').trim())) index.add(section.number);
+          walk(section.subsections);
+        }
+      };
+      walk(parsed.sections);
       if (index.size === 0) return [];
+
+      // 要件の section は印字する節番号（`H`）、構造は `pn`（`section-h`）。
+      const printed = new Set([...index].map((number) => printedNumber(number)));
       return requirements
-        .filter((requirement) => index.has(requirement.section))
+        .filter((requirement) => printed.has(requirement.section))
         .map((requirement) => `${requirement.id} が索引の節 §${requirement.section} から出ている`);
     },
+  },
+  {
+    id: 'B21',
+    description: 'キーワードが名詞として置かれた文から要件を出さない',
+    // BCP 14 のキーワードは名詞にもなる。RFC 2119 §7 の
+    // `The effects on security of not implementing a MUST or SHOULD, …` から
+    // 4 件、RFC 5246 §1.2 の `… is now a MAY, not a SHOULD, with sending it a
+    // SHOULD NOT.` から 3 件、RFC 9051 の付録 E の
+    // `(Changed from a SHOULD to a MUST.)` から 2 件が立っていた。
+    //
+    // 形容詞として名詞に付く書き方は落とさない。`an OPTIONAL feature of HTTP`
+    // （RFC 9110 §14）や `the RECOMMENDED default values …`（RFC 3550 §6.2）は
+    // その節が何を選ぶべきかを述べている。名指しのときは、キーワードの後ろに
+    // 名詞が来ない（`a MUST or SHOULD` `a SHOULD to a MUST.`）。
+    check: ({ requirements }) =>
+      requirements
+        .filter((requirement) => {
+          const keyword = requirement.level.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const all = [...requirement.text.matchAll(new RegExp(`\\b${keyword}\\b`, 'g'))];
+          if (all.length === 0) return false;
+          return all.every((match) => {
+            const before = requirement.text.slice(Math.max(0, match.index - 12), match.index);
+            const after = requirement.text.slice(match.index + match[0].length);
+            return (
+              /\b(?:an?|the)\s+$/i.test(before) &&
+              /^\s*(?:[,.;:)"'\u201d]|$|(?:or|and|to|not|nor|than|instead|rather|level|keyword|in|of|for|by|with|from|at|on|into)\b)/i.test(
+                after
+              )
+            );
+          });
+        })
+        .map((requirement) => `${requirement.id} ${requirement.level} "${requirement.text.slice(0, 70)}"`),
   },
   {
     id: 'E8',

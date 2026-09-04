@@ -77,8 +77,15 @@ export function parseRFCText(text: string, rfcNumber: number): ParsedRFC {
   };
 }
 
-/** ページ末尾の行。"Fielding & Reschke   Standards Track   [Page 29]" */
-const PAGE_FOOTER = /\[Page\s+\d+\]\s*$/;
+/**
+ * ページ末尾の行。"Fielding & Reschke   Standards Track   [Page 29]"
+ *
+ * 1 桁目に `[Page N]` を置く RFC がある。RFC 821 は
+ * `[Page 68]                                                         Postel`
+ * と書く。行末だけを見ていたため、この形のフッタが本文として残り、
+ * `[Page 68]` が参考文献の項目として拾われ、節と相互参照も狂っていた。
+ */
+const PAGE_FOOTER = /\[Page\s+\d+\]\s*$|^\s*\[Page\s+\d+\]/;
 
 /** ページ先頭の行。1 桁目から始まり、末尾が発行年月。 */
 const PAGE_HEADER = /^\S.*\b(19|20)\d{2}\s*$/;
@@ -366,6 +373,12 @@ function quotedTitle(entry: string): { full: string; title: string } | null {
   return { full: entry.slice(open, at + 1), title };
 }
 
+/** 正誤表の項目の目印。`[Err3607]`。 */
+const ERRATA_ANCHOR = /^Err\d+$/i;
+
+/** 正誤表の項目の題名。`RFC Errata, Erratum ID 3607, RFC 4627, <…>`。 */
+const ERRATA_TITLE = /^RFC\s+Errata\b/i;
+
 /**
  * 参考文献の 1 項目を `RFCReference` にする。
  *
@@ -411,6 +424,17 @@ function parseTextReference(
   // 実測（テキスト経路の参照 859 件）で 121 件（14.1%）が読点で終わっていた。
   const quotedText = quoted ? quoted.title.trim() : '';
   const title = (quotedText || titleWithoutQuotes(entry) || '').replace(/[,;]$/, '');
+
+  // 正誤表の項目は RFC ではない。`[Err3607] RFC Errata, Erratum ID 3607,
+  // RFC 4627, <…>` から番号を拾うと、`get_rfc_dependencies` が
+  // 「RFC 8259 は RFC 4627 に依存する」と言うことになる。RFC 8259 は 4627 を
+  // 廃止した側である。RFC 7159 は `[Err3607]` に 3607、`[Err607]` に 607 と、
+  // 正誤表の番号そのものを RFC 番号として付けていた。
+  // RFCXML 経路は番号を持たないので、この形は出ない。
+  // 実測（RFC 82 本）: 12 件（7159 が 2 件、8259 が 6 件、8200 が 4 件）。
+  if (ERRATA_ANCHOR.test(anchor) || ERRATA_TITLE.test(title)) {
+    return { anchor, type, title: title || anchor };
+  }
 
   return {
     anchor,
@@ -651,11 +675,20 @@ const TEXT_MONTHS: Record<string, string> = {
  *
  * 本文中の "August 2022" を拾わないよう、走査はヘッダの範囲に限る。
  */
+/**
+ * 公開年月を探す行数。表紙が高い RFC がある。
+ *
+ * 1980 年代の RFC は表紙を空行で大きく空ける。RFC 821 は日付が 44 行目に
+ * あり、30 行までしか見ていなかったため `metadata.date` が空だった。
+ * 最初に当たったものを返すので、既に取れている RFC の値は変わらない。
+ */
+const DATE_MAX_LINES_TO_SCAN = 60;
+
 function extractTextPublicationDate(lines: string[]): string | undefined {
   const pattern =
     /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/i;
 
-  for (let i = 0; i < Math.min(METADATA_EXTRACTION.MAX_LINES_TO_SCAN, lines.length); i++) {
+  for (let i = 0; i < Math.min(DATE_MAX_LINES_TO_SCAN, lines.length); i++) {
     const match = pattern.exec(lines[i]);
     if (match) {
       return `${match[2]}-${TEXT_MONTHS[match[1].toLowerCase()]}`;
@@ -1272,7 +1305,7 @@ function extractTextSections(lines: string[]): Section[] {
         // 見出しと本文が 1 行に入っている RFC がある（RFC 1035 §6.4.1 の
         // "6.4.1. The contents of inverse queries and responses          Inverse"）。
         // 4 個以上の空白で切り、残りは本文に回す。
-        const [headline, ...rest] = title.split(/ {4,}/);
+        const [headline, ...rest] = title.split(/ {3,}/);
 
         // 折り返した題名の 2 行目を継ぐ。見出しと本文が 1 行に入っている
         // ときは折り返しではないので見ない。

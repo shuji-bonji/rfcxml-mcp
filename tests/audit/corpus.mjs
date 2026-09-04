@@ -40,6 +40,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 8949 },
     { rfc: 9147, note: '表示の約束ごとを dl で書き、記号を項目にする' },
     { rfc: 9180, note: '参照の title が読点で終わる' },
+    { rfc: 9562, note: 'UUID。表と ABNF が多い' },
+    { rfc: 9421, note: 'HTTP メッセージ署名。sourcecode の例が多い' },
   ].map((entry) => ({ ...entry, kind: 'xml' })),
 
   '2010s-text': [
@@ -54,6 +56,12 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 8446, note: '題名が数字で始まる節 (0-RTT) がある' },
     { rfc: 7159, note: '参照が "Errata ID 3607, RFC 3607" と本文に番号を書く' },
     { rfc: 7489, note: '題名が行幅いっぱいで 1 桁目から始まる' },
+    { rfc: 8259, note: 'JSON。短く、要件が少ない' },
+    { rfc: 8174, note: 'BCP 14 の改訂。本文がキーワードそのものの話' },
+    { rfc: 8200, note: 'IPv6。ビット図が多い' },
+    { rfc: 7252, note: 'CoAP。ビット図と表が多い' },
+    { rfc: 8555, note: 'ACME。JSON の例を本文に挟む' },
+    { rfc: 6376, note: 'DKIM。ABNF とタグの一覧' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '2000s-text': [
@@ -69,6 +77,9 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 5652, note: '引用符を付けずに BCP 14 の定型文を書く' },
     { rfc: 4253, note: '同上' },
     { rfc: 5280, note: 'ASN.1 の型定義が多い。切れ端が要件になっていた' },
+    { rfc: 5234, note: 'ABNF の定義そのもの' },
+    { rfc: 3629, note: 'UTF-8。表が中心' },
+    { rfc: 4120, note: 'Kerberos。ASN.1 が長い' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-late-text': [
@@ -78,6 +89,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 2068, note: '警告コードの表に "99 Miscellaneous warning" がある' },
     { rfc: 2822, note: '参考文献の欄の見出しが Bibliography' },
     { rfc: 2445, note: '題名が小文字で始まる節 (iCalendar Object Specification)' },
+    { rfc: 2119, note: 'BCP 14 の定義そのもの。本文がキーワードの話' },
+    { rfc: 1939, note: 'POP3。応答例が多い' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-early-text': [
@@ -103,6 +116,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 862, note: '節が 2 つしかない' },
     { rfc: 855, note: '上位の見出しを字下げし、途中から 1 桁目に戻る' },
     { rfc: 896, note: '見出しが 1 つも無い。本文の折り返しを節にしていた' },
+    { rfc: 959, note: 'FTP。長く、見出しの体裁が場所で変わる' },
+    { rfc: 821, note: 'SMTP。状態遷移図が多い' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 };
 

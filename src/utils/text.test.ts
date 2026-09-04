@@ -512,3 +512,16 @@ describe('句点のあとの閉じ括弧', () => {
     expect(extractSentence(text, text.indexOf('MUST NOT'))).toBe(text);
   });
 });
+
+describe('別文書の節の参照', () => {
+  it('番号のあとにコロンが来ても別文書として扱う', () => {
+    // RFC 6376 §3.2。`Section 6.7` は RFC 2045 のものだが、コロンを認めて
+    // いなかったため「この RFC の §6.7」になっていた（RFC 6376 に §6.7 は無い）。
+    const refs = extractCrossReferences(
+      'Quoted-Printable [RFC2045], Section 6.7: any character MAY be encoded'
+    );
+
+    expect(refs.some((r) => r.type === 'external' && r.section === '6.7')).toBe(true);
+    expect(refs.some((r) => r.type === 'section' && r.section === '6.7')).toBe(false);
+  });
+});

@@ -2151,3 +2151,78 @@ describe('ヘッダ塊から著者の姓を印字順に取ること', () => {
     expect(parseRFCText(text, 4271).metadata.authorOrder).toEqual(['rekhter', 'li', 'hares']);
   });
 });
+
+describe('1 桁目に置かれたページフッタ', () => {
+  // RFC 821 は `[Page 68]                            Postel` と書く。行末だけを
+  // 見ていたため、このフッタが本文として残り、`[Page 68]` が参考文献の項目に
+  // なっていた。
+  const text = [
+    '   RFC 821',
+    '',
+    '                     SIMPLE MAIL TRANSFER PROTOCOL',
+    '',
+    '                           Jonathan B. Postel',
+    '',
+    '                              August 1982',
+    '',
+    'REFERENCES',
+    '',
+    '   [1]  ASCII',
+    '',
+    '      ASCII, "USA Code for Information Interchange", 1968.',
+    '',
+    '[Page 68]                                                         Postel',
+    '',
+  ].join('\n');
+
+  it('フッタを参考文献の項目にしない', () => {
+    const anchors = parseRFCText(text, 821).references.informative.map((r) => r.anchor);
+
+    expect(anchors).not.toContain('Page 68');
+    expect(anchors).toContain('1');
+  });
+
+  it('表紙が高くても公開年月を取る', () => {
+    // 30 行までしか見ておらず、RFC 821 の `metadata.date` が空だった。
+    expect(parseRFCText(text, 821).metadata.date).toBe('1982-08');
+  });
+});
+
+describe('正誤表の参照に RFC 番号を付けないこと', () => {
+  it('題名の中の RFC 番号を拾わない', () => {
+    // RFC 8259 の `[Err3607]`。RFC 8259 は RFC 4627 を廃止した側であり、
+    // 依存しているわけではない。
+    const text = [
+      '12.  References',
+      '',
+      '   [Err3607]  RFC Errata, Erratum ID 3607, RFC 4627,',
+      '              <https://www.rfc-editor.org/errata/eid3607>.',
+      '',
+    ].join('\n');
+
+    const reference = parseRFCText(text, 8259).references.informative[0];
+
+    expect(reference.anchor).toBe('Err3607');
+    expect(reference.rfcNumber).toBeUndefined();
+  });
+});
+
+describe('見出しと本文が 1 行に入る形', () => {
+  it('空白 3 個でも切る', () => {
+    // RFC 2119 は `1. MUST   This word, or the terms "REQUIRED" …` と書く。
+    // 4 個以上を求めていたため、題名が本文を丸ごと抱え込んでいた。
+    const text = [
+      '1. MUST   This word, or the terms "REQUIRED" or "SHALL", mean that the',
+      '   definition is an absolute requirement of the specification.',
+      '',
+      '2. MUST NOT   This phrase, or the phrase "SHALL NOT", mean that the',
+      '   definition is an absolute prohibition of the specification.',
+      '',
+    ].join('\n');
+
+    const sections = parseRFCText(text, 2119).sections;
+
+    expect(sections.map((s) => s.title)).toEqual(['MUST', 'MUST NOT']);
+    expect(JSON.stringify(sections[0].content)).toContain('absolute requirement');
+  });
+});

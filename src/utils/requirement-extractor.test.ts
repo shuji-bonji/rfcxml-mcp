@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { extractRequirementsFromSections } from './requirement-extractor.js';
 import { createRequirementRegex } from '../constants.js';
+import { extractRequirementMarkers as extractMarkers } from './text.js';
 import type { RequirementLevel, Section } from '../types/index.js';
 
 // テスト用セクションデータ
@@ -967,5 +968,50 @@ describe('要件の id', () => {
     const fromOne = extractRequirementsFromSections([sections[1]]).map((r) => r.id);
 
     expect(fromOne).toEqual(fromAll);
+  });
+});
+
+describe('名詞として置かれたキーワードから要件を出さないこと', () => {
+  const sectionOf = (content: string): Section => ({
+    number: '7',
+    title: 'Security Considerations',
+    content: [
+      {
+        type: 'text',
+        content,
+        requirements: extractMarkers(content) as { level: RequirementLevel; position: number }[],
+        crossReferences: [],
+      },
+    ],
+    subsections: [],
+  });
+
+  it('冠詞のあとに来て、後ろに名詞が続かないものは落とす', () => {
+    // RFC 2119 §7 / RFC 5246 §1.2 / RFC 9051 付録 E
+    const levels = (content: string) =>
+      extractRequirementsFromSections([sectionOf(content)]).map((r) => r.level);
+
+    expect(levels('Support for the hello is now a MAY, not a SHOULD.')).toEqual([]);
+    expect(levels('(Changed from a SHOULD to a MUST.)')).toEqual([]);
+    expect(levels('Support will probably become a SHOULD NOT in the future.')).toEqual([]);
+  });
+
+  it('形容詞として名詞に付くものは残す', () => {
+    // 落とすと、その節が何を選ぶべきかを述べた文が消える。
+    const levels = (content: string) =>
+      extractRequirementsFromSections([sectionOf(content)]).map((r) => r.level);
+
+    expect(levels('Range requests are an OPTIONAL feature of HTTP.')).toEqual(['OPTIONAL']);
+    expect(levels('The RECOMMENDED default values are 3.5 seconds and 0.25.')).toEqual([
+      'RECOMMENDED',
+    ]);
+  });
+
+  it('同じ文の中で、名指しでないキーワードは残す', () => {
+    const levels = extractRequirementsFromSections([
+      sectionOf('It MAY also negotiate an OPTIONAL security layer.'),
+    ]).map((r) => r.level);
+
+    expect(levels).toContain('MAY');
   });
 });

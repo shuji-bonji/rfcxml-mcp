@@ -146,13 +146,28 @@ async function main() {
   console.log('');
 
   const results = [];
+  const failed = [];
   for (const entry of corpus) {
     try {
       results.push(await auditOne(entry));
     } catch (error) {
       console.error(`RFC ${entry.rfc}: ${error.message}`);
+      failed.push(entry.rfc);
       process.exitCode = 2;
     }
+  }
+
+  // 落ちた RFC は最後にも出す。
+  //
+  // 冒頭にだけ出していたため、条件が例外を投げても後ろの「新しい破れは無し」
+  // だけが目に入り、**監査が動いていないことに気づけなかった**。v0.6.41 で
+  // 足した `B20` は `context.sections`（節の数）を配列として扱っており、
+  // 82 本すべてが例外で落ちていた。v0.6.41 から v0.6.45 まで、監査は 1 件も
+  // 条件を当てていない。
+  if (failed.length > 0) {
+    console.log(`落ちた RFC: ${failed.length} 本 — ${failed.join(', ')}`);
+    console.log('条件を当てられていない。監査は成立していない。');
+    console.log('');
   }
 
   const totals = results.reduce(
@@ -242,7 +257,7 @@ async function main() {
     return;
   }
 
-  console.log('新しい破れは無し。');
+  console.log(failed.length > 0 ? '当てられた RFC には新しい破れは無し。' : '新しい破れは無し。');
 }
 
 function printDetail(results, baseline) {
