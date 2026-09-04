@@ -2226,3 +2226,94 @@ describe('見出しと本文が 1 行に入る形', () => {
     expect(JSON.stringify(sections[0].content)).toContain('absolute requirement');
   });
 });
+
+describe('全部大文字の付録見出し', () => {
+  const headings = (text: string, rfc: number) =>
+    parseRFCText(text, rfc).sections.map((s) => `${s.number} ${s.title}`);
+
+  it('APPENDIX とコロンの形を拾う', () => {
+    // RFC 1812 は `APPENDIX D. Multicast Routing Protocols`、
+    // RFC 791 は `APPENDIX A:  Examples & Scenarios` と書く。`Appendix` だけを
+    // 見ていたため、RFC 1812 の付録 D〜F の 18 節が構造から落ちていた
+    // （下位節 `D.1` は親の文字が取れて初めて拾える）。
+    const text = [
+      '1. Introduction',
+      '',
+      '   Text.',
+      '',
+      'APPENDIX A. Multicast Routing Protocols',
+      '',
+      '   Text.',
+      '',
+      'APPENDIX B: Additional Notes',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+
+    expect(headings(text, 1812)).toEqual([
+      '1 Introduction',
+      'A Multicast Routing Protocols',
+      'B Additional Notes',
+    ]);
+  });
+
+  it('目次の行は付録の見出しにしない', () => {
+    // RFC 791 の目次 `APPENDIX A:  Examples & Scenarios ......... 34` を
+    // 拾うと、本物の見出しが番号の重複で落ちる。
+    const text = [
+      'APPENDIX A:  Examples & Scenarios ................................... 34',
+      'APPENDIX B:  Data Transmission Order ................................ 39',
+      '',
+      '1. Introduction',
+      '',
+      '   Text.',
+      '',
+      'APPENDIX A:  Examples & Scenarios',
+      '',
+      '   Real content here.',
+      '',
+    ].join('\n');
+
+    const sections = parseRFCText(text, 791).sections;
+    const appendix = sections.filter((s) => s.number === 'A');
+
+    expect(appendix).toHaveLength(1);
+    expect(appendix[0].title).toBe('Examples & Scenarios');
+  });
+});
+
+describe('角括弧を使わない参考文献', () => {
+  it('番号だけの項目を拾う', () => {
+    // RFC 3164 は `   1  Postel, J., "User Datagram Protocol", …` と書く。
+    // 角括弧だけを見ていたため、参照が 0 件だった。
+    const text = [
+      'References',
+      '',
+      '   1  Postel, J., "User Datagram Protocol", STD 6, RFC 768, August 1980.',
+      '',
+      '   2  Crocker, D. and P. Overell, "Augmented BNF for Syntax',
+      '      Specifications: ABNF", RFC 2234, November 1997.',
+      '',
+    ].join('\n');
+
+    const refs = parseRFCText(text, 3164).references.informative;
+
+    expect(refs.map((r) => r.rfcNumber)).toEqual([768, 2234]);
+  });
+});
+
+describe('日付まで書くヘッダ', () => {
+  it('October 16, 1969 から年月を取る', () => {
+    const text = [
+      'Network Working Group                                          Vint Cerf',
+      'Request for Comments: 20                                            UCLA',
+      '                                                        October 16, 1969',
+      '',
+      '                  ASCII format for Network Interchange',
+      '',
+    ].join('\n');
+
+    expect(parseRFCText(text, 20).metadata.date).toBe('1969-10');
+  });
+});

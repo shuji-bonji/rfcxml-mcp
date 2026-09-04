@@ -525,3 +525,25 @@ describe('別文書の節の参照', () => {
     expect(refs.some((r) => r.type === 'section' && r.section === '6.7')).toBe(false);
   });
 });
+
+describe('ABNF の注釈からの切り出し', () => {
+  it('何番目のキーワードかを数えてから位置を取る', () => {
+    // RFC 5545 §3.6.2。`MUST` を探すと `MUST NOT` の中の `MUST` に当たり、
+    // 要件の文が 1 つ前の文になっていた。
+    const block = [
+      "   ; Either 'due' or 'duration' MAY appear in",
+      "   ; a 'todoprop', but 'due' and 'duration'",
+      "   ; MUST NOT occur in the same 'todoprop'.",
+      "   ; If 'duration' appear in a 'todoprop',",
+      "   ; then 'dtstart' MUST also appear in",
+      "   ; the same 'todoprop'.",
+    ].join('\n');
+    const at = block.lastIndexOf('MUST');
+
+    const source = requirementSource(block, at, 'MUST');
+
+    expect(extractSentence(source.text, source.position)).toBe(
+      "If 'duration' appear in a 'todoprop', then 'dtstart' MUST also appear in the same 'todoprop'."
+    );
+  });
+});

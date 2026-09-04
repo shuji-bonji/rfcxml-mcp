@@ -348,7 +348,32 @@ export function requirementSource(
         .map((l) => l.replace(ABNF_COMMENT_LINE, ''))
         .join(' ')
     );
-    const keyword = text.indexOf(level);
+
+    // **何番目の**キーワードかを数えてから、組み直した文でその位置を取る。
+    //
+    // 組み直した文の最初の出現を採っていた。RFC 5545 §3.6.2 の ABNF 注釈は
+    //
+    //   ; Either 'due' or 'duration' MAY appear in
+    //   ; a 'todoprop', but 'due' and 'duration'
+    //   ; MUST NOT occur in the same 'todoprop'.
+    //   ; If 'duration' appear in a 'todoprop',
+    //   ; then 'dtstart' MUST also appear in
+    //
+    // で、`MUST` を探すと `MUST NOT` の中の `MUST` に当たる。そのため
+    // 4 行目の要件の文が **1 つ前の文** になっていた。
+    // `;` を外して空白を畳む操作はキーワードの数を変えないので、
+    // 元の並びと組み直した並びで n 番目どうしが対応する。
+    const runStart = lines.slice(0, first).join('\n').length + (first > 0 ? 1 : 0);
+    const original = content.slice(runStart, lineEnd);
+    let before = 0;
+    for (let at = original.indexOf(level); at !== -1; at = original.indexOf(level, at + 1)) {
+      if (runStart + at >= position) break;
+      before++;
+    }
+
+    let keyword = text.indexOf(level);
+    for (let n = 0; n < before && keyword !== -1; n++) keyword = text.indexOf(level, keyword + 1);
+
     return { text, position: keyword === -1 ? 0 : keyword, prose: true };
   }
 

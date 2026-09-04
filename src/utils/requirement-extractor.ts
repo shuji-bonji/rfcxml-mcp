@@ -171,6 +171,36 @@ function namesTheKeyword(text: string, position: number): boolean {
   return KEYWORD_AS_BARE_NOUN.test(text.slice(position + keyword[0].length));
 }
 
+/**
+ * 語を並べただけで、文になっていないか。
+ *
+ * RFC 2578 §3.7 は ASN.1 の予約語 96 個を字下げして並べる。
+ *
+ * ```
+ *         ABSENT ACCESS AGENT-CAPABILITIES ANY APPLICATION AUGMENTS BEGIN
+ *         BIT BITS BOOLEAN BY CHOICE COMPONENT COMPONENTS CONTACT-INFO
+ *         …
+ *         OPTIONAL ORGANIZATION Opaque PLUS-INFINITY PRESENT PRIVATE
+ * ```
+ *
+ * この中の `OPTIONAL` から要件が 1 件立ち、チェックリストの 1 項目が
+ * **903 文字の語の並び**になっていた。
+ *
+ * 小文字だけの語が 1 つも無いことで見分ける。地の文は `the` `of` `to` `is` の
+ * ような語を必ず含む。予約語の一覧は `BY` `FROM` `OF` `WITH` のように大文字で
+ * 書かれるので、これらは小文字の語として数えない。
+ *
+ * 実測（RFC 97 本）: 1 件。
+ */
+const LOWERCASE_WORD = /(?:^|\s)[a-z][a-z']*(?:\s|$)/;
+
+function looksLikeWordList(sentence: string): boolean {
+  const words = sentence.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 4) return false;
+
+  return !LOWERCASE_WORD.test(` ${sentence} `);
+}
+
   function processSection(section: Section, path: string) {
     // 内部の識別子（RFCXML の `pn`）はそのままでは外に出せない。出力する
     // `id` と `section` は節番号にそろえる。
@@ -208,6 +238,11 @@ function namesTheKeyword(text: string, position: number): boolean {
 
             // キーワードが名詞として置かれているものは要件ではない。
             if (namesTheKeyword(block.content, marker.position)) {
+              continue;
+            }
+
+            // 語を並べただけの塊は文ではない。
+            if (looksLikeWordList(sentence)) {
               continue;
             }
 
@@ -263,6 +298,10 @@ function namesTheKeyword(text: string, position: number): boolean {
               }
 
               if (namesTheKeyword(item.content, marker.position)) {
+                continue;
+              }
+
+              if (looksLikeWordList(itemText)) {
                 continue;
               }
 

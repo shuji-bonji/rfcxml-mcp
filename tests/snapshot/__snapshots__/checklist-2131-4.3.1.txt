@@ -33,7 +33,6 @@ Generated: <generatedAt>
 
 - [ ] **SHOULD** If an address is available, the new address SHOULD be chosen as follows: (§4.3.1)
 - [ ] **SHOULD NOT** While not required for correct operation of DHCP, the server SHOULD NOT reuse the selected network address before the client responds to the server's DHCPOFFER message. (§4.3.1)
-- [ ] **SHOULD** Message SHOULD SHOULD SHOULD (§4.3.1)
 
 ## Optional Requirements (MAY / OPTIONAL)
 
@@ -50,9 +49,9 @@ Generated: <generatedAt>
   "role": "both",
   "stats": {
     "must": 16,
-    "should": 3,
+    "should": 2,
     "may": 6,
-    "total": 25
+    "total": 24
   },
   "_source": "text",
   "_sourceNote": "Warning: Parsed from text format. Checklist accuracy may be limited."

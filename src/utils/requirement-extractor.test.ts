@@ -511,8 +511,9 @@ describe('表の行は 1 行ごとの要件', () => {
 });
 
 describe('図・表の行には構成要素を付けない', () => {
-  it('表の行から主語やアクションを作らない', () => {
-    // "Message SHOULD SHOULD SHOULD" に subject: "message should" が付いていた
+  it('語を並べただけの表の行は要件にしない', () => {
+    // v0.6.46 までは要件として残し、構成要素だけを付けなかった。
+    // 小文字の語が 1 つも無いので、文になっていない。
     const table = [
       'Option                    DHCPOFFER    DHCPACK            DHCPNAK',
       'Message                   SHOULD       SHOULD             SHOULD',
@@ -537,9 +538,7 @@ describe('図・表の行には構成要素を付けない', () => {
       { parseComponents: true }
     );
 
-    expect(result[0].text).toBe('Message SHOULD SHOULD SHOULD');
-    expect(result[0].subject).toBeUndefined();
-    expect(result[0].action).toBeUndefined();
+    expect(result).toEqual([]);
   });
 
   it('図の隣の散文には構成要素を付ける', () => {

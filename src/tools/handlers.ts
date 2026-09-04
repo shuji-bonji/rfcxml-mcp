@@ -366,6 +366,12 @@ export async function handleGetRelatedSections(args: { rfc: number; section: str
   // Collect cross-references using utility
   const relatedSections = collectCrossReferences(targetSection);
 
+  // 自分自身は「関連する節」ではない。RFC 8017 §1 は
+  // `This document is organized as follows: Section 1 is an introduction …`
+  // と自分を挙げるので、§1 を引くと §1 が返っていた。
+  relatedSections.delete(args.section);
+  relatedSections.delete(normalizeSectionNumber(targetSection.number ?? ''));
+
   return {
     rfc: args.rfc,
     section: args.section,

@@ -42,6 +42,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 9180, note: '参照の title が読点で終わる' },
     { rfc: 9562, note: 'UUID。表と ABNF が多い' },
     { rfc: 9421, note: 'HTTP メッセージ署名。sourcecode の例が多い' },
+    { rfc: 9250, note: 'DNS over QUIC' },
+    { rfc: 9700, note: 'OAuth 2.0 のセキュリティ BCP。要件が箇条書きで並ぶ' },
   ].map((entry) => ({ ...entry, kind: 'xml' })),
 
   '2010s-text': [
@@ -62,6 +64,11 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 7252, note: 'CoAP。ビット図と表が多い' },
     { rfc: 8555, note: 'ACME。JSON の例を本文に挟む' },
     { rfc: 6376, note: 'DKIM。ABNF とタグの一覧' },
+    { rfc: 7950, note: 'YANG 1.1。文法の定義が本文の大半を占める' },
+    { rfc: 6120, note: 'XMPP。XML の例を本文に挟む' },
+    { rfc: 5545, note: 'iCalendar。2445 の後継。表と定義が多い' },
+    { rfc: 8017, note: 'PKCS #1。数式が多い' },
+    { rfc: 5905, note: 'NTPv4。C のコードを本文に載せる' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '2000s-text': [
@@ -80,6 +87,10 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 5234, note: 'ABNF の定義そのもの' },
     { rfc: 3629, note: 'UTF-8。表が中心' },
     { rfc: 4120, note: 'Kerberos。ASN.1 が長い' },
+    { rfc: 4960, note: 'SCTP。ビット図が非常に多い' },
+    { rfc: 4880, note: 'OpenPGP。パケット形式の表が多い' },
+    { rfc: 4287, note: 'Atom。RELAX NG のスキーマを本文に載せる' },
+    { rfc: 3164, note: 'syslog。BSD 実装の記述' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-late-text': [
@@ -91,6 +102,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 2445, note: '題名が小文字で始まる節 (iCalendar Object Specification)' },
     { rfc: 2119, note: 'BCP 14 の定義そのもの。本文がキーワードの話' },
     { rfc: 1939, note: 'POP3。応答例が多い' },
+    { rfc: 1812, note: 'ルータ要件。要件だけで構成された長大な文書' },
+    { rfc: 2578, note: 'SMIv2。ASN.1 マクロが多い' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-early-text': [
@@ -104,6 +117,11 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 1521 },
     { rfc: 1738 },
     { rfc: 1866, note: 'SGML の DTD の中に要件がある' },
+  ].map((entry) => ({ ...entry, kind: 'text' })),
+
+  '1960s-70s-text': [
+    { rfc: 20, note: 'ASCII。1969 年。表が中心' },
+    { rfc: 1, note: '最初の RFC。1969 年。手書き風の体裁' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1980s-text': [

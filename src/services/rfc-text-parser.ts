@@ -189,7 +189,23 @@ const REFERENCE_HEADING_PATTERN =
 /** 付録の始まり。参考文献の欄はここで終わる。 */
 const APPENDIX_START_PATTERN = /^Appendix\s+[A-Z]\b/;
 
-const REFERENCE_ENTRY_PATTERN = /^ {0,6}\[([^\]\s][^\]]*)\]/;
+/**
+ * 参考文献の 1 項目の始まり。
+ *
+ * 角括弧で目印を書くのが普通だが、番号だけを書く RFC がある。RFC 3164 は
+ *
+ * ```
+ *    1  Postel, J., "User Datagram Protocol", STD 6, RFC 768, August 1980.
+ *
+ *    2  Crocker, D. and P. Overell, "Augmented BNF for Syntax
+ *       Specifications: ABNF", RFC 2234, November 1997.
+ * ```
+ *
+ * と書く。角括弧だけを見ていたため、参考文献の欄はあるのに参照が 0 件だった。
+ * 番号の形は、後ろに空白 2 個以上と大文字を求める（本文の折り返しや
+ * 箇条書きの `1. ` を拾わないため）。
+ */
+const REFERENCE_ENTRY_PATTERN = /^ {0,6}(?:\[([^\]\s][^\]]*)\]|(\d{1,3})\s{2,}(?=[A-Z"]))/;
 
 /**
  * 参考文献の欄（"14.1 Normative References" / "14.2 Informative References"）から
@@ -245,7 +261,7 @@ function extractTextReferences(lines: string[], currentRfcNumber: number): Parse
     const entryStart = bucket ? line.match(REFERENCE_ENTRY_PATTERN) : null;
     if (entryStart) {
       flush();
-      anchor = entryStart[1].trim();
+      anchor = (entryStart[1] ?? entryStart[2]).trim();
       buffer = [line];
       continue;
     }
@@ -685,8 +701,10 @@ const TEXT_MONTHS: Record<string, string> = {
 const DATE_MAX_LINES_TO_SCAN = 60;
 
 function extractTextPublicationDate(lines: string[]): string | undefined {
+  // 日付まで書く RFC がある。RFC 20 は `October 16, 1969` と書き、
+  // 月と年だけを見る規則では当たらず `metadata.date` が空だった。
   const pattern =
-    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/i;
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(?:\d{1,2},\s*)?(\d{4})\b/i;
 
   for (let i = 0; i < Math.min(DATE_MAX_LINES_TO_SCAN, lines.length); i++) {
     const match = pattern.exec(lines[i]);
@@ -847,6 +865,12 @@ function appendixHeader(
   if (trimmed.length < 3) return null;
   if (containsSentenceBreak(trimmed)) return null;
 
+  // 目次の行を付録の見出しにしない。番号付きの節では
+  // `isValidSectionHeader` が弾いているが、付録の経路には無かった。
+  // RFC 791 の目次は `APPENDIX A:  Examples & Scenarios ............ 34` で、
+  // これを拾うと本物の見出し（同じ番号）が重複で落ちる。
+  if (isTableOfContentsEntry(trimmed)) return null;
+
   // `Appendix` と書く見出しは 1 桁目から始まる。字下げして `Appendix A.2` と
   // 書いてあるのは本文からの参照である。RFC 7519 の
   //   "   Appendix A.2 of [JWE], including the keys used."
@@ -880,9 +904,14 @@ function appendixHeader(
 
 /**
  * `Appendix A.  Title` / `A.1.  Title` / `Appendix A - Title` に当たる。
+ *
+ * 見出しを全部大文字で書く RFC がある。RFC 1812 は
+ * `APPENDIX D. Multicast Routing Protocols` と書く。`Appendix` だけを見て
+ * いたため付録の始まりと分からず、続く `D.1 Introduction` 以下 18 節が
+ * 構造から落ちていた。
  */
 const APPENDIX_HEADER_PATTERN =
-  /^(Appendix\s+)?([A-Z])((?:\.\d+)*)\.?(?:\s*[-–]+\s*|\s{1,3})(\S.*)$/;
+  /^(APPENDIX\s+|Appendix\s+)?([A-Z])((?:\.\d+)*)[.:]?(?:\s*[-–]+\s*|\s{1,3})(\S.*)$/;
 
 /** 下位の付録に許す字下げ。 */
 const APPENDIX_MAX_INDENT = 3;
