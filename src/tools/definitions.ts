@@ -14,6 +14,14 @@ export type ToolDefinition = Omit<Tool, 'inputSchema'> & {
   inputSchema: JsonSchemaType;
 };
 
+/**
+ * すべてのツールは `additionalProperties: false` を持つ。
+ *
+ * 無いと、`get_requirements { rfc: 9110, sections: ["3.5"] }`（正しくは
+ * `section`）のような打ち間違いが受け取られ、無視され、全件が返る。
+ * クライアントは「`sections` が効いている」と読む（Issue #21）。
+ * 未知のキーは SDK の入力検証で `isError: true` になる。
+ */
 export const tools: ToolDefinition[] = [
   // ========================================
   // Phase 1: Basic Structure
@@ -42,6 +50,7 @@ export const tools: ToolDefinition[] = [
         },
       },
       required: ['rfc'],
+      additionalProperties: false,
     },
   },
   {
@@ -77,6 +86,7 @@ export const tools: ToolDefinition[] = [
         },
       },
       required: ['rfc'],
+      additionalProperties: false,
     },
   },
   {
@@ -95,6 +105,7 @@ export const tools: ToolDefinition[] = [
         },
       },
       required: ['rfc'],
+      additionalProperties: false,
     },
   },
 
@@ -118,6 +129,7 @@ export const tools: ToolDefinition[] = [
         },
       },
       required: ['rfc'],
+      additionalProperties: false,
     },
   },
   {
@@ -132,10 +144,12 @@ export const tools: ToolDefinition[] = [
         },
         section: {
           type: 'string',
-          description: 'Base section number',
+          minLength: 1,
+          description: 'Base section number (e.g., "3.5" or "A.2")',
         },
       },
       required: ['rfc', 'section'],
+      additionalProperties: false,
     },
   },
 
@@ -170,6 +184,7 @@ export const tools: ToolDefinition[] = [
         },
       },
       required: ['rfc'],
+      additionalProperties: false,
     },
   },
   {
@@ -189,6 +204,7 @@ export const tools: ToolDefinition[] = [
         },
       },
       required: ['rfc', 'statement'],
+      additionalProperties: false,
     },
   },
 ];

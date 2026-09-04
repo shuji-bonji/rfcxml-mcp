@@ -105,7 +105,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "section": "10.2.1",
       "sectionTitle": "Allow",
       "fullContext": "The actual set of allowed methods is defined by the origin server at the time of each request. An origin server MUST generate an Allow header field in a 405 (Method Not Allowed) response and MAY do so in any other response. An empty Allow field value indicates that the resource allows no methods, which might occur in a 405 response if the resource has been temporarily disabled by configuration.",
-      "subject": "response",
+      "subject": "origin server",
       "action": "do so in any other response",
       "_matchScore": 15,
       "_matchedKeywords": [
@@ -166,7 +166,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
       "sectionTitle": "Server",
       "fullContext": "An origin server SHOULD NOT generate a Server header field containing needlessly fine-grained detail and SHOULD limit the addition of subproducts by third parties. Overly long and detailed Server field values increase response latency and potentially reveal internal implementation details that might make it (slightly) easier for attackers to find and exploit known security holes.",
       "subject": "origin server",
-      "action": "NOT generate a Server header field containing needlessly fine-grained detail and SHOULD limit the addition of subproducts by third parties",
+      "action": "limit the addition of subproducts by third parties",
       "_matchScore": 15,
       "_matchedKeywords": [
         "origin",

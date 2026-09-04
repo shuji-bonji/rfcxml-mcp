@@ -265,7 +265,8 @@ export function parseRFCXML(xml: string): ParsedRFC {
   // xref を先に解くのは、`<em><xref/></em>` のような入れ子で内側から
   // 組み立てるため。
   const inlineRendered = renderInlineTags(renderXrefTags(normalizeBcp14Tags(xml)));
-  const normalizedXml = stripNonPrinting(inlineRendered);
+  // `<table>` の `pn` は節の中での位置を持たないので、パース前に位置を書き込む。
+  const normalizedXml = annotateTableOrder(stripNonPrinting(inlineRendered));
   const parsed = parser.parse(normalizedXml);
   const rfc = parsed.rfc || parsed;
 
@@ -408,69 +409,237 @@ const MAX_MERGED_LIST_ITEMS = 20;
 /** 文の続きとして取り込む表示例の最大の長さ。これを超えるものは独立した図とみなす。 */
 const INLINE_EXAMPLE_MAX_LENGTH = 120;
 
-/** `pn="section-9.3.5-4"` の末尾の連番。 */
-function paragraphOrder(pn: string | undefined): number | null {
-  const match = /-(\d+)$/.exec(pn ?? '');
-  return match ? Number(match[1]) : null;
+/**
+ * `pn` の末尾の連番。節の中での位置を表す。
+ *
+ * 直下の要素は `pn="section-9.3.5-4"` で `[4]`。入れ子の要素は
+ * `pn="section-4.1-4.2.1"`（節 4.1・4 番目の塊・2 番目の項目・その 1 番目の段落）で
+ * `[4, 2, 1]`。末尾の 1 つだけを見ると入れ子の段落が `null` になり、`<dd>` の中の
+ * `<t>` を持つ節が丸ごと並べ直しをあきらめていた。
+ */
+function paragraphOrder(pn: string | undefined): number[] | null {
+  const match = /-(\d+(?:\.\d+)*)$/.exec(pn ?? '');
+  return match ? match[1].split('.').map(Number) : null;
+}
+
+/** `[4, 2, 1]` と `[4, 2, 1, 0.5]` のような並び順の比較。前から順に比べる。 */
+function compareOrder(a: number[], b: number[]): number {
+  const length = Math.min(a.length, b.length);
+  for (let i = 0; i < length; i++) {
+    if (a[i] !== b[i]) return a[i] - b[i];
+  }
+  return a.length - b.length;
 }
 
 /** 節の中の要素を、文書に現れる順に並べたもの。 */
 interface OrderedElement {
-  order: number;
-  kind: 'text' | 'list' | 'sourcecode' | 'artwork';
+  order: number[] | null;
+  kind: 'text' | 'list' | 'sourcecode' | 'artwork' | 'table';
   node: XmlNode;
   text: string;
+  /**
+   * 要素が属する入れ物。節そのものか、`<dd>` / `<aside>` / `<blockquote>` の `pn`。
+   * `mergeContinuations` は入れ物をまたいで繋がない。`<dd>` の最後の段落が文末記号を
+   * 持たなくても、次の `<dd>` の段落はその続きではない。
+   */
+  scope: string;
   items?: string[];
   style?: 'symbols' | 'numbers';
   language?: string;
+  headers?: string[];
+  rows?: string[][];
 }
 
 /**
- * 節の直下の要素を `pn` の連番順に並べる。
+ * `<table>` の `pn` は `table-1` で、節の中での位置を持たない。
+ *
+ * パースの前に、直前の `pn="section-…"` から位置を作って `x-order` 属性に書いておく。
+ * 直前の要素が `[4, 2, 1]` なら表は `[4, 2, 1, 0.5]` で、その要素の直後・次の要素の前に
+ * 並ぶ。節の直下で表より前に何も無ければ `[0.5]`。
+ */
+const TABLE_ORDER_ATTRIBUTE = 'x-order';
+
+function annotateTableOrder(xml: string): string {
+  return xml.replace(/<table\b([^>]*)>/gi, (tag: string, attrs: string, offset: number) => {
+    const before = xml.lastIndexOf('pn="section-', offset);
+    let order = '0.5';
+    if (before !== -1) {
+      const pn = /^pn="([^"]*)"/.exec(xml.slice(before))?.[1];
+      const parsed = paragraphOrder(pn);
+      if (parsed) order = `${parsed.join('.')}.0.5`;
+    }
+    return `<table${attrs} ${TABLE_ORDER_ATTRIBUTE}="${order}">`;
+  });
+}
+
+/**
+ * 節の中の要素を `pn` の連番順に並べる。
  *
  * `preserveOrder: false` で動かしているため、木からは `<t>` と `<ul>` の並び順が
  * 失われる。公開版 RFCXML は `pn="section-9.3.5-4"` の形で連番を持つので、
  * それで並べ直す。連番を持たない要素が 1 つでもあれば並べ直しをあきらめて
  * `null` を返す（公開前の RFCXML）。
+ *
+ * 節の直下の `<t>` / `<ul>` / `<ol>` / `<sourcecode>` / `<artwork>` だけを見ていた。
+ * `<dl>` の `<dd>`、`<aside>` / `<blockquote>` の中の `<t>`、`<figure>` の中の
+ * `<artwork>` / `<sourcecode>`、`<table>` は content block にならず、その中の
+ * BCP 14 キーワードがどのツールにも出ていなかった。RFC 9113 §4.1（Frame Format）は
+ * フレームヘッダの各フィールドを `<dl>` で書き、`<dd>` の中に `<bcp14>` が 6 個あるが、
+ * `get_requirements` は 0 件だった。
  */
 function orderedElements(section: XmlNode): OrderedElement[] | null {
+  const elements = collectElements(section, sectionScope(section));
+  if (elements.some((element) => element.order === null)) return null;
+  return elements.sort((a, b) => compareOrder(a.order!, b.order!));
+}
+
+function sectionScope(section: XmlNode): string {
+  return section['@_pn'] || section['@_anchor'] || 'section';
+}
+
+/**
+ * 入れ物（節・`<dd>` / `<aside>` / `<blockquote>` / `<figure>`）の中の要素を集める。
+ *
+ * 集めるものと、集めないもの。
+ *
+ * | 要素 | 扱い |
+ * |---|---|
+ * | `<t>` | 散文（`extractProse`） |
+ * | `<ul>` / `<ol>` | 箇条書き。項目は `extractProse(li)` で入れ子ごと 1 つの項目にする |
+ * | `<sourcecode>` / `<artwork>` | 空白を畳まない。`type="svg"` は印字されないので出さない |
+ * | `<artset>` | svg 以外の `<artwork>` を 1 つ採る |
+ * | `<figure>` | 中の `<artwork>` / `<sourcecode>` を親と同じ入れ物として出す |
+ * | `<dl>` | `<dd>` の直下のテキストと `<t>` を散文にする。`<dt>` の用語は要件文に混ぜない |
+ * | `<aside>` / `<blockquote>` | 直下のテキストと中の要素を、独立した入れ物として出す |
+ * | `<table>` | 見出しの行と本文の行 |
+ *
+ * `<li>` の中は再帰しない。`extractProse(li)` が入れ子の `<t>` / `<ul>` / `<dl>` を
+ * 含めて 1 つの項目にしているためで、再帰すると同じ文が 2 回出る。
+ */
+function collectElements(container: XmlNode, scope: string): OrderedElement[] {
   const elements: OrderedElement[] = [];
 
-  const push = (node: XmlNode, element: Omit<OrderedElement, 'order' | 'node'>): void => {
-    const order = paragraphOrder(node['@_pn']);
-    if (order === null) throw new Error('no pn');
-    elements.push({ order, node, ...element });
+  const push = (node: XmlNode, element: Omit<OrderedElement, 'order' | 'node' | 'scope'>): void => {
+    elements.push({ order: paragraphOrder(node['@_pn']), node, scope, ...element });
   };
 
-  try {
-    for (const t of toArray(section.t)) push(t, { kind: 'text', text: extractProse(t) });
-    for (const list of toArray(section.ul)) {
-      push(list, {
-        kind: 'list',
-        text: '',
-        style: 'symbols',
-        items: toArray(list.li).map((li) => extractProse(li)),
-      });
-    }
-    for (const list of toArray(section.ol)) {
-      push(list, {
-        kind: 'list',
-        text: '',
-        style: 'numbers',
-        items: toArray(list.li).map((li) => extractProse(li)),
-      });
-    }
-    for (const code of toArray(section.sourcecode)) {
-      push(code, { kind: 'sourcecode', text: extractText(code), language: code['@_type'] });
-    }
-    for (const art of toArray(section.artwork)) {
-      push(art, { kind: 'artwork', text: extractText(art) });
-    }
-  } catch {
-    return null;
+  for (const t of toArray<XmlNode>(container.t)) push(t, { kind: 'text', text: extractProse(t) });
+
+  for (const list of toArray<XmlNode>(container.ul)) {
+    push(list, {
+      kind: 'list',
+      text: '',
+      style: 'symbols',
+      items: toArray(list.li).map((li) => extractProse(li)),
+    });
+  }
+  for (const list of toArray<XmlNode>(container.ol)) {
+    push(list, {
+      kind: 'list',
+      text: '',
+      style: 'numbers',
+      items: toArray(list.li).map((li) => extractProse(li)),
+    });
   }
 
-  return elements.sort((a, b) => a.order - b.order);
+  const pushArtwork = (art: XmlNode): void => {
+    if (isSvgArtwork(art)) return;
+    push(art, { kind: 'artwork', text: extractText(art) });
+  };
+  const pushSourcecode = (code: XmlNode): void => {
+    push(code, { kind: 'sourcecode', text: extractText(code), language: code['@_type'] });
+  };
+  const pushArtset = (artset: XmlNode): void => {
+    const printable = toArray<XmlNode>(artset.artwork).find((art) => !isSvgArtwork(art));
+    if (printable) pushArtwork(printable);
+  };
+
+  for (const code of toArray<XmlNode>(container.sourcecode)) pushSourcecode(code);
+  for (const art of toArray<XmlNode>(container.artwork)) pushArtwork(art);
+  for (const artset of toArray<XmlNode>(container.artset)) pushArtset(artset);
+
+  // `<figure>` は表示上の囲みで、中の図は親の流れの一部である。`<t>… MAY send</t>`
+  // のあとの表示例と同じ扱いにするため、入れ物は親のまま。
+  for (const figure of toArray<XmlNode>(container.figure)) {
+    for (const code of toArray<XmlNode>(figure.sourcecode)) pushSourcecode(code);
+    for (const art of toArray<XmlNode>(figure.artwork)) pushArtwork(art);
+    for (const artset of toArray<XmlNode>(figure.artset)) pushArtset(artset);
+  }
+
+  // `<dd>` は `<dd>text</dd>` と `<dd><t>…</t><t>…</t></dd>` の両方の形がある。
+  // 直下のテキストは `<dd>` 自身の `pn` の位置、`<t>` はそれぞれの `pn` の位置に置く。
+  for (const dl of toArray<XmlNode>(container.dl)) {
+    for (const dd of toArray<XmlNode>(dl.dd)) {
+      elements.push(...collectQuotedElements(dd));
+    }
+  }
+
+  for (const key of ['aside', 'blockquote'] as const) {
+    for (const node of toArray<XmlNode>(container[key])) {
+      elements.push(...collectQuotedElements(node));
+    }
+  }
+
+  for (const table of toArray<XmlNode>(container.table)) {
+    const order = tableOrder(table);
+    elements.push({
+      order,
+      node: table,
+      scope,
+      kind: 'table',
+      text: '',
+      headers: tableHeaders(table),
+      rows: tableRows(table),
+    });
+  }
+
+  return elements;
+}
+
+/**
+ * `<dd>` / `<aside>` / `<blockquote>` の中身。直下のテキストと、入れ子の要素。
+ *
+ * 自身の `pn` を入れ物の名前にする。`pn` が無ければ（公開前の RFCXML）
+ * 並べ直しはどのみち行われないので、入れ物の区別も要らない。
+ */
+function collectQuotedElements(node: XmlNode): OrderedElement[] {
+  const scope = node['@_pn'] || 'quoted';
+  const elements: OrderedElement[] = [];
+
+  const direct = typeof node === 'string' ? node : node['#text'];
+  const text = extractProse(direct);
+  if (text) {
+    elements.push({ order: paragraphOrder(node['@_pn']), node, scope, kind: 'text', text });
+  }
+
+  if (typeof node === 'object') elements.push(...collectElements(node, scope));
+  return elements;
+}
+
+/** `<artwork type="svg">` は印字されない。`<artset>` の中では ascii-art の側が印字される。 */
+function isSvgArtwork(art: XmlNode): boolean {
+  return (art['@_type'] ?? '').toLowerCase() === 'svg' || Boolean(art.svg);
+}
+
+function tableOrder(table: XmlNode): number[] | null {
+  const raw = table[`@_${TABLE_ORDER_ATTRIBUTE}`];
+  if (typeof raw !== 'string' || raw.length === 0) return null;
+  return raw.split('.').map(Number);
+}
+
+function tableCells(tr: XmlNode): string[] {
+  return [...toArray<XmlNode>(tr.th), ...toArray<XmlNode>(tr.td)].map((cell) => extractProse(cell));
+}
+
+function tableHeaders(table: XmlNode): string[] {
+  const head = toArray<XmlNode>(table.thead).flatMap((thead) => toArray<XmlNode>(thead.tr));
+  return head.length > 0 ? tableCells(head[0]) : [];
+}
+
+function tableRows(table: XmlNode): string[][] {
+  const bodies = toArray<XmlNode>(table.tbody);
+  const rows = bodies.length > 0 ? bodies.flatMap((tbody) => toArray<XmlNode>(tbody.tr)) : [];
+  return [...rows, ...toArray<XmlNode>(table.tr)].map(tableCells);
 }
 
 /**
@@ -551,6 +720,13 @@ function mergeContinuations(elements: OrderedElement[]): OrderedElement[] {
       const next = elements[i + step];
       if (!next || consumed.has(i + step)) break;
 
+      // 入れ物をまたいで繋がない。`<dd>` の段落の続きは次の `<dd>` にはないし、
+      // `<aside>` の注記は本文の続きではない。
+      if (next.scope !== element.scope) break;
+
+      // 表は文の続きではない。行ごとに切り出す。
+      if (next.kind === 'table') break;
+
       // コロンで終わる文は、続く箇条書きで完結することがある。
       //
       //   <t>… an origin server <bcp14>MUST</bcp14> send either:</t>
@@ -603,9 +779,21 @@ function extractContent(section: XmlNode): ContentBlock[] {
   const ordered = orderedElements(section);
   if (!ordered) return extractContentUnordered(section);
 
+  return toContentBlocks(mergeContinuations(ordered));
+}
+
+/**
+ * `pn` を持たない RFCXML 用。並べ直さず、集めた順（入れ物ごとに種類の順）に出す。
+ * 文の続きを繋ぐことはしない。並び順が判らないためである。
+ */
+function extractContentUnordered(section: XmlNode): ContentBlock[] {
+  return toContentBlocks(collectElements(section, sectionScope(section)));
+}
+
+function toContentBlocks(elements: OrderedElement[]): ContentBlock[] {
   const blocks: ContentBlock[] = [];
 
-  for (const element of mergeContinuations(ordered)) {
+  for (const element of elements) {
     if (element.kind === 'text') {
       if (element.text) blocks.push(createTextBlock(element.text, element.node));
     } else if (element.kind === 'list') {
@@ -619,45 +807,11 @@ function extractContent(section: XmlNode): ContentBlock[] {
       });
     } else if (element.kind === 'sourcecode') {
       blocks.push({ type: 'sourcecode', language: element.language, content: element.text });
+    } else if (element.kind === 'table') {
+      blocks.push({ type: 'table', headers: element.headers ?? [], rows: element.rows ?? [] });
     } else {
       blocks.push({ type: 'artwork', content: element.text });
     }
-  }
-
-  return blocks;
-}
-
-/** `pn` を持たない RFCXML 用。並べ直さず、種類ごとに出す。 */
-function extractContentUnordered(section: XmlNode): ContentBlock[] {
-  const blocks: ContentBlock[] = [];
-
-  for (const t of toArray(section.t)) {
-    const text = extractProse(t);
-    if (text) blocks.push(createTextBlock(text, t));
-  }
-
-  for (const [lists, style] of [
-    [toArray(section.ul), 'symbols'],
-    [toArray(section.ol), 'numbers'],
-  ] as const) {
-    for (const list of lists) {
-      blocks.push({
-        type: 'list',
-        style,
-        items: toArray(list.li).map((li) => {
-          const content = extractProse(li);
-          return { content, requirements: extractRequirementMarkers(content) };
-        }),
-      });
-    }
-  }
-
-  for (const code of toArray(section.sourcecode)) {
-    blocks.push({ type: 'sourcecode', language: code['@_type'], content: extractText(code) });
-  }
-
-  for (const art of toArray(section.artwork)) {
-    blocks.push({ type: 'artwork', content: extractText(art) });
   }
 
   return blocks;

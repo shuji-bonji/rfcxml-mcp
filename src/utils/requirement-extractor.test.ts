@@ -759,6 +759,67 @@ describe('主語の抽出', () => {
   });
 });
 
+describe('否定形と小文字のキーワードから主語・action を取らない（Issue #2）', () => {
+  const sectionWith = (content: string, level: string) => [
+    {
+      number: '4.5',
+      title: 'End of Early Data',
+      content: [
+        {
+          type: 'text',
+          content,
+          requirements: [
+            { level, position: content.search(new RegExp(`\\b${level}\\b(?!\\s+NOT)`)) },
+          ],
+          crossReferences: [],
+        },
+      ],
+      subsections: [],
+    },
+  ];
+
+  const first = (text: string, level = 'MUST') =>
+    extractRequirementsFromSections(sectionWith(text, level) as never, undefined, {
+      parseComponents: true,
+    })[0];
+
+  it('MUST の要件では、先行する MUST NOT を読み飛ばす（RFC 8446 §4.5）', () => {
+    // `\s+MUST\b` が `MUST NOT` の MUST に当たり、主語が servers、action が
+    // "NOT send this message" になっていた。`role: "client"` から落ちる。
+    const r = first(
+      'Servers MUST NOT send this message, and clients receiving it MUST terminate the connection with an "unexpected_message" alert.'
+    );
+
+    expect(r.subject).toBe('clients');
+    expect(r.action).toBe('terminate the connection with an "unexpected_message" alert');
+  });
+
+  it('MUST NOT の要件は従来どおり', () => {
+    const r = first(
+      'Servers MUST NOT send this message, and clients receiving it MUST terminate the connection.',
+      'MUST NOT'
+    );
+
+    expect(r.subject).toBe('servers');
+    expect(r.action).toBe('send this message');
+  });
+
+  it('小文字の must / Should はキーワードではない（RFC 8446 §D.4、RFC 6455 §7.2.3）', () => {
+    const d4 = first(
+      'These messages are ignored, as they must be ignored by the peer, and the server MUST send the change_cipher_spec.'
+    );
+    expect(d4.subject).toBe('server');
+    expect(d4.action).toBe('send the change_cipher_spec');
+
+    const reconnect = first(
+      'Should the first reconnect attempt fail, subsequent reconnect attempts SHOULD be delayed by increasingly longer amounts of time.',
+      'SHOULD'
+    );
+    expect(reconnect.subject).toBe('reconnect attempts');
+    expect(reconnect.action).toBe('be delayed by increasingly longer amounts of time');
+  });
+});
+
 describe('主語の先頭を削らないこと', () => {
   const subjectOf = (text: string, level = 'MUST') =>
     extractRequirementsFromSections(
@@ -967,6 +1028,73 @@ describe('要件の id', () => {
     const fromOne = extractRequirementsFromSections([sections[1]]).map((r) => r.id);
 
     expect(fromOne).toEqual(fromAll);
+  });
+
+  it('レベルで絞っても id が変わらない（Issue #3）', () => {
+    // `filter.level` の continue が `nextId()` より前にあり、レベルで絞ると
+    // その節の中で一致するものだけを 1 から数え直していた。RFC 6455 §5.1 の
+    // R-5.1-6（MAY）が `level: "MAY"` では R-5.1-2 になっていた。
+    const content =
+      'A client MUST mask frames. A server MAY close the connection. A client MUST NOT send unmasked frames. A server MAY send a Close frame.';
+    const mixed = [
+      {
+        number: '5.1',
+        title: 'Overview',
+        content: [
+          {
+            type: 'text',
+            content,
+            requirements: [
+              { level: 'MUST', position: content.indexOf('MUST mask') },
+              { level: 'MAY', position: content.indexOf('MAY close') },
+              { level: 'MUST NOT', position: content.indexOf('MUST NOT') },
+              { level: 'MAY', position: content.indexOf('MAY send') },
+            ],
+          },
+        ],
+        subsections: [],
+      },
+    ];
+
+    const fromAll = extractRequirementsFromSections(mixed as never)
+      .filter((r) => r.level === 'MAY')
+      .map((r) => r.id);
+    const fromLevel = extractRequirementsFromSections(mixed as never, { level: 'MAY' }).map(
+      (r) => r.id
+    );
+
+    expect(fromAll).toEqual(['R-5.1-2', 'R-5.1-4']);
+    expect(fromLevel).toEqual(fromAll);
+  });
+
+  it('レベルで絞っても、重複排除で落ちた分は数えない', () => {
+    // 同じ文に同じレベルのキーワードが 2 回あるとき、2 つ目は id を消費しない。
+    // 全件でもレベル指定でも同じ id になること。
+    const content = 'A client MUST mask frames and MUST send them. A client MAY close.';
+    const dup = [
+      {
+        number: '5.2',
+        title: 'Duplicates',
+        content: [
+          {
+            type: 'text',
+            content,
+            requirements: [
+              { level: 'MUST', position: content.indexOf('MUST mask') },
+              { level: 'MUST', position: content.indexOf('MUST send') },
+              { level: 'MAY', position: content.indexOf('MAY') },
+            ],
+          },
+        ],
+        subsections: [],
+      },
+    ];
+
+    const all = extractRequirementsFromSections(dup as never).map((r) => r.id);
+    const may = extractRequirementsFromSections(dup as never, { level: 'MAY' }).map((r) => r.id);
+
+    expect(all).toEqual(['R-5.2-1', 'R-5.2-2']);
+    expect(may).toEqual(['R-5.2-2']);
   });
 });
 

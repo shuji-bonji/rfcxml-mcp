@@ -66,3 +66,28 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # MCP クライアントから stdio 経由でツールを叩く。実物の RFC を数本取りに行く
+  # （rfc-editor.org / datatracker）ので 1 分程度かかる。単体テストでは見えない
+  # 「クライアントから見た振る舞い」（isError、additionalProperties、_sourceNote）を
+  # ここで見る。audit / crosscheck / snapshot は取得が多いので audit.yml に置く。
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Run E2E tests
+        run: npm run test:e2e

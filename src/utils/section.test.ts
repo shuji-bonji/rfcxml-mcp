@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeSectionNumber } from './section.js';
+import { normalizeSectionNumber, findSection } from './section.js';
+import type { Section } from '../types/index.js';
 
 describe('後付録の節番号', () => {
   it('appendix.a.2.5 を A.2.5 にする', () => {
@@ -18,5 +19,27 @@ describe('後付録の節番号', () => {
 
   it('複数文字の目印は直さない', () => {
     expect(normalizeSectionNumber('section-toc.1')).toBe('toc.1');
+  });
+});
+
+describe('findSection', () => {
+  const sections: Section[] = [
+    { number: 'section-1', title: 'Introduction', content: [], subsections: [] },
+    // XML 経路は References を番号無しの節として持つ
+    { title: 'References', content: [], subsections: [] },
+  ] as Section[];
+
+  it('finds by normalized number', () => {
+    expect(findSection(sections, '1')?.title).toBe('Introduction');
+    expect(findSection(sections, 'section-1')?.title).toBe('Introduction');
+  });
+
+  it('rejects an empty target instead of matching the unnumbered section (Issue #16)', () => {
+    expect(findSection(sections, '')).toBeNull();
+    expect(findSection(sections, '  ')).toBeNull();
+  });
+
+  it('returns null for an unknown section', () => {
+    expect(findSection(sections, '99.99')).toBeNull();
   });
 });

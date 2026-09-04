@@ -42,6 +42,10 @@ export function normalizeSectionNumber(sectionId: string): string {
  * セクションを検索（複数フォーマット対応）
  */
 export function findSection(sections: Section[], target: string): Section | null {
+  // 空文字は入力の誤りであり、どの節にも当たらない。XML 経路は References を
+  // 番号無しの節として持つので、`'' === ''` で References に一致していた（Issue #16）。
+  if (!target || target.trim() === '') return null;
+
   const normalizedTarget = normalizeSectionNumber(target);
 
   for (const sec of sections) {

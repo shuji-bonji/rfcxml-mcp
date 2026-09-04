@@ -702,6 +702,67 @@ async function testInputValidation(client) {
     // JSON-RPC エラーとして返る実装でも「弾いた」ことに変わりはない
     logResult(toolName, 'missing required "rfc" is rejected', 'PASS', { note: e.message });
   }
+
+  // Issue #16: 空の section は References（番号無しの節）に一致してはならない。
+  // `minLength: 1` で弾く。
+  try {
+    const result = await client.callTool({
+      name: 'get_related_sections',
+      arguments: { rfc: 9110, section: '' },
+    });
+    logResult(toolName, 'empty "section" is rejected', result.isError ? 'PASS' : 'FAIL', {
+      note: `isError=${result.isError}`,
+    });
+  } catch (e) {
+    logResult(toolName, 'empty "section" is rejected', 'PASS', { note: e.message });
+  }
+
+  // Issue #21: 未知のキーは受け取って捨てない。`sections`（正しくは `section`）は isError。
+  try {
+    const result = await client.callTool({
+      name: 'get_requirements',
+      arguments: { rfc: 9110, sections: ['3.5'] },
+    });
+    logResult(toolName, 'unknown key "sections" is rejected', result.isError ? 'PASS' : 'FAIL', {
+      note: `isError=${result.isError}`,
+    });
+  } catch (e) {
+    logResult(toolName, 'unknown key "sections" is rejected', 'PASS', { note: e.message });
+  }
+
+  // Issue #21: tools/list の inputSchema に additionalProperties: false が出る。
+  try {
+    const { tools } = await client.listTools();
+    const missing = tools.filter((t) => t.inputSchema?.additionalProperties !== false);
+    logResult(
+      toolName,
+      'tools/list declares additionalProperties: false',
+      missing.length === 0 ? 'PASS' : 'FAIL',
+      {
+        note:
+          missing.length === 0 ? `${tools.length} tools` : missing.map((t) => t.name).join(', '),
+      }
+    );
+  } catch (e) {
+    logResult(toolName, 'tools/list declares additionalProperties: false', 'FAIL', {
+      error: e.message,
+    });
+  }
+
+  // Issue #16: 無い節は isError: true（`{ error }` の正常応答ではない）。
+  try {
+    const result = await client.callTool({
+      name: 'get_related_sections',
+      arguments: { rfc: 9110, section: '99.99' },
+    });
+    const body = JSON.parse(result.content?.[0]?.text ?? '{}');
+    const ok = result.isError === true && /Section 99\.99 not found/.test(body.error ?? '');
+    logResult(toolName, 'unknown section is isError', ok ? 'PASS' : 'FAIL', {
+      note: `isError=${result.isError}, error=${body.error}`,
+    });
+  } catch (e) {
+    logResult(toolName, 'unknown section is isError', 'FAIL', { error: e.message });
+  }
 }
 
 // ========================================

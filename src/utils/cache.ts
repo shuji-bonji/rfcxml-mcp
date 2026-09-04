@@ -129,3 +129,39 @@ export const DEFAULT_CACHE_OPTIONS: Required<CacheOptions> = {
   debug: false,
   name: 'RFCCache',
 };
+
+/**
+ * 同じ鍵への同時呼び出しを 1 本の Promise にまとめる。
+ *
+ * LRU は結果が入るまでのあいだ何も持たない。MCP クライアントは 1 つの RFC に
+ * `get_rfc_structure` と `get_requirements` を並列に出すのが普通の使い方で、
+ * v0.6.52 まではその数だけ rfc-editor.org を叩き、`parseRFCXML` も回数分走って
+ * いた（Issue #15: 同時 3 本で `Fetched from rfcEditor` が 3 行）。
+ *
+ * 2 本目以降は 1 本目の Promise をそのまま返す。**終わったら成功・失敗を問わず
+ * 外す。** 失敗した Promise を残すと、一時的なネットワーク失敗がプロセスの
+ * 生きているあいだ再現し続ける。
+ */
+export class InFlightMap<K, V> {
+  private readonly inFlight = new Map<K, Promise<V>>();
+
+  /** 走っている呼び出しの数（テスト用） */
+  get size(): number {
+    return this.inFlight.size;
+  }
+
+  share(key: K, start: () => Promise<V>): Promise<V> {
+    const existing = this.inFlight.get(key);
+    if (existing) return existing;
+
+    const promise = start().finally(() => {
+      this.inFlight.delete(key);
+    });
+    this.inFlight.set(key, promise);
+    return promise;
+  }
+
+  clear(): void {
+    this.inFlight.clear();
+  }
+}

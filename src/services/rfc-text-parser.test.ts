@@ -318,6 +318,43 @@ describe('テキスト版の題名抽出', () => {
 
     expect(parseRFCText(text, 9999).metadata.title).toBeUndefined();
   });
+
+  it('題名の下線の行を題名に繋がない', () => {
+    // RFC 768 は `User Datagram Protocol` の次の行に `----------------------` を置く。
+    const text = [
+      'RFC 768                                                        J. Postel',
+      '                                                          28 August 1980',
+      '',
+      '                         User Datagram Protocol',
+      '                         ----------------------',
+      '',
+      'Introduction',
+      '------------',
+      '',
+      'Body text here.',
+    ].join('\n');
+
+    expect(parseRFCText(text, 768).metadata.title).toBe('User Datagram Protocol');
+  });
+
+  it('`Title:` の欄があればその値だけを題名にする', () => {
+    // RFC 1 の表紙。`Title:` `Author:` `Installation:` の 3 行を繋いでいた。
+    const text = [
+      'Network Working Group                                   Steve Crocker',
+      'Request for Comments: 1                                          UCLA',
+      '                                                         7 April 1969',
+      '',
+      '',
+      '                         Title:   Host Software',
+      '                        Author:   Steve Crocker',
+      '                          Installation:   UCLA',
+      '                          Date:   7 April 1969',
+      '',
+      'CONTENTS',
+    ].join('\n');
+
+    expect(parseRFCText(text, 1).metadata.title).toBe('Host Software');
+  });
 });
 
 describe('目次の行を節にしないこと', () => {
@@ -369,6 +406,111 @@ describe('目次の行を節にしないこと', () => {
     );
 
     expect(parsed.sections.map((s) => s.number)).toEqual(['1', '2']);
+  });
+});
+
+describe('リーダー無しの目次', () => {
+  const walk = (list: Section[]): Section[] => list.flatMap((s) => [s, ...walk(s.subsections)]);
+  const numbered = (text: string, rfc: number): string[] =>
+    walk(parseRFCText(text, rfc).sections).map((s) => `${s.number} ${s.title}`);
+
+  const toc = [
+    'Table of Contents',
+    '',
+    '1.       Introduction   1',
+    '',
+    '2.       System Architecture    4',
+    '',
+    '2.1.     Implementation Model   6',
+    '',
+    '2.2.     Network Configurations 7',
+    '',
+    '3.       Network Time Protocol  8',
+    '',
+    '3.2.     State Variables and Parameters 9',
+    '',
+    'A.       Appendix A. NTP Data Format - Version 3        50',
+    '',
+  ];
+
+  it('目次の行を節にせず、目次の題名と同じ番号無しの見出しに目次の番号を付ける', () => {
+    // RFC 1305 の目次は `3.2.     State Variables and Parameters 9` とリーダー
+    // 無しでページ番号を書く。目次の全行が節になり、本文の見出しは番号を
+    // 持たないので取れていなかった。
+    const text = [
+      ...toc,
+      'Introduction',
+      '',
+      'This document constitutes a formal specification.',
+      '',
+      'System Architecture',
+      '',
+      'In what may be the most common client/server model, text.',
+      '',
+      'Network Configurations',
+      'A primary time server is connected to a radio clock.',
+      '',
+      'State Variables and Parameters',
+      '',
+      'Following is a summary of the various state variables.',
+      '',
+      'Appendix A. NTP Data Format - Version 3',
+      '',
+      'The format of the NTP Message data area is shown in Figure 4.',
+      '',
+    ].join('\n');
+
+    expect(numbered(text, 1305)).toEqual([
+      '1 Introduction',
+      '2 System Architecture',
+      '2.2 Network Configurations',
+      '3.2 State Variables and Parameters',
+      'A NTP Data Format - Version 3',
+    ]);
+  });
+
+  it('目次の順番が来ていない題名は節にしない', () => {
+    // 本文に同じ語が単独で現れても、目次の並びで数件先までにしか照合しない。
+    const text = [
+      ...toc,
+      'Introduction',
+      '',
+      'Text.',
+      '',
+      'System Architecture',
+      '',
+      'Text.',
+      '',
+      'State Variables and Parameters',
+      '',
+      'This line is a stray mention, four entries ahead of the cursor.',
+      '',
+    ].join('\n');
+
+    expect(numbered(text, 1305)).toEqual(['1 Introduction', '2 System Architecture']);
+  });
+
+  it('本文の表を目次と誤認しない', () => {
+    // 番号に段のあるものが 1 つも無い塊は目次ではない。
+    const text = [
+      '1.  Introduction',
+      '',
+      '   Value  Meaning',
+      '',
+      '   1      Reserved        0',
+      '   2      Echo Reply      0',
+      '   3      Redirect        0',
+      '',
+      '2.  Security Considerations',
+      '',
+      '   The server MUST verify it.',
+      '',
+    ].join('\n');
+
+    const sections = parseRFCText(text, 9999).sections;
+
+    expect(sections.map((s) => s.number)).toEqual(['1', '2']);
+    expect(JSON.stringify(sections[0].content)).toContain('Echo Reply');
   });
 });
 
@@ -739,6 +881,51 @@ describe('表示例をはさんだ段落', () => {
   });
 });
 
+describe('句点の無い `TAG:n` 形の参考文献', () => {
+  // RFC 1812 は `ARCH:8.` と `ARCH:9`（句点無し）を混ぜて書く。句点を必須に
+  // していたため、`ARCH:9` の項目が `ARCH:8` に繋がれ、題名が入れ替わっていた。
+  const text = [
+    '11. REFERENCES',
+    '',
+    '   ARCH:8.',
+    '        Information processing systems - Open Systems Interconnection -',
+    '        Basic Reference Model, ISO 7489, International Standards',
+    '        Organization, 1984.',
+    '',
+    '   ARCH:9',
+    '        R.  Braden, J.  Postel, Y.  Rekhter, "Internet Architecture',
+    '        Extensions for Shared Media", 05/20/1994',
+    '',
+    '   FORWARD:1.',
+    '        IETF CIP Working Group (C. Topolcic, Editor), "Experimental',
+    '        Internet Stream Protocol", Version 2 (ST-II), RFC 1190, October',
+    '        1990.',
+    '',
+  ].join('\n');
+
+  it('句点の有無にかかわらず項目として拾う', () => {
+    const refs = parseRFCText(text, 1812).references.informative;
+
+    expect(refs.map((r) => r.anchor)).toEqual(['ARCH:8', 'ARCH:9', 'FORWARD:1']);
+    expect(refs[1].title).toBe('Internet Architecture Extensions for Shared Media');
+    expect(refs[2].rfcNumber).toBe(1190);
+  });
+
+  it('目印を題名に残さない', () => {
+    const refs = parseRFCText(text, 1812).references.informative;
+
+    expect(refs[0].title).not.toMatch(/^ARCH:8/);
+    expect(refs[0].title).toMatch(/^Information processing systems/);
+  });
+
+  it('目印の行を用語欄として拾わない', () => {
+    const terms = parseRFCText(text, 1812).definitions.map((d) => d.term);
+
+    expect(terms).not.toContain('ARCH:9');
+    expect(terms).toHaveLength(0);
+  });
+});
+
 describe('古い書式の参考文献', () => {
   const text = [
     '                               REFERENCES',
@@ -1049,6 +1236,14 @@ describe('字下げ見出しの取りこぼし', () => {
     const walk = (list: Section[]): Section[] => list.flatMap((s) => [s, ...walk(s.subsections)]);
     const found = walk(parsed.sections).find((s) => s.number === '4.1.2.2');
     expect(found?.title).toBe('Initial Sequence Number Selection: RFC-793 Section 3.3, page 27');
+
+    // 継いだ行は本文に入らない。入ると要件文が "3.3, page 27 A TCP MUST …" になる。
+    const reqs = extractTextRequirements(parsed.sections).filter((r) => r.section === '4.1.2.2');
+    expect(reqs).toHaveLength(1);
+    expect(reqs[0].text).toBe(
+      'A TCP MUST use the specified clock-driven selection of initial sequence numbers.'
+    );
+    expect(JSON.stringify(found?.content)).not.toContain('page 27');
   });
 
   it('見出しの次に本文が続くものは節にしない', () => {
@@ -1173,6 +1368,63 @@ describe('番号なしの見出しで節を取る', () => {
     const parsed = parseRFCText(text, 9999);
 
     expect(parsed.sections.map((s) => s.number)).toEqual(['1', '2']);
+  });
+});
+
+describe('下線付きの見出し', () => {
+  it('直後が `-{3,}` の行なら見出しとみなし、末尾のコロンを許す', () => {
+    // RFC 826 は `Notes:` の次の行に `------` を置く。見出しの直後に空行を
+    // 求めていたため、節が 0 件だった。
+    const text = [
+      'Notes:',
+      '------       ',
+      '',
+      'This protocol was originally designed for the DEC/Intel/Xerox',
+      '10Mbit Ethernet.',
+      '',
+      'The Problem:',
+      '------------',
+      '',
+      'The world is a jungle in general.',
+      '',
+      'Why is it done this way??',
+      '-------------------------',
+      '',
+      'Periodic broadcasting is definitely not desired.',
+      '',
+    ].join('\n');
+
+    const sections = parseRFCText(text, 826).sections;
+
+    expect(sections.map((s) => s.title)).toEqual([
+      'Notes:',
+      'The Problem:',
+      'Why is it done this way??',
+    ]);
+    // 下線の行は本文に入らない
+    expect(JSON.stringify(sections)).not.toContain('------');
+  });
+
+  it('下線が無ければ末尾のコロンは見出しにしない', () => {
+    const text = [
+      'INTRODUCTION',
+      '',
+      '   Text.',
+      '',
+      'The options are:',
+      '',
+      '   o  First option.',
+      '',
+      'DETAILS',
+      '',
+      '   More.',
+      '',
+    ].join('\n');
+
+    expect(parseRFCText(text, 9999).sections.map((s) => s.title)).toEqual([
+      'INTRODUCTION',
+      'DETAILS',
+    ]);
   });
 });
 
@@ -2391,6 +2643,92 @@ describe('中央に `- N -` と書くページフッタ', () => {
       'NOTATIONAL CONVENTIONS',
     ]);
   });
+
+  it('本文の減算の式（`-1 - n.`）を落とさない', () => {
+    // RFC 7049 §2.4.2。`- N -` の形が式に当たり、行が丸ごと消えて
+    // 前後の文が 1 つに繋がっていた。
+    const text = [
+      '2.4.2.  Bignums',
+      '',
+      '   n.  For tag value 3, the value of the bignum is -1 - n.  Decoders',
+      '   that understand these tags MUST be able to decode bignums that have',
+      '   leading zeroes.',
+      '',
+    ].join('\n');
+
+    const reqs = extractTextRequirements(parseRFCText(text, 7049).sections);
+
+    expect(reqs).toHaveLength(1);
+    expect(reqs[0].text).toBe(
+      'Decoders that understand these tags MUST be able to decode bignums that have leading zeroes.'
+    );
+    expect(JSON.stringify(parseRFCText(text, 7049).sections)).toContain('-1 - n.');
+  });
+
+  it('`- 23 -` を含む式の行を落とさない', () => {
+    // RFC 4271 §4.3。
+    const text = [
+      '4.3.  UPDATE Message Format',
+      '',
+      '         calculated as:',
+      '',
+      '               UPDATE message Length - 23 - Total Path Attributes Length',
+      '               - Withdrawn Routes Length',
+      '',
+    ].join('\n');
+
+    expect(JSON.stringify(parseRFCText(text, 4271).sections)).toContain(
+      'Length - 23 - Total Path Attributes Length'
+    );
+  });
+
+  it('`- N -` だけの行はフッタとして落とす', () => {
+    const text = [
+      '1.  INTRODUCTION',
+      '',
+      '   Text.',
+      '',
+      '                - 3 -',
+      '\f',
+      '     Standard for ARPA Internet Text Messages',
+      '',
+      '   More.',
+      '',
+    ].join('\n');
+    const json = JSON.stringify(parseRFCText(text, 822).sections);
+
+    expect(json).not.toContain('- 3 -');
+    expect(json).toContain('More.');
+  });
+});
+
+describe('小文字の `[page N]`', () => {
+  it('フッタとして落とし、次ページの柱を節にしない', () => {
+    // RFC 768 は `Postel   [page 1]` と書く。大文字の `[Page` だけを見ていたため
+    // フッタが残り、次ページの柱 `28 Aug 1980` が唯一の節になっていた。
+    const text = [
+      'Introduction',
+      '------------',
+      '',
+      'This User Datagram Protocol (UDP) is defined.',
+      '',
+      'Postel                                                          [page 1]',
+      '\f',
+      '                                                             28 Aug 1980',
+      'User Datagram Protocol',
+      '',
+      'Format',
+      '------',
+      '',
+      'More text here.',
+      '',
+    ].join('\n');
+
+    const json = JSON.stringify(parseRFCText(text, 768).sections);
+
+    expect(json).not.toContain('[page 1]');
+    expect(json).not.toContain('28 Aug 1980');
+  });
 });
 
 describe('文書全体が字下げされている RFC', () => {
@@ -2411,6 +2749,207 @@ describe('文書全体が字下げされている RFC', () => {
 
     expect(sections.map((s) => s.number)).toEqual(['1']);
     expect(sections[0].subsections.map((s) => s.number)).toEqual(['1.1']);
+  });
+});
+
+describe('折り返した本文を付録の見出しにしないこと', () => {
+  const walk = (list: Section[]): Section[] => list.flatMap((s) => [s, ...walk(s.subsections)]);
+  const titles = (text: string, rfc: number): Record<string, string> =>
+    Object.fromEntries(walk(parseRFCText(text, rfc).sections).map((s) => [s.number, s.title]));
+
+  it('句点で終わる `A.3.6 for details.` を見出しにせず、本物の A.3.6 を拾う', () => {
+    // RFC 2328 の `        A.3.6 for details.` は "See Sections A.3.2 through"
+    // の折り返し。これが §A.3.6 になり、本物の見出しが重複で落ちていた。
+    const text = [
+      '1.  Introduction',
+      '',
+      '   Text.',
+      '',
+      'A. OSPF data formats',
+      '',
+      'A.1 OSPF Packet Formats',
+      '',
+      'A.1.1 The Link State Update packet',
+      '',
+      '    Type',
+      '        The OSPF packet types are as follows. See Sections A.1.1 through',
+      '        A.1.2 for details.',
+      '',
+      '    Each LSA begins with a common 20 byte header, described in Section',
+      '    A.2.1. Detailed formats of the different types of LSAs are described',
+      '    in Section A.2.',
+      '',
+      'A.1.2 The Link State Acknowledgment packet',
+      '',
+      '    Link State Acknowledgment Packets are OSPF packet type 5.',
+      '',
+      'A.2 LSA formats',
+      '',
+      '    Text.',
+      '',
+      'A.2.1 The LSA header',
+      '',
+      '    Text.',
+      '',
+    ].join('\n');
+
+    const found = titles(text, 2328);
+
+    expect(found['A.1.2']).toBe('The Link State Acknowledgment packet');
+    expect(found['A.2.1']).toBe('The LSA header');
+  });
+
+  it('`Appendix A for comprehensive list):` を Appendix A にしない', () => {
+    // RFC 1305 §3 の折り返し。これが Appendix A（411 ブロック）になり、
+    // 本物の `Appendix A. NTP Data Format - Version 3` が落ちていた。
+    const text = [
+      '3.  Network Time Protocol',
+      '',
+      'a four-octet, left-justified, zero-padded ASCII string, for example (see',
+      'Appendix A for comprehensive list):',
+      '',
+      '   Text.',
+      '',
+      'Appendix A. NTP Data Format - Version 3',
+      '',
+      'The format of the NTP Message data area is shown in Figure 4.',
+      '',
+      'Appendix B. NTP Control Messages',
+      '',
+      'Text.',
+      '',
+    ].join('\n');
+
+    const found = titles(text, 1305);
+
+    expect(found['A']).toBe('NTP Data Format - Version 3');
+    expect(found['B']).toBe('NTP Control Messages');
+  });
+
+  it('句点で終わる 1 段目の付録の題名は認める', () => {
+    // RFC 1305 の `Appendix D. Differences from Previous Versions.`
+    const text = [
+      '1.  Introduction',
+      '',
+      '   Text.',
+      '',
+      'Appendix A. Differences from Previous Versions.',
+      '',
+      'Text.',
+      '',
+    ].join('\n');
+
+    expect(titles(text, 1305)['A']).toBe('Differences from Previous Versions.');
+  });
+
+  it('見出しより深く字下げした折り返しを題名に継ぐ', () => {
+    // RFC 1521 の `   E.2  Registration of New Access-type Values` /
+    // `           for Message/external-body`。
+    const text = [
+      '1.  Introduction',
+      '',
+      '   Text.',
+      '',
+      'Appendix A -- IANA Registration Procedures',
+      '',
+      '   A.1  Registration of New Content-type/subtype Values',
+      '',
+      '   Text.',
+      '',
+      '   A.2  Registration of New Access-type Values',
+      '           for Message/external-body',
+      '',
+      '      To:  IANA@isi.edu',
+      '',
+    ].join('\n');
+
+    const found = titles(text, 1521);
+    expect(found['A.2']).toBe('Registration of New Access-type Values for Message/external-body');
+    const e2 = walk(parseRFCText(text, 1521).sections).find((s) => s.number === 'A.2');
+    expect(JSON.stringify(e2?.content)).not.toContain('external-body');
+  });
+
+  it('ページの区切りで次の見出しが直後に来ても見出しとして拾う', () => {
+    // RFC 822 の `C.5.  ADDRESS SPECIFICATION` はページの終わりに置かれ、
+    // 区切りを外すと `C.5.1.  ADDRESS` が直後に来る。
+    const text = [
+      '1.  Introduction',
+      '',
+      '   Text.',
+      '',
+      'A.  ALPHABETICAL LISTING',
+      '',
+      '   Text.',
+      '',
+      'A.1.  SIMPLIFICATION',
+      '',
+      '   Text.',
+      '',
+      'A.2.  ADDRESS SPECIFICATION',
+      'A.2.1.  ADDRESS',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+
+    const found = titles(text, 822);
+    expect(found['A.2']).toBe('ADDRESS SPECIFICATION');
+    expect(found['A.2.1']).toBe('ADDRESS');
+  });
+});
+
+describe('付録の中の定義の section', () => {
+  it('Appendix B の用語が section "B" になる', () => {
+    // RFC 1812 の Appendix B（GLOSSARY）の用語 54 件が §11（REFERENCES）に
+    // 付いていた。節は実在するので G4 では見つからない。
+    const text = [
+      '11. REFERENCES',
+      '',
+      '   [RFC2119]  Bradner, S., "Key words", RFC 2119, March 1997.',
+      '',
+      'APPENDIX A. REQUIREMENTS FOR SOURCE-ROUTING HOSTS',
+      '',
+      '   Text.',
+      '',
+      'APPENDIX B. GLOSSARY',
+      '',
+      '   Datagram',
+      '      The unit transmitted between a pair of internet modules.  Data,',
+      '      addressing information, and control information are carried.',
+      '',
+      '   Default Route',
+      '      A routing table entry that is used to direct any data addressed',
+      '      to any network prefixes not explicitly listed.',
+      '',
+    ].join('\n');
+
+    const definitions = parseRFCText(text, 1812).definitions;
+
+    expect(definitions.map((d) => d.section)).toEqual(['B', 'B']);
+  });
+
+  it('A.1 の用語が section "A.1" になる', () => {
+    // RFC 8446 の Appendix E.1 の用語 10 件が §12.2 に付いていた。同じ形。
+    const text = [
+      '12.2.  Informative References',
+      '',
+      '   [RFC2119]  Bradner, S., "Key words", RFC 2119, March 1997.',
+      '',
+      'Appendix A.  Overview of Security Properties',
+      '',
+      '   Text.',
+      '',
+      'A.1.  Handshake',
+      '',
+      '   Peer authentication',
+      "      The client's view of the peer identity should reflect the server's",
+      '      identity.',
+      '',
+    ].join('\n');
+
+    const definitions = parseRFCText(text, 8446).definitions;
+
+    expect(definitions.map((d) => `${d.section} ${d.term}`)).toEqual(['A.1 Peer authentication']);
   });
 });
 

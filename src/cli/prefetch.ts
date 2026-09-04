@@ -28,6 +28,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { fetchRFCText, fetchRFCXML, resetDiskCacheForTesting } from '../services/rfc-fetcher.js';
 import { DiskCache } from '../utils/disk-cache.js';
 import { PACKAGE_INFO } from '../config.js';
@@ -65,6 +66,22 @@ Notes:
     RFCXML_CACHE_DIR pointing at the same directory.
 `;
 
+/**
+ * RFC 番号を読む。数字だけを受け付ける。
+ *
+ * `parseInt` は `9110abc` を 9110 として通していた（Issue #17）。
+ */
+export function parseRFCNumber(value: string | undefined, flag: string): number {
+  if (value === undefined || !/^\d+$/.test(value)) {
+    throw new Error(`${flag} expects a positive integer, got "${value ?? ''}"`);
+  }
+  const n = Number(value);
+  if (!Number.isSafeInteger(n) || n <= 0) {
+    throw new Error(`${flag} expects a positive integer, got "${value}"`);
+  }
+  return n;
+}
+
 function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     rfcs: [],
@@ -86,17 +103,14 @@ function parseArgs(argv: string[]): CliOptions {
         const v = argv[++i];
         const m = v?.match(/^(\d+)-(\d+)$/);
         if (!m) throw new Error(`--range expects N-M, got "${v}"`);
-        const from = parseInt(m[1], 10);
-        const to = parseInt(m[2], 10);
+        const from = parseRFCNumber(m[1], '--range');
+        const to = parseRFCNumber(m[2], '--range');
         if (from > to) throw new Error(`--range: from (${from}) > to (${to})`);
         for (let n = from; n <= to; n++) opts.rfcs.push(n);
         break;
       }
       case '--rfc': {
-        const v = argv[++i];
-        const n = parseInt(v ?? '', 10);
-        if (!Number.isInteger(n) || n <= 0) throw new Error(`--rfc expects positive integer`);
-        opts.rfcs.push(n);
+        opts.rfcs.push(parseRFCNumber(argv[++i], '--rfc'));
         break;
       }
       case '--cache-dir':
@@ -137,8 +151,16 @@ interface FetchResult {
  * Process one RFC. Returns a result row instead of throwing so the runner can
  * tally totals across the whole batch.
  */
-async function processOne(rfc: number, cache: DiskCache, force: boolean): Promise<FetchResult> {
-  if (!force && (await cache.has(rfc))) {
+async function processOne(
+  rfc: number,
+  cache: DiskCache,
+  textCache: DiskCache,
+  force: boolean
+): Promise<FetchResult> {
+  // XML でもテキストでもディスクにあれば飛ばす。v0.6.52 までは `xml/` しか
+  // 見ていなかったので、XML の無い RFC 8649 は毎回 404 を 2 本投げてから
+  // `Text loaded from disk cache` になり、"fetched" と数えられていた（Issue #17）。
+  if (!force && ((await cache.has(rfc)) || (await textCache.has(rfc)))) {
     return { rfc, status: 'skipped' };
   }
   try {
@@ -153,7 +175,7 @@ async function processOne(rfc: number, cache: DiskCache, force: boolean): Promis
     // RFCXML が無い RFC はテキストで読む（RFC 8650 より前のほとんど）。
     // ここで取っておかないと、MCP サーバは起動のたびに本文を取り直す。
     try {
-      await fetchRFCText(rfc);
+      await fetchRFCText(rfc, { forceFresh: force });
       return { rfc, status: 'ok' };
     } catch {
       return {
@@ -200,7 +222,8 @@ async function main(): Promise<void> {
     opts = parseArgs(process.argv.slice(2));
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-    process.exit(2);
+    // 引数の誤りも取得の失敗も 1 で終わる（Issue #17: `--rfc 9110abc` は exit 1）。
+    process.exit(1);
   }
 
   // Plumb the cache dir into the env so fetchRFCXML's lazy init picks it up.
@@ -208,7 +231,9 @@ async function main(): Promise<void> {
   resetDiskCacheForTesting();
 
   const cache = new DiskCache(path.join(opts.cacheDir, 'xml'));
+  const textCache = new DiskCache(path.join(opts.cacheDir, 'text'), 'text');
   await fs.mkdir(cache.dir, { recursive: true });
+  await fs.mkdir(textCache.dir, { recursive: true });
 
   process.stderr.write(
     `rfcxml-prefetch: ${opts.rfcs.length} RFCs -> ${cache.dir} ` +
@@ -216,7 +241,7 @@ async function main(): Promise<void> {
   );
 
   const results = await runWithConcurrency(opts.rfcs, opts.concurrency, (rfc) =>
-    processOne(rfc, cache, opts.force)
+    processOne(rfc, cache, textCache, opts.force)
   );
 
   const summary = results.reduce(
@@ -240,7 +265,13 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  process.stderr.write(`Fatal: ${error instanceof Error ? error.message : String(error)}\n`);
-  process.exit(1);
-});
+// テストが parseRFCNumber を import できるよう、CLI として起動されたときだけ走る。
+const isMain =
+  process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain) {
+  main().catch((error) => {
+    process.stderr.write(`Fatal: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.exit(1);
+  });
+}

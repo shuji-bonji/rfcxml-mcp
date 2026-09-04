@@ -9,6 +9,8 @@ import {
   createRequirementRegex,
   createRFCReferenceRegex,
   createSectionReferenceRegex,
+  SECTION_LIST_TAIL,
+  splitSectionList,
 } from '../constants.js';
 
 /**
@@ -190,7 +192,9 @@ export function extractCrossReferences(text: string): CrossReference[] {
   const seen = new Set<string>();
 
   const add = (ref: CrossReference): void => {
-    const key = `${ref.type}\u0000${ref.target}`;
+    // 別文書の節は「文書 + 節」で 1 件。`Sections 4.1 and 4.2 of [RFC9110]` は
+    // 2 件であり、文書だけを鍵にすると 2 つ目が落ちる。
+    const key = `${ref.type}\u0000${ref.target}\u0000${ref.type === 'external' ? (ref.section ?? '') : ''}`;
     if (seen.has(key)) return;
     seen.add(key);
     refs.push(ref);
@@ -207,14 +211,16 @@ export function extractCrossReferences(text: string): CrossReference[] {
   let localText = text;
   for (const { pattern, sectionGroup, documentGroup } of createExternalSectionRegexes()) {
     localText = localText.replace(pattern, (matched, ...groups: string[]) => {
-      const section = groups[sectionGroup - 1];
       const document = groups[documentGroup - 1];
-      add({
-        target: document,
-        type: 'external',
-        section,
-        displayText: matched,
-      });
+      // `Sections 4.1 and 4.2 of [RFC9110]` は 1 件ずつに分ける
+      for (const section of splitSectionList(groups[sectionGroup - 1])) {
+        add({
+          target: document,
+          type: 'external',
+          section,
+          displayText: matched,
+        });
+      }
       // 数字を残すと、後段の節参照の走査が拾ってしまう
       return ' [external] ';
     });
@@ -229,18 +235,29 @@ export function extractCrossReferences(text: string): CrossReference[] {
   // 残った節参照はこの RFC の節
   const sectionPattern = createSectionReferenceRegex();
   while ((match = sectionPattern.exec(localText)) !== null) {
-    // 文末の句点を巻き込むことがある（"see Section 6.1." → "6.1."）
-    const section = match[1].replace(/\.+$/, '');
-    if (!section) continue;
-    add({ target: section, type: 'section', section });
+    // `Sections 4.1 and 4.2` は列挙。1 件ずつ出す。
+    for (const listed of [match[1], ...splitSectionList(match[2] ?? '')]) {
+      // 文末の句点を巻き込むことがある（"see Section 6.1." → "6.1."）
+      const section = listed.replace(/\.+$/, '');
+      if (!section) continue;
+      add({ target: section, type: 'section', section });
+    }
   }
 
   return refs;
 }
 
-/** `Section 8.3 of that document` / `of the same document`。 */
-const OTHER_DOCUMENT_SECTION =
-  /[Ss]ections?\s+\d+(?:\.\d+)*\s+of\s+(?:that|the\s+same)\s+document/g;
+/**
+ * `Section 8.3 of that document` / `of the same document`。
+ *
+ * `of the 2020 version of C++` のように、版を書いて別の規格を指す形も同じ
+ * （RFC 8949 §1.2 の `Sections 6.8.1 (basic.fundamental) and 7.6.7 (expr.shift)
+ * of the 2020 version of C++`）。RFC 8949 に §6.8.1 は無い。
+ */
+const OTHER_DOCUMENT_SECTION = new RegExp(
+  String.raw`[Ss]ections?\s+\d+(?:\.\d+)*${SECTION_LIST_TAIL}(?:\s*\([^()]*\))?\s+of\s+(?:(?:that|the\s+same)\s+document|the\s+\d{4}\s+(?:version|edition)\s+of)`,
+  'g'
+);
 
 /**
  * 配列に正規化

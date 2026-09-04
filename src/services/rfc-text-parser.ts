@@ -113,8 +113,42 @@ function dedent(lines: string[]): string[] {
  * と書く。フッタと分からないため、次のページの先頭にある柱
  * （`     Standard for ARPA Internet Text Messages`）が本文に残り、
  * **それが節として 40 件立っていた**（RFC 822 の節 104 件のうち）。
+ *
+ * `- N -` の形は本文の減算の式にも当たる。RFC 7049 §2.4.2 の
+ * `n.  For tag value 3, the value of the bignum is -1 - n.  Decoders` と
+ * RFC 4271 §4.3 の `UPDATE message Length - 23 - Total Path Attributes Length`
+ * が丸ごと落ち、前後の文が 1 つに繋がっていた。この形は RFC 822 系の古い
+ * フッタにしか無いので、**日付（西暦）か `RFC #N` を伴う行、または他の語が
+ * 無い行に限る**（`isCenteredPageNumber`）。
+ *
+ * `[page N]` と小文字で書く RFC がある（RFC 768・1191）。大文字だけを見て
+ * いたため RFC 768 のフッタが残り、次のページの柱 `28 Aug 1980` が唯一の節に
+ * なっていた。大文字小文字を区別しない。
  */
-const PAGE_FOOTER = /\[Page\s+\d+\]\s*$|^\s*\[Page\s+\d+\]|(?:^|\s)-\s*\d{1,4}\s*-(?:\s|$)/;
+const PAGE_FOOTER = /\[Page\s+\d+\]\s*$|^\s*\[Page\s+\d+\]/i;
+
+/** 中央に置いたページ番号。`- 1 -`。 */
+const CENTERED_PAGE_NUMBER = /(?:^|\s)-\s*\d{1,4}\s*-(?:\s|$)/;
+
+/** ページ番号のほかに置いてよい語。日付か `RFC #822` だけ。 */
+const PAGE_NUMBER_COMPANION = /\b(?:19|20)\d{2}\b|\bRFC\s*#?\s*\d+\b/;
+
+/**
+ * `- N -` だけを頼りにフッタと言えるか。
+ *
+ * `- N -` を外した残りが空か、日付・`RFC #N` を含むときだけフッタとする。
+ * 減算の式（`-1 - n.  Decoders`）は語が残るので当たらない。
+ */
+function isCenteredPageNumber(line: string): boolean {
+  if (!CENTERED_PAGE_NUMBER.test(line)) return false;
+  const rest = line.replace(CENTERED_PAGE_NUMBER, ' ').trim();
+  return rest === '' || PAGE_NUMBER_COMPANION.test(rest);
+}
+
+/** ページの区切りの行か。 */
+function isPageFooter(line: string): boolean {
+  return PAGE_FOOTER.test(line) || isCenteredPageNumber(line);
+}
 
 /** ページ先頭の行。1 桁目から始まり、末尾が発行年月。 */
 const PAGE_HEADER = /^\S.*\b(19|20)\d{2}\s*$/;
@@ -150,7 +184,7 @@ export function stripPageFurniture(text: string): string {
   while (i < lines.length) {
     const line = lines[i];
 
-    if (!PAGE_FOOTER.test(line)) {
+    if (!isPageFooter(line)) {
       out.push(line);
       i++;
       continue;
@@ -260,9 +294,14 @@ const APPENDIX_START_PATTERN =
  * 求める。字下げを求めないと、参考文献のあとに続く節見出しを項目として拾う
  * （RFC 3629 の `14.  Informative References` `16.  Intellectual Property
  * Statement`）。
+ *
+ * `TAG:n` の形は目印だけを 1 行に置く。RFC 1812 は `ARCH:8.` と `ARCH:9`
+ * （句点無し）を混ぜて書く。句点を必須にしていたため 104 件のうち 19 件が
+ * 直前の項目に繋がれ、ARCH:8 の題名が ARCH:9 のものになっていた。落ちた行は
+ * `hangingDefinition()` にも当たり、参考文献の項目が用語として出ていた。
  */
 const REFERENCE_ENTRY_PATTERN =
-  /^(?: {0,6}\[([^\]\s][^\]]*)\]| {1,6}(\d{1,3})\.?\s{2,}(?=[A-Z"])| {0,6}([A-Z][A-Z0-9]*:\d+)\.\s*$)/;
+  /^(?: {0,6}\[([^\]\s][^\]]*)\]| {1,6}(\d{1,3})\.?\s{2,}(?=[A-Z"])| {0,6}([A-Z][A-Z0-9]*:\d+)\.?\s*$)/;
 
 /**
  * 参考文献の欄（"14.1 Normative References" / "14.2 Informative References"）から
@@ -554,8 +593,11 @@ function titleWithoutQuotes(entry: string): string | undefined {
   }
 
   // 目印は題名ではない。RFC 1305 は `[BEL86]` を 1 行に置き、次の行から
-  // 引用を書くため、繋いだ項目が目印で始まる。
-  const body = entry.replace(/^\[[^\]]+\]\s*/, '').trim();
+  // 引用を書くため、繋いだ項目が目印で始まる。RFC 1812 の `ARCH:8.` も同じ。
+  const body = entry
+    .replace(/^\[[^\]]+\]\s*/, '')
+    .replace(/^[A-Z][A-Z0-9]*:\d+\.?\s*/, '')
+    .trim();
 
   const parts = body
     .split(/\.\s+/)
@@ -746,7 +788,15 @@ function extractTextTitle(lines: string[]): string | undefined {
     }
   }
 
-  const title = parts.join(' ');
+  // 題名に下線を引く RFC がある。RFC 768 は `User Datagram Protocol` の次の
+  // 行に `----------------------` を置く。繋ぐと題名の末尾に下線が付く。
+  const withoutUnderline = parts.filter((part) => !isUnderline(part));
+
+  // 表紙を `Title:` `Author:` `Installation:` の欄で書く最初期の RFC がある
+  // （RFC 1）。3 行を繋ぐと `Title:   Host Software Author:   Steve Crocker
+  // Installation:   UCLA` になっていた。`Title:` の値だけを採る。
+  const titleField = /^Title:\s*(.+)$/.exec(withoutUnderline[0] ?? '');
+  const title = titleField ? titleField[1].trim() : withoutUnderline.join(' ');
   if (title.length < METADATA_EXTRACTION.TITLE_MIN_LENGTH) return undefined;
   if (title.length > METADATA_EXTRACTION.TITLE_MAX_LENGTH) return undefined;
   if (FRONT_MATTER_HEADINGS.has(title.toLowerCase())) return undefined;
@@ -831,6 +881,109 @@ function isTableOfContentsEntry(title: string): boolean {
 }
 
 /**
+ * リーダー無しの目次の 1 行。「番号 + 題名 + 空白 + 1〜3 桁のページ番号」。
+ *
+ * ```
+ * 3.2.     State Variables and Parameters 9
+ * 3.2.1.   Common Variables       9
+ * A.       Appendix A. NTP Data Format - Version 3        50
+ * ```
+ */
+const LEADERLESS_TOC_ENTRY =
+  /^\s*(\d+(?:\.\d+)*|[A-Z](?:\.\d+)*)\.?\s+([A-Za-z]\S*(?:\s+\S+)*?)\s+(\d{1,3})\s*$/;
+
+/** リーダー無しの目次とみなすのに必要な、続きの行の数。 */
+const LEADERLESS_TOC_MIN_ENTRIES = 3;
+
+/**
+ * リーダー無しの目次の行番号を集める。
+ *
+ * `isTableOfContentsEntry` はドットのリーダーを必須にしている。RFC 1305 の
+ * 目次は `3.2.     State Variables and Parameters 9` とリーダー無しで
+ * ページ番号を書くため、目次の全行が節になっていた（`get_rfc_structure` に
+ * 題名にページ番号が付いた節が 14 件、本文の無い葉が 12 件）。本文の見出しは
+ * 番号を持たない（`State Variables and Parameters`）ので、番号無し見出しの
+ * 取り直しも効かない。
+ *
+ * 1 行だけでは本文の表と区別がつかない（題名が数字で終わる見出しもある。
+ * RFC 1305 の `Appendix A. NTP Data Format - Version 3`）。**空行だけを挟んで
+ * 3 行以上続き、ページ番号が減らず、番号に段のあるものが 1 つはある塊**を
+ * 目次とみなす。本文の表（`Value  Meaning`）は番号が 1 段しか無い。
+ */
+function leaderlessToc(lines: string[]): LeaderlessToc {
+  const toc: LeaderlessToc = { lines: new Set(), entries: [] };
+  let run: Array<{ index: number; number: string; title: string }> = [];
+  let lastPage = -1;
+  let dotted = false;
+
+  const flush = (): void => {
+    if (run.length >= LEADERLESS_TOC_MIN_ENTRIES && dotted) {
+      for (const entry of run) {
+        toc.lines.add(entry.index);
+        toc.entries.push({ number: entry.number, title: entry.title });
+      }
+    }
+    run = [];
+    lastPage = -1;
+    dotted = false;
+  };
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (line.trim() === '') continue;
+    const match = LEADERLESS_TOC_ENTRY.exec(line);
+    const page = match ? Number(match[3]) : -1;
+    if (!match || page < lastPage) {
+      flush();
+      if (!match) continue;
+    }
+    run.push({ index, number: match[1], title: match[2].trim() });
+    lastPage = page;
+    if (match[1].includes('.')) dotted = true;
+  }
+  flush();
+
+  return toc;
+}
+
+/**
+ * その行が、目次の題名と同じ番号無しの見出しなら、目次の番号と題名を返す。
+ */
+function tocTitleHeader(
+  lines: string[],
+  index: number,
+  toc: LeaderlessToc,
+  cursor: number
+): { number: string; title: string } | null {
+  if (cursor >= toc.entries.length) return null;
+  const trimmed = lines[index].trim();
+  if (trimmed === '' || trimmed.length > UNNUMBERED_HEADER_MAX_LENGTH) return null;
+  // 直前は空行。直後は問わない。RFC 1305 は `Clock-Update Procedure` の
+  // 直後に本文を続ける見出しと、空行を挟む見出しが混在する。目次の題名と
+  // 順番どおりに一致することが手掛かりなので、直後の空行までは求めない。
+  const before = index > 0 ? lines[index - 1] : '';
+  if (before.trim() !== '') return null;
+
+  const end = Math.min(cursor + TOC_TITLE_LOOKAHEAD, toc.entries.length);
+  for (let k = cursor; k < end; k++) {
+    if (toc.entries[k].title === trimmed) return toc.entries[k];
+  }
+  return null;
+}
+
+/** リーダー無しの目次。行番号と、番号・題名の並び。 */
+interface LeaderlessToc {
+  lines: Set<number>;
+  entries: Array<{ number: string; title: string }>;
+}
+
+/**
+ * 目次の題名と本文の行を突き合わせるとき、目次を何件先まで見るか。
+ * 本文に見出しが無い（または別の経路で取れた）項目を読み飛ばすため。
+ */
+const TOC_TITLE_LOOKAHEAD = 3;
+
+/**
  * 節見出しとして妥当か。
  *
  * ここに来る行は、1 桁目から始まり「番号 + 空白 + 題名」の形をしている
@@ -864,6 +1017,10 @@ function isValidSectionHeader(sectionNum: string, title: string): boolean {
 
   const trimmed = title.trim();
   if (trimmed.length === 0) return false;
+  // 記号だけの題名は無い。RFC 1305 の C の注釈 `/* test` の折り返しで残った
+  // `1 */` が §1 になっていた。閉じ括弧や読点で始まる題名も無い。同じ RFC の
+  // troff の数式 `(T sub` の折り返し `2 )>, <$E~epsilon sub 4…` が §2 になっていた。
+  if (!/[A-Za-z0-9]/.test(trimmed) || /^[),\]}>]/.test(trimmed)) return false;
 
   // 題名は文を含まない。折り返した本文が数字から始まると節に見える。
   // RFC 1035 の "…the 26th bit corresponds to TCP port" の次の行は
@@ -942,10 +1099,20 @@ function looksLikeTitleCase(title: string): boolean {
  * 1 文字の大文字 + 句点は本文にも出る（著者名の "J. Postel" など）。
  * **順番で見分ける。** 付録は A から始まり 1 つずつ進む。
  */
+/** 直前に出した付録。1 段目の文字と、最後に出した番号（`A` `A.3.5`）。 */
+interface AppendixState {
+  letter: string | null;
+  number: string | null;
+}
+
 function appendixHeader(
-  line: string,
-  previousLetter: string | null
-): { number: string; title: string } | null {
+  lines: string[],
+  index: number,
+  previous: AppendixState
+): { number: string; title: string; lastLine: number } | null {
+  const line = lines[index];
+  const previousLetter = previous.letter;
+
   // 下位の付録は段の深さに応じて字下げすることがある（RFC 1521 の "   E.1  …"、
   // RFC 2328 の "    C.1 Global parameters" と "        D.4.1 Generating …"）。
   // 深さで割り切れて 1 段 2〜4 桁なら認める。字下げなしも認める（RFC 2328 の
@@ -974,14 +1141,53 @@ function appendixHeader(
   // が番号の重複で落ちていた。
   if (explicit && indent > 0) return null;
 
+  // 見出しの次の行は空く（折り返した題名の 2 行目なら、その次が空く）。
+  // 折り返した本文が `A.3.6 for details.` のように付録の番号から始まると
+  // 見出しに見える。数字の見出しに課している検査を付録にも課す。
+  const wrapped = appendixTitleContinuation(
+    lines,
+    index,
+    line.replace(/\s+$/, '').length - trimmed.length
+  );
+  if (wrapped === null) return null;
+  const lastLine = wrapped === '' ? index : index + 1;
+  const fullTitle = wrapped === '' ? trimmed : `${trimmed} ${wrapped}`;
+
+  // `Appendix` と明示する形は、本文からの参照と紛れる。RFC 1305 §3 の折り返し
+  // `Appendix A for comprehensive list):` が Appendix A（411 ブロック）になり、
+  // 本物の `Appendix A. NTP Data Format - Version 3` が重複で落ちていた。
+  // 題名が小文字で始まるもの、読点・コロン・セミコロンで終わるものは本文である。
+  // 句点で終わるものは認める（RFC 1305 の `Appendix D. Differences from
+  // Previous Versions.`）。
+  if (explicit && (/^[a-z]/.test(trimmed) || /[,;:]$/.test(trimmed))) return null;
+
   // 深い段（A.1、A.1.2）は親の文字と同じであること。
   // 親の文字が一致していれば十分なので、題名の先頭は問わない。
   // RFC 6749 の `A.1.  "client_id" Syntax`、RFC 5321 の `F.4.  #-literals`、
   // RFC 7489 の `B.5.  mailto Transport Example` のように、引用符・記号・
   // 小文字で始まる題名がある。
+  //
+  // 代わりに、数字の見出し（`indentedSectionHeader`）と同じ 2 つを課す。
+  //
+  // - 句読点で終わらない。RFC 2328 の `        A.3.6 for details.` は
+  //   "See Sections A.3.2 through" の折り返しで、これが §A.3.6 になり、本物の
+  //   `A.3.6 The Link State Acknowledgment packet` が §A.3.5 に吸われていた。
+  // - 直前の付録の次に来る番号である（`isSuccessorSectionNumber`）。
+  //   `    A.4.1. Detailed formats of the different types of LSAs are described`
+  //   は §A.3.5 の直後に現れる。A.4.1 は A.3.5 の次ではない。
   if (digits) {
     if (previousLetter !== letter) return null;
-    return { number: `${letter}${digits}`, title: trimmed };
+    if (/[.,;:]$/.test(trimmed)) return null;
+    const number = `${letter}${digits}`;
+    if (
+      !isSuccessorSectionNumber(
+        appendixAsNumber(previous.number),
+        appendixAsNumber(number) ?? number
+      )
+    ) {
+      return null;
+    }
+    return { number, title: fullTitle, lastLine };
   }
 
   // 1 段目は字下げしない
@@ -1001,7 +1207,54 @@ function appendixHeader(
   // 本文の "B. Smith" のような行を拾わないため。
   if (!explicit && !previousLetter && letter !== 'A') return null;
 
-  return { number: letter, title: trimmed };
+  return { number: letter, title: fullTitle, lastLine };
+}
+
+/**
+ * 付録の番号を数字の節番号の形にする。`A.3.5` → `1.3.5`、`A` → `1`。
+ * `isSuccessorSectionNumber` に掛けるため。文字は 1 段目にしか来ない。
+ */
+function appendixAsNumber(number: string | null): string | null {
+  if (number === null) return null;
+  return number.replace(/^[A-Z]/, (letter) => String(letter.charCodeAt(0) - 64));
+}
+
+/**
+ * 付録の見出しの続き。次の行が空いていれば `''`、折り返した題名の 2 行目なら
+ * その文字列、どちらでもなければ `null`（見出しではない）。
+ *
+ * 折り返しは 2 通りある。
+ *
+ * - 題名の開始桁に揃える（`titleContinuation`）。
+ * - 題名より深く字下げする。RFC 1521 の
+ *   `   E.2  Registration of New Access-type Values` /
+ *   `           for Message/external-body` は 1 行目が 46 桁で、72 桁の
+ *   折り返しではない。次の行が見出しより深く、40 文字以下で、句点で終わらず、
+ *   その次が空くときだけ続きとする。
+ *
+ * 次の行が別の見出しでもよい。RFC 822 の `C.5.  ADDRESS SPECIFICATION` は
+ * ページの終わりに置かれ、区切りを外すと `C.5.1.  ADDRESS` が直後に来る。
+ */
+function appendixTitleContinuation(
+  lines: string[],
+  index: number,
+  titleColumn: number
+): string | null {
+  const next = (lines[index + 1] ?? '').replace(/\s+$/, '');
+  const text = next.trim();
+  if (text === '') return '';
+  if (APPENDIX_HEADER_PATTERN.test(text) || SECTION_HEADER_PATTERN.test(text)) return '';
+
+  const aligned = titleContinuation(lines, index, titleColumn);
+  if (aligned !== null) return aligned;
+
+  const line = lines[index];
+  const indent = line.length - line.trimStart().length;
+  if (next.length - text.length <= indent) return null;
+  if (text.length > HEADER_CONTINUATION_MAX_LENGTH) return null;
+  if (/[.!?,;:]$/.test(text)) return null;
+  if ((lines[index + 2] ?? '').trim() !== '') return null;
+  return text;
 }
 
 /**
@@ -1106,7 +1359,7 @@ function indentedSectionHeader(
   lines: string[],
   index: number,
   previousNumber: string | null
-): { number: string; title: string } | null {
+): { number: string; title: string; lastLine: number } | null {
   const line = lines[index];
   const indent = line.length - line.trimStart().length;
   if (indent < 1 || indent > 12) return null;
@@ -1153,7 +1406,7 @@ function indentedSectionHeader(
   const after = end + 1 < lines.length ? lines[end + 1] : '';
   if (after.trim() !== '') return null;
 
-  return { number, title };
+  return { number, title, lastLine: end };
 }
 
 /** 折り返した見出しとみなす続きの行の、最大の長さ。 */
@@ -1241,6 +1494,36 @@ function centeredSectionHeader(
   if (before.trim() !== '' || after.trim() !== '') return null;
 
   return { number, title };
+}
+
+/**
+ * 段落の途中で折り返した本文か。1 桁目から本文を組む RFC で、行頭に数字が
+ * 来た行を節と見分ける。
+ *
+ * RFC 1305 は本文を 1 桁目から組む。目次を除いたあと、次の 2 行が節になっていた。
+ *
+ * | 行 | 実体 |
+ * |---|---|
+ * | `6. When present, the data field contains a list of identifiers or` | `shown in Figure` の折り返し |
+ * | `3 (July 1987), 626-645.` | `J. ACM 34,` の折り返し（参考文献） |
+ *
+ * どちらも**直前の行が文の途中で終わっている**（文末記号が無い）。そのうえで、
+ *
+ * - 直前の行が読点で終わっていれば本文である。文は読点の次の行で終わらない。
+ * - 題名が前置詞・接続詞で終わり、次の行に続くなら本文である。
+ *
+ * 直前が空行か文末で終わっていれば見ない（RFC 1122 §1.4 は図表の直後に置かれる）。
+ * 題名が句点で終わることは判断に使わない。RFC 4960 §5.2.5 の
+ * `5.2.5.  Handle Duplicate COOKIE-ACK.` はページの先頭にあり、前のページが
+ * 文の途中で終わっているので、句点で落とすとこの節が消える。
+ */
+function isWrappedBodyLine(lines: string[], index: number, title: string): boolean {
+  const previous = (index > 0 ? lines[index - 1] : '').trim();
+  if (previous === '' || /[.:;!?]$/.test(previous)) return false;
+  if (/,$/.test(previous)) return true;
+
+  const next = (lines[index + 1] ?? '').trim();
+  return TITLE_ENDS_INCOMPLETE.test(title.trim()) && next !== '';
 }
 
 /**
@@ -1342,24 +1625,50 @@ function extractTextSections(lines: string[]): Section[] {
   let lastSectionNumber: string | null = null;
   /** すでに節として出した番号と、1 段目の最大値。 */
   const numbering = { seen: new Set<string>(), maxTopLevel: 0 };
-  /** 直前に出した付録の文字。付録が A から 1 つずつ進むことの確認に使う。 */
-  let lastAppendixLetter: string | null = null;
+  /** 直前に出した付録。付録が A から 1 つずつ進むことの確認に使う。 */
+  const lastAppendix: AppendixState = { letter: null, number: null };
 
   const claimSectionNumber = (number: string): void => {
     numbering.seen.add(number);
     numbering.maxTopLevel = Math.max(numbering.maxTopLevel, Number(number.split('.')[0]) || 0);
     lastSectionNumber = number;
+    advanceToc(number);
+  };
+
+  /** リーダー無しの目次。その行は節にしない。題名は番号無しの見出しの照合に使う。 */
+  const toc = leaderlessToc(lines);
+  let tocCursor = 0;
+
+  /** 目次の並びを、いま出した番号の次まで進める。 */
+  const advanceToc = (number: string): void => {
+    const at = toc.entries.findIndex((entry, k) => k >= tocCursor && entry.number === number);
+    if (at >= 0) tocCursor = at + 1;
+  };
+
+  const openSection = (number: string, title: string): void => {
+    if (currentSection) {
+      currentSection.content = createTextBlocks(currentContent.join('\n'));
+      sections.push(currentSection);
+    }
+    currentSection = { number, title, content: [], subsections: [] };
+    currentContent = [];
+    advanceToc(number);
   };
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
+
+    if (toc.lines.has(index)) {
+      if (currentSection) currentContent.push(line);
+      continue;
+    }
 
     // 古い RFC は上位の節見出しを中央に寄せる（RFC 793 の "2.  PHILOSOPHY"）。
     // 1 桁目の規則だけでは §1 / §2 / §3 が丸ごと落ち、その節の要件が
     // 手前の節に付く。字下げが深く、題名が全部大文字で、前後が空行の
     // 1 段目の見出しだけを拾う。RFC 793 の状態遷移図にある
     // "  2.  SYN-SENT --> ..." は字下げが浅く、小文字を含むので当たらない。
-    const candidate: { number: string; title: string } | null =
+    const candidate: { number: string; title: string; lastLine?: number } | null =
       centeredSectionHeader(lines, index) ?? indentedSectionHeader(lines, index, lastSectionNumber);
     const header =
       candidate && acceptsSectionNumber(numbering, candidate.number) ? candidate : null;
@@ -1376,6 +1685,10 @@ function extractTextSections(lines: string[]): Section[] {
       };
       claimSectionNumber(header.number);
       currentContent = [];
+      // 題名に継いだ行は本文ではない。進めないと、RFC 1122 §4.2.2.9 の
+      // 折り返し `3.3, page 27` が次の要件文の頭に付く
+      // （"3.3, page 27 A TCP MUST use the specified clock-driven …"）。
+      if (header.lastLine !== undefined) index = header.lastLine;
       continue;
     }
 
@@ -1389,28 +1702,44 @@ function extractTextSections(lines: string[]): Section[] {
     // `findSection` がどれを引くか定まらず、要件の `sectionTitle` にも本文の
     // 1 行目が出る。
     // 付録は文字で番号を振る。数字の見出しを試す前に見る。
-    const appendix = appendixHeader(line, lastAppendixLetter);
+    const appendix = appendixHeader(lines, index, lastAppendix);
     if (appendix && acceptsSectionNumber(numbering, appendix.number)) {
       if (currentSection) {
         currentSection.content = createTextBlocks(currentContent.join('\n'));
         sections.push(currentSection);
       }
-      const appendixLine = line.replace(/\s+$/, '');
-      const appendixContinuation = titleContinuation(
-        lines,
-        index,
-        appendixLine.length - appendix.title.length
-      );
-      if (appendixContinuation) index++;
+      // 題名に継いだ行は本文ではない
+      index = appendix.lastLine;
       currentSection = {
         number: appendix.number,
-        title: appendixContinuation ? `${appendix.title} ${appendixContinuation}` : appendix.title,
+        title: appendix.title,
         content: [],
         subsections: [],
       };
       numbering.seen.add(appendix.number);
-      lastAppendixLetter = appendix.number[0];
+      lastAppendix.letter = appendix.number[0];
+      lastAppendix.number = appendix.number;
       currentContent = [];
+      advanceToc(appendix.number);
+      continue;
+    }
+
+    // 本文の見出しに番号が無く、目次にだけ番号がある RFC がある。RFC 1305 は
+    // 目次に `3.2.     State Variables and Parameters 9` と書き、本文の見出しは
+    // `State Variables and Parameters` だけである。目次の題名と同じ行が前後を
+    // 空行に挟まれて現れたら、目次の番号でその節を立てる。目次の並びの順に
+    // 照合し、数件先までしか見ない。同じ語が本文に単独で現れても、その番号の
+    // 順番が来ていなければ節にしない。
+    const fromToc = tocTitleHeader(lines, index, toc, tocCursor);
+    if (fromToc && acceptsSectionNumber(numbering, fromToc.number)) {
+      openSection(fromToc.number, fromToc.title);
+      if (/^[A-Z]/.test(fromToc.number)) {
+        numbering.seen.add(fromToc.number);
+        lastAppendix.letter = fromToc.number[0];
+        lastAppendix.number = fromToc.number;
+      } else {
+        claimSectionNumber(fromToc.number);
+      }
       continue;
     }
 
@@ -1446,7 +1775,11 @@ function extractTextSections(lines: string[]): Section[] {
       if (
         isValidSectionHeader(sectionNum, title) &&
         acceptsSectionNumber(numbering, sectionNum) &&
-        (!startsLowercase || numberEndsWithPeriod || followsBlankLine || looksLikeTitleCase(title))
+        (!startsLowercase ||
+          numberEndsWithPeriod ||
+          followsBlankLine ||
+          looksLikeTitleCase(title)) &&
+        !isWrappedBodyLine(lines, index, title)
       ) {
         // 前のセクションを保存
         if (currentSection) {
@@ -1606,6 +1939,8 @@ function extractUnnumberedSections(lines: string[]): Section[] {
         subsections: [],
       };
       content = [];
+      // 下線の行は本文ではない
+      if (heading.underlined) index++;
       continue;
     }
     if (current) content.push(lines[index]);
@@ -1622,15 +1957,18 @@ function extractUnnumberedSections(lines: string[]): Section[] {
 /** 番号なしの見出しの候補を、文書に現れる順に返す。 */
 function unnumberedHeadings(
   lines: string[]
-): Array<{ index: number; indent: number; title: string }> {
-  const found: Array<{ index: number; indent: number; title: string }> = [];
+): Array<{ index: number; indent: number; title: string; underlined: boolean }> {
+  const found: Array<{ index: number; indent: number; title: string; underlined: boolean }> = [];
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     const trimmed = line.trim();
     if (trimmed.length < 3 || trimmed.length > UNNUMBERED_HEADER_MAX_LENGTH) continue;
     if (!/^[A-Za-z]/.test(trimmed)) continue;
-    if (/[.!?,;:]$/.test(trimmed)) continue;
+    // 下線を引いた見出しは末尾のコロンと疑問符を許す（RFC 826 の `Notes:`
+    // `Why is it done this way??`）。下線が無ければ文の途中と見分けられない。
+    const underlined = isUnderline(lines[index + 1] ?? '');
+    if (underlined ? /[.!,;]$/.test(trimmed) : /[.!?,;:]$/.test(trimmed)) continue;
     if (trimmed.split(/\s+/).length > UNNUMBERED_HEADER_MAX_WORDS) continue;
     if (trimmed === trimmed.toLowerCase()) continue;
     // ページの飾り。RFC 792 はページ見出しを "RFC 792" の 1 行で書くため、
@@ -1643,13 +1981,21 @@ function unnumberedHeadings(
     if (indent > UNNUMBERED_HEADER_MAX_INDENT) continue;
 
     const before = index > 0 ? lines[index - 1] : '';
-    const after = index + 1 < lines.length ? lines[index + 1] : '';
+    // 見出しの直後は空行。下線の行（`-----`）を挟む RFC がある。RFC 826 は
+    // `Notes:` の次の行に `------` を置くため、空行だけを求めると節が 0 件だった。
+    const after =
+      index + (underlined ? 2 : 1) < lines.length ? lines[index + (underlined ? 2 : 1)] : '';
     if (before.trim() !== '' || after.trim() !== '') continue;
 
-    found.push({ index, indent, title: trimmed });
+    found.push({ index, indent, title: trimmed, underlined });
   }
 
   return found;
+}
+
+/** 見出しの下線。`-` か `=` を 3 つ以上並べた行。 */
+function isUnderline(line: string): boolean {
+  return /^\s*(?:-{3,}|={3,})\s*$/.test(line);
 }
 
 /**
@@ -1967,10 +2313,29 @@ function extractTextDefinitions(lines: string[]): Definition[] {
 
   let currentSection = '';
   let inIndex = false;
+  /** 付録の追跡。`extractTextSections` と同じ判定・同じ状態で進める。 */
+  const lastAppendix: AppendixState = { letter: null, number: null };
+  const seenAppendices = new Set<string>();
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     const trimmed = line.trim();
+
+    // 付録を追跡。数字の見出ししか見ていなかったため、付録に入っても
+    // `currentSection` が更新されず、付録の定義が最後の番号付き節に付いていた。
+    // RFC 1812 の Appendix B（GLOSSARY）の用語 54 件が §11（REFERENCES）、
+    // RFC 8446 の Appendix E.1 の用語 10 件が §12.2（Informative References）
+    // になっていた。節は実在するので `G4` では見つからない。
+    const appendix = appendixHeader(lines, index, lastAppendix);
+    if (appendix && !seenAppendices.has(appendix.number)) {
+      seenAppendices.add(appendix.number);
+      lastAppendix.letter = appendix.number[0];
+      lastAppendix.number = appendix.number;
+      currentSection = appendix.number;
+      inIndex = /^index$/i.test(appendix.title);
+      index = appendix.lastLine;
+      continue;
+    }
 
     // セクションを追跡。節見出しは 1 桁目から始まる。字下げした行を数えると、
     // フレーム図の目盛り（RFC 6455 の "0 1 2 3"）を節 0 として記録していた。
@@ -2073,6 +2438,9 @@ function hangingDefinition(
   if (!/^[A-Za-z]/.test(term)) return null;
   if (term.length < DEFINITION_EXTRACTION.MIN_TERM_LENGTH) return null;
   if (/[.:;,]$/.test(term)) return null;
+  // 参考文献の目印（RFC 1812 の `ARCH:9`）。句点無しの目印は用語欄と同じ形に
+  // なる。目印の行を落とさないと、参考文献の項目 19 件が用語として出る。
+  if (REFERENCE_TAG_ANCHOR.test(term)) return null;
   // 文の書き出し・関係節を含むものは用語ではない
   // （"Implementations that have implementation"）。
   if (SENTENCE_OPENER.test(term)) return null;
@@ -2101,6 +2469,9 @@ function hangingDefinition(
 
   return { definition: { term, definition }, lastLine: cursor - 1 };
 }
+
+/** `TAG:n` 形の参考文献の目印。`ARCH:9` `FORWARD:10`。 */
+const REFERENCE_TAG_ANCHOR = /^[A-Z][A-Z0-9]*:\d+\.?$/;
 
 /** ぶら下げの用語欄の字下げと長さ。 */
 const HANGING_TERM_MIN_INDENT = 2;

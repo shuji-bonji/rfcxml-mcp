@@ -90,6 +90,7 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 7515, note: 'JWS。JOSE 系の中核' },
     { rfc: 7517, note: 'JWK' },
     { rfc: 6298, note: 'TCP の再送タイマ。数式が中心' },
+    { rfc: 7049, note: 'CBOR。本文に `-1 - n` の減算の式がある' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '2000s-text': [

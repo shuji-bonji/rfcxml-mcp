@@ -1,0 +1,55 @@
+name: Audit
+
+# 実物の RFC に不変条件を当てる監査（audit）と、ツール間の突き合わせ
+# （crosscheck）、出力見本の照合（snapshot）。外部取得が多いので CI には
+# 置かず、週次と手動で回す。RFC 本文は tests/audit/.cache に置き、
+# actions/cache で持ち越す（2 回目以降は数分で終わる）。
+#
+# CHANGELOG 0.6.46 のとおり、0.6.41〜0.6.45 のあいだ監査が動いていなかった。
+# 手元でしか走らないものは止まっても気づけない。
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 毎週月曜 00:00 UTC（JST 09:00）
+    - cron: '0 0 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # corpus.mjs が変わったら取り直す。同じ corpus なら前回のキャッシュを使う。
+      - name: Restore RFC corpus cache
+        uses: actions/cache@v4
+        with:
+          path: tests/audit/.cache
+          key: rfc-corpus-${{ hashFiles('tests/audit/corpus.mjs', 'tests/snapshot/cases.mjs') }}
+          restore-keys: |
+            rfc-corpus-
+
+      - name: Audit (invariants against real RFCs)
+        run: npm run audit
+
+      - name: Crosscheck (tool-to-tool consistency)
+        run: npm run crosscheck
+
+      - name: Snapshot (output samples)
+        run: npm run snapshot

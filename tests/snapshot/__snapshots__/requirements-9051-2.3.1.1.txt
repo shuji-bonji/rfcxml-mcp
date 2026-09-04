@@ -48,7 +48,7 @@ args: {"rfc":9051,"section":"2.3.1.1"}
       "section": "2.3.1.1",
       "sectionTitle": "Unique Identifier (UID) Message Attribute",
       "fullContext": "The unique identifier of a message MUST NOT change during the session and SHOULD NOT change between sessions. Any change of unique identifiers between sessions MUST be detectable using the UIDVALIDITY mechanism discussed below. Persistent unique identifiers are required for a client to resynchronize its state from a previous session with the server (e.g., disconnected or offline access clients [IMAP-MODEL]); this is discussed further in [IMAP-DISC].",
-      "subject": "session",
+      "subject": "message",
       "action": "change between sessions"
     },
     {
@@ -94,7 +94,7 @@ args: {"rfc":9051,"section":"2.3.1.1"}
       "subject": "identifier value",
       "condition": "those new messages are subsequently expunged",
       "exception": "new messages are added to the mailbox; and second",
-      "action": "NOT change unless new messages are added to the mailbox; and second"
+      "action": "change whenever new messages are added to the mailbox"
     },
     {
       "id": "R-2.3.1.1-8",

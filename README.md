@@ -62,6 +62,33 @@ Add the following to your MCP configuration file:
 }
 ```
 
+To pin a version (0.6.x ships patch releases frequently), write the version into the package spec:
+
+```json
+{
+  "mcpServers": {
+    "rfcxml": {
+      "command": "npx",
+      "args": ["-y", "@shuji-bonji/rfcxml-mcp@0.6.53"]
+    }
+  }
+}
+```
+
+To keep fetched RFCs on disk across restarts, pass `RFCXML_CACHE_DIR` (see [Disk cache and `rfcxml-prefetch`](#disk-cache-and-rfcxml-prefetch)):
+
+```json
+{
+  "mcpServers": {
+    "rfcxml": {
+      "command": "npx",
+      "args": ["-y", "@shuji-bonji/rfcxml-mcp@0.6.53"],
+      "env": { "RFCXML_CACHE_DIR": "/home/you/.cache/rfcxml-mcp" }
+    }
+  }
+}
+```
+
 Configuration file locations:
 
 - **Claude Desktop (macOS)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
@@ -105,7 +132,7 @@ Then configure MCP:
 
 ### Phase 3: Verification Support
 
-- `validate_statement` - Verify if a statement complies with RFC requirements
+- `validate_statement` - Find the RFC requirements that bear on a statement and report detected contradictions. This is **not** a conformance judgment: `isValid` is three-valued (`null` = nothing matched strongly enough to judge, `false` = a contradiction was detected, `true` = no contradiction was detected among the matches). The verdict is yours.
 - `generate_checklist` - Generate implementation checklist
 
 ## Legacy RFC Support
@@ -141,31 +168,38 @@ All responses include source information:
 
 ## Output Samples
 
+Every sample below is trimmed from the actual output of the current build (`npm run build`, then the listed tool call through an MCP client). Field names and values are verbatim; long arrays are cut with `...`.
+
 ### `get_rfc_structure` - Get RFC Structure
+
+`get_rfc_structure { "rfc": 9293 }`
 
 ```json
 {
   "metadata": {
     "title": "Transmission Control Protocol (TCP)",
     "docName": "draft-ietf-tcpm-rfc793bis-28",
-    "number": 9293
+    "number": 9293,
+    "date": "2022-08",
+    "category": "std",
+    "stream": "IETF",
+    "abstract": "This document specifies the Transmission Control Protocol (TCP). ..."
   },
   "sections": [
+    { "number": "1", "title": "Purpose and Scope" },
+    { "number": "2", "title": "Introduction" },
     {
-      "number": "section-1",
-      "title": "Purpose and Scope"
-    },
-    {
-      "number": "section-3",
+      "number": "3",
       "title": "Functional Specification",
       "subsections": [
-        { "number": "section-3.1", "title": "Header Format" },
+        { "number": "3.1", "title": "Header Format" },
         {
-          "number": "section-3.5",
+          "number": "3.5",
           "title": "Establishing a Connection",
           "subsections": [
-            { "number": "section-3.5.1", "title": "Half-Open Connections and Other Anomalies" },
-            { "number": "section-3.5.2", "title": "Reset Generation" }
+            { "number": "3.5.1", "title": "Half-Open Connections and Other Anomalies" },
+            { "number": "3.5.2", "title": "Reset Generation" },
+            { "number": "3.5.3", "title": "Reset Processing" }
           ]
         }
       ]
@@ -176,87 +210,177 @@ All responses include source information:
 }
 ```
 
+`number` is the section number as printed in the RFC (`3.5`, `A.2`), not the RFCXML `pn` (`section-3.5`). `category` / `stream` / `abstract` come from the IETF Datatracker API and are **omitted** when the API is unreachable or reports a value outside the mapping (e.g. RFC 1 is `unkn` / `legacy`); in that case `_sourceNote` says so.
+
 ### `get_requirements` - Extract Normative Requirements
+
+`get_requirements { "rfc": 9293, "level": "MUST" }`
 
 ```json
 {
   "rfc": 9293,
-  "filter": { "level": "MUST" },
-  "stats": { "total": 53, "byLevel": { "MUST": 53 } },
+  "filter": { "section": "all", "level": "MUST" },
+  "stats": { "total": 55, "byLevel": { "MUST": 55 } },
   "requirements": [
     {
-      "id": "R-section-3.5-5",
+      "id": "R-3.5-1",
       "level": "MUST",
-      "text": "A TCP implementation support simultaneous open attempts (MUST-10).",
-      "section": "section-3.5",
-      "sectionTitle": "Establishing a Connection"
+      "text": "A TCP implementation MUST support simultaneous open attempts (MUST-10).",
+      "section": "3.5",
+      "sectionTitle": "Establishing a Connection",
+      "fullContext": "A TCP implementation MUST support simultaneous open attempts (MUST-10).",
+      "subject": "tcp implementation",
+      "action": "support simultaneous open attempts (MUST-10)"
     },
     {
-      "id": "R-section-3.7.1-9",
+      "id": "R-3.7.1-1",
       "level": "MUST",
-      "text": "TCP endpoints implement both sending and receiving the MSS Option (MUST-14).",
-      "section": "section-3.7.1",
-      "sectionTitle": "Maximum Segment Size Option"
+      "text": "TCP endpoints MUST implement both sending and receiving the MSS Option (MUST-14).",
+      "section": "3.7.1",
+      "sectionTitle": "Maximum Segment Size Option",
+      "fullContext": "TCP endpoints MUST implement both sending and receiving the MSS Option (MUST-14).",
+      "subject": "tcp endpoints",
+      "action": "implement both sending and receiving the MSS Option (MUST-14)"
     }
   ],
   "_source": "xml"
 }
 ```
 
+`id` is `R-<section>-<n>` with `n` numbered per section, so the identifier stays stable when requirements are added elsewhere in the document.
+
 ### `get_rfc_dependencies` - Get RFC Dependencies
+
+`get_rfc_dependencies { "rfc": 9293 }`
 
 ```json
 {
   "rfc": 9293,
   "normative": [
     { "rfcNumber": 791, "title": "Internet Protocol", "anchor": "RFC0791" },
-    { "rfcNumber": 2119, "title": "Key words for use in RFCs to Indicate Requirement Levels" },
-    { "rfcNumber": 5681, "title": "TCP Congestion Control" }
+    { "rfcNumber": 1191, "title": "Path MTU discovery", "anchor": "RFC1191" },
+    {
+      "rfcNumber": 2119,
+      "title": "Key words for use in RFCs to Indicate Requirement Levels",
+      "anchor": "RFC2119"
+    }
   ],
   "informative": [
-    { "rfcNumber": 793, "title": "Transmission Control Protocol" },
-    { "rfcNumber": 1122, "title": "Requirements for Internet Hosts - Communication Layers" }
+    { "rfcNumber": 793, "title": "Transmission Control Protocol", "anchor": "RFC0793" },
+    { "rfcNumber": 896, "title": "Congestion Control in IP/TCP Internetworks", "anchor": "RFC0896" }
   ],
-  "_source": "xml"
+  "_source": "xml",
+  "_referencesSource": "xml"
 }
 ```
 
+`_referencesSource` tells where the reference list came from: `xml` (RFCXML `<references>`), `text` (the References section of the plain text), or `api` (Datatracker `relateddocument`, with placeholder titles).
+
 ### `generate_checklist` - Generate Implementation Checklist
+
+`generate_checklist { "rfc": 9293, "role": "client", "sections": ["3.5", "3.7.1"] }` — the `markdown` field:
 
 ```markdown
 # RFC 9293 Implementation Checklist
 
 **Transmission Control Protocol (TCP)**
 
-Role: Client
+Role: client
 
-## Required (MUST / REQUIRED / SHALL)
+Generated: 2026-09-04T17:09:37.833Z
 
-- [ ] A TCP implementation support simultaneous open attempts (MUST-10). (section-3.5)
-- [ ] TCP endpoints implement both sending and receiving the MSS Option (MUST-14). (section-3.7.1)
-- [ ] The RTO be computed according to the algorithm in, including Karn's algorithm (MUST-18). (section-3.8.1)
+## Mandatory Requirements (MUST / REQUIRED / SHALL)
 
-## Optional (MAY / OPTIONAL)
+- [ ] **MUST** A TCP implementation MUST support simultaneous open attempts (MUST-10). (§3.5)
+- [ ] **MUST** TCP endpoints MUST implement both sending and receiving the MSS Option (MUST-14). (§3.7.1)
+- [ ] **MUST** If an MSS Option is not received at connection setup, TCP implementations MUST assume a default send MSS of 536 (576 - 40) for IPv4 or 1220 (1280 - 60) for IPv6 (MUST-15). (§3.7.1)
 
-- [ ] Implementers include "keep-alives" in their TCP implementations (MAY-5). (section-3.8.4)
+## Recommended Requirements (SHOULD / RECOMMENDED)
+
+- [ ] **SHOULD** TCP implementations SHOULD allow a received RST segment to include data (SHLD-2). (§3.5.3)
 ```
 
+The same call also returns `"stats": { "must": 6, "should": 2, "may": 1, "total": 9 }`.
+
+### `validate_statement` - Find Bearing Requirements
+
+`validate_statement { "rfc": 6455, "statement": "The client MUST mask all frames sent to the server." }`
+
+```json
+{
+  "rfc": 6455,
+  "statement": "The client MUST mask all frames sent to the server.",
+  "analysis": { "detectedLevel": "MUST", "detectedSubject": "client" },
+  "isValid": true,
+  "matchingRequirements": [
+    {
+      "id": "R-5.3-2",
+      "level": "MUST",
+      "text": "When preparing a masked frame, the client MUST pick a fresh masking key from the set of allowed 32-bit values.",
+      "section": "5.3",
+      "sectionTitle": "Client-to-Server Masking",
+      "_matchScore": 17,
+      "_matchedKeywords": ["client", "mask", "frames"],
+      "_subjectMatch": true,
+      "_levelMatch": true
+    }
+  ],
+  "conflicts": [],
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Validation accuracy may be limited."
+}
+```
+
+`isValid: true` means only that no contradiction was detected among the matched requirements. When nothing matches strongly enough, `isValid` is `null` and `_verdictNote` explains why.
+
 ### Text Fallback Output (Legacy RFCs)
+
+`get_rfc_structure { "rfc": 6455 }` — RFC 6455 predates RFCXML v3, so the plain text is parsed:
 
 ```json
 {
   "metadata": {
     "title": "The WebSocket Protocol",
-    "number": 6455
+    "number": 6455,
+    "date": "2011-12",
+    "category": "std",
+    "stream": "IETF",
+    "abstract": "The WebSocket Protocol enables two-way communication ..."
   },
   "sections": [
     { "number": "1", "title": "Introduction" },
+    { "number": "2", "title": "Conformance Requirements" },
     { "number": "5", "title": "Data Framing" }
   ],
+  "referenceCount": { "normative": 18, "informative": 9 },
   "_source": "text",
   "_sourceNote": "Warning: Parsed from text format. Accuracy may be limited."
 }
 ```
+
+For RFCs 8650 and later, the XML is tried first. If every XML source returns 404 the call fails ("No RFC with that number is published"). If the XML fetch fails for another reason (5xx, timeout), the text is used and `_sourceNote` says that the XML fetch failed and may be temporary.
+
+## Disk cache and `rfcxml-prefetch`
+
+By default, fetched RFCs live only in an in-memory LRU cache and are re-fetched after every restart. Set `RFCXML_CACHE_DIR` to keep them on disk:
+
+```
+$RFCXML_CACHE_DIR/
+├── xml/rfc9293.xml     # RFCXML (RFC 8650 and later)
+└── text/rfc6455.txt    # plain text (older RFCs, or XML fetch failures)
+```
+
+The package also ships a `rfcxml-prefetch` CLI that fills the same layout ahead of time, for offline or CI use:
+
+```bash
+# Fetch a range into $RFCXML_CACHE_DIR (or ~/.cache/rfcxml-mcp when unset)
+npx -y -p @shuji-bonji/rfcxml-mcp rfcxml-prefetch --range 9110-9114
+
+# Individual RFCs, explicit directory, re-download even if cached
+npx -y -p @shuji-bonji/rfcxml-mcp rfcxml-prefetch --rfc 6455 --rfc 9293 --cache-dir ./rfc-cache --force
+```
+
+Options: `--range A-B`, `--rfc N` (repeatable), `--cache-dir DIR`, `--concurrency N` (default 3), `--force`. RFCs already on disk (XML or text) are skipped unless `--force` is given. RFC numbers must be digits only; `--rfc 9110abc` exits with code 1.
 
 ## Examples
 
@@ -307,32 +431,34 @@ src/
 
 ### RFC Fetch Optimization
 
-Sends parallel requests to multiple sources (RFC Editor, IETF Tools, Datatracker) and uses the first successful response:
+Sends parallel requests to the two XML sources (RFC Editor, Datatracker) and uses the first successful response. `tools.ietf.org` was retired in 2021 and is not used. There is no retry; the parallel race is the only redundancy.
 
 ```
 ┌─────────────────┐
 │  fetchRFCXML()  │
 └────────┬────────┘
          │ Parallel requests
-    ┌────┴────┬────────────┐
-    ▼         ▼            ▼
-┌────────┐ ┌────────┐ ┌────────┐
-│RFC     │ │IETF    │ │Data-   │
-│Editor  │ │Tools   │ │tracker │
-└────┬───┘ └────┬───┘ └────┬───┘
-     │          │          │
-     └────┬─────┴──────────┘
-          │ Promise.any (first success)
-          ▼
+    ┌────┴─────────┐
+    ▼              ▼
+┌────────┐    ┌────────┐
+│RFC     │    │Data-   │
+│Editor  │    │tracker │
+└────┬───┘    └────┬───┘
+     │             │
+     └──────┬──────┘
+            │ Promise.any (first success)
+            ▼
     ┌───────────┐
     │ Successful│ → Cancel other requests via AbortController
     │ Response  │
     └───────────┘
 ```
 
+Concurrent calls for the same RFC (e.g. `get_rfc_structure` and `get_requirements` issued in parallel) share one in-flight fetch and one parse.
+
 ### Cache Strategy
 
-LRU (Least Recently Used) cache with memory limits:
+LRU (Least Recently Used) cache with memory limits, plus the optional disk cache (`RFCXML_CACHE_DIR`) below the XML / text caches:
 
 | Cache          | Max Entries | Content          |
 | -------------- | ----------- | ---------------- |
@@ -353,14 +479,18 @@ npm run dev
 # Build
 npm run build
 
-# Test (watch mode)
+# Unit tests (single run) / watch mode
 npm test
+npm run test:watch
 
-# Test (single run — for CI etc.)
-npm test -- --run
-
-# E2E test (MCP client integration)
+# E2E test (MCP client integration; fetches a few real RFCs)
 npm run test:e2e
+
+# Audit against real RFCs, tool-to-tool crosscheck, output snapshots
+# (see tests/audit/README.md; run weekly by .github/workflows/audit.yml)
+npm run audit
+npm run crosscheck
+npm run snapshot
 
 # Lint
 npm run lint

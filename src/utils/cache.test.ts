@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { LRUCache, DEFAULT_CACHE_OPTIONS } from './cache.js';
+import { LRUCache, DEFAULT_CACHE_OPTIONS, InFlightMap } from './cache.js';
 
 describe('LRUCache', () => {
   describe('basic operations', () => {
@@ -194,5 +194,52 @@ describe('LRUCache', () => {
         name: 'RFCCache',
       });
     });
+  });
+});
+
+describe('InFlightMap (Issue #15)', () => {
+  it('shares one promise among concurrent callers with the same key', async () => {
+    const map = new InFlightMap<number, string>();
+    let started = 0;
+    const start = () =>
+      new Promise<string>((resolve) => {
+        started++;
+        setTimeout(() => resolve('value'), 5);
+      });
+
+    const results = await Promise.all([
+      map.share(1, start),
+      map.share(1, start),
+      map.share(1, start),
+    ]);
+
+    expect(results).toEqual(['value', 'value', 'value']);
+    expect(started).toBe(1);
+    expect(map.size).toBe(0);
+  });
+
+  it('starts separately for different keys', async () => {
+    const map = new InFlightMap<number, number>();
+    let started = 0;
+    const start = () => {
+      started++;
+      return Promise.resolve(started);
+    };
+    await Promise.all([map.share(1, start), map.share(2, start)]);
+    expect(started).toBe(2);
+  });
+
+  it('drops a failed promise so the next call starts again', async () => {
+    const map = new InFlightMap<number, string>();
+    let attempts = 0;
+    const start = () => {
+      attempts++;
+      return attempts === 1 ? Promise.reject(new Error('boom')) : Promise.resolve('ok');
+    };
+
+    await expect(map.share(1, start)).rejects.toThrow('boom');
+    expect(map.size).toBe(0);
+    await expect(map.share(1, start)).resolves.toBe('ok');
+    expect(attempts).toBe(2);
   });
 });

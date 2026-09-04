@@ -20,6 +20,7 @@
  * RFC の本文は `tests/audit/.cache/` を使い回す。
  */
 
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -64,6 +65,25 @@ const hasWord = (text, keyword) => {
 };
 
 const fold = (value) => (value ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/**
+ * キャッシュにある RFCXML の `<dd>` のうち、`<bcp14>` を含むものの本文。
+ *
+ * X6 は「目印の 55% 以上が要件になる」で、`<dd>` の中の目印が丸ごと落ちても
+ * 通っていた（RFC 9051 は 92 個・20% が落ちて 0.75）。落ちている場所を名指しで見る。
+ * XML が無い RFC（テキスト経路）は空を返し、条件は当てない。
+ */
+function definitionBodiesWithMarkers(rfc) {
+  const file = path.join(HERE, '..', 'audit', '.cache', `${rfc}.xml`);
+  if (!fs.existsSync(file)) return [];
+  const xml = fs.readFileSync(file, 'utf8');
+  const bodies = [];
+  for (const match of xml.matchAll(/<dd\b[^>]*>([\s\S]*?)<\/dd>/g)) {
+    if (!/<bcp14>/.test(match[1])) continue;
+    bodies.push(fold(match[1].replace(/<[^>]*>/g, ' ')));
+  }
+  return bodies;
+}
 
 /**
  * 突き合わせの一覧。
@@ -135,6 +155,20 @@ const CHECKS = [
         : [`目印 ${markers} 件に対して要件 ${requirements.length} 件（${ratio.toFixed(2)}）`];
     },
   },
+  {
+    id: 'X14',
+    description: '<dd> の中の <bcp14> が要件になる',
+    // `<dd>` に `<bcp14>` がある RFC に限る。要件文の先頭 40 文字が、`<bcp14>` を含む
+    // どれかの `<dd>` の本文にあれば、その `<dd>` から要件が出ている。
+    check: ({ definitionBodies, requirements }) => {
+      if (definitionBodies.length === 0) return [];
+      const hit = requirements.some((r) => {
+        const head = fold(r.text).slice(0, 40);
+        return head.length > 0 && definitionBodies.some((body) => body.includes(head));
+      });
+      return hit ? [] : [`<bcp14> を含む <dd> が ${definitionBodies.length} 個あるのに、要件が 1 件も出ていない`];
+    },
+  },
 ];
 
 /** 呼び方を変えても答えが揃うか。RFC ごとに数回だけ呼ぶ。 */
@@ -157,12 +191,20 @@ async function compareCallShapes(rfc, requirements, numbers, allSections) {
     }
   }
 
-  // X8: レベルを指定した取得が、全件のうちそのレベルのものと一致する
-  for (const level of ['MUST', 'MUST NOT', 'SHOULD']) {
+  // X8: レベルを指定した取得が、全件のうちそのレベルのものと **id を含めて** 一致する
+  //
+  // `filter.level` の continue が `nextId()` より前にあったため、レベルで絞ると
+  // id を 1 から数え直していた（RFC 6455 §5.1 の R-5.1-6 が `level: "MAY"` では
+  // R-5.1-2 になる）。件数だけでは見えない。
+  for (const level of ['MUST', 'MUST NOT', 'SHOULD', 'MAY']) {
     const one = await toolHandlers.get_requirements({ rfc, level });
-    const want = requirements.filter((r) => r.level === level).length;
-    if (one.requirements.length !== want) {
-      broken.push(`X8 ${level}: 全件から=${want} level 指定=${one.requirements.length}`);
+    const want = requirements.filter((r) => r.level === level).map((r) => r.id);
+    const got = one.requirements.map((r) => r.id);
+    if (got.length !== want.length) {
+      broken.push(`X8 ${level}: 全件から=${want.length} level 指定=${got.length}`);
+    } else if (got.join(',') !== want.join(',')) {
+      const i = want.findIndex((id, index) => id !== got[index]);
+      broken.push(`X8 ${level}: id が食い違う（全件から=${want[i]} level 指定=${got[i]}）`);
     }
   }
 
@@ -288,7 +330,17 @@ async function main() {
     const checklist = await toolHandlers.generate_checklist({ rfc });
     const markers = requirements.length + countCollapsed(requirements);
 
-    const context = { rfc, titles, requirements, definitions, checklist, markers };
+    const definitionBodies = definitionBodiesWithMarkers(rfc);
+
+    const context = {
+      rfc,
+      titles,
+      requirements,
+      definitions,
+      checklist,
+      markers,
+      definitionBodies,
+    };
     for (const check of CHECKS) {
       checked++;
       const found = check.check(context);

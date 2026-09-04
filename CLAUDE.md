@@ -16,19 +16,21 @@ RFC文書を**構造的に理解**するためのMCPサーバー。RFCXMLの意�
 | `generate_checklist` | 実装チェックリスト生成 |
 | `validate_statement` | 主張の仕様準拠検証（重み付きマッチング + 意味的否定検出）|
 
-古い RFC (< 8650) は XML がないためテキストフォールバックで対応。レスポンスに `_source` / `_sourceNote` を付与。
+古い RFC (< 8650) は XML がないためテキストフォールバックで対応。8650 以降でも XML が
+404 以外の理由（5xx・タイムアウト）で取れなければテキストに落ちる。レスポンスに
+`_source` / `_sourceNote` を付与。
 
 ### テキストフォールバック時の機能制約
 
-XMLXPath / 構造化情報に依存する一部機能は、テキストフォールバックでは精度が落ちるか、原理的に取得不能。下記マトリクスは known limitation として明文化しておく。
+XMLXPath / 構造化情報に依存する一部機能は、テキストフォールバックでは精度が落ちる。下記マトリクスは known limitation として明文化しておく。
 
 | ツール | XML 形式 | text 形式 | API 補完 | 備考 |
 |---|:---:|:---:|:---:|---|
-| `get_rfc_structure` | ✅ 完全 | ⚠️ 階層精度低下 | ✅ メタデータ補完 | API で category/stream/date/abstract/authors を補完 |
+| `get_rfc_structure` | ✅ 完全 | ⚠️ 階層精度低下 | ✅ メタデータ補完 | API で abstract / authors を補完。`category` / `stream` は API から取れたときだけ付く（不達なら `_sourceNote` に書く）。公開日は本文から取る |
 | `get_requirements` | ✅ 完全 | ⚠️ 抽出精度低下 | ❌ なし | 段落ベースの推測になる |
-| `get_definitions` | ✅ 完全 | ⚠️ 抽出精度低下 | ❌ なし | `<dl>` がなく、見出しベースで推測 |
-| `get_rfc_dependencies` | ✅ 完全 | ✅ 良 | ✅ Datatracker `relateddocument` | 本文に refs があれば text パーサで取得、無ければ API |
-| `get_related_sections` | ✅ 完全 | ❌ 取得不能 | ❌ なし | Issue #5: 節レベル相互参照は body 限定で API に存在しない |
+| `get_definitions` | ✅ 完全 | ⚠️ 抽出精度低下 | ❌ なし | `<dl>` がなく、`X: Y` とぶら下げの形で推測 |
+| `get_rfc_dependencies` | ✅ 完全 | ✅ 良 | ✅ Datatracker `relateddocument` | 参考文献の欄があれば text パーサで取得、無ければ API |
+| `get_related_sections` | ✅ 完全 | ⚠️ 本文の `Section N` の記述から | ❌ なし | 節レベルの相互参照は本文にしか無く、API に存在しない |
 | `generate_checklist` | ✅ 完全 | ⚠️ 抽出精度低下 | ❌ なし | `get_requirements` 経由のため同じ制約 |
 | `validate_statement` | ✅ 完全 | ⚠️ 抽出精度低下 | ❌ なし | 同上 |
 
@@ -37,8 +39,8 @@ XMLXPath / 構造化情報に依存する一部機能は、テキストフォー
 `_referencesSource` の値の意味（`get_rfc_dependencies` のみ）:
 
 - `'xml'` — RFCXML の `<references>` から抽出。完全な anchor / title 付き
-- `'text'` — テキスト本文の References セクションから抽出。title/anchor はプレースホルダ（`title: "RFC N"`, `anchor: "RFCN"`）
-- `'api'` — Datatracker `relateddocument` API から取得。同じくプレースホルダ。本文に refs が無いときに使う
+- `'text'` — テキスト本文の参考文献の欄から抽出。題名は欄から取るので仮置きではない。欄が 1 つしかない RFC（RFC 2616）ではすべて `informative` に入り、そのときだけ `_sourceNote` が付く
+- `'api'` — Datatracker `relateddocument` API から取得。title / anchor はプレースホルダ（`title: "RFC N"`, `anchor: "RFCN"`）。本文に参考文献の欄が無いときに使う
 
 ---
 
@@ -50,32 +52,42 @@ npm test              # テスト（単発実行）
 npm run test:watch    # テスト（ウォッチモード）
 npm run test:coverage # テスト + カバレッジ
 npm run test:e2e      # E2E テスト（MCP クライアント統合）
-npm run audit         # 実物の RFC 67 本に不変条件 47 種を当てる
-npm run crosscheck    # 7 つのツールの出力が互いに矛盾しないかを見る
-npm run snapshot      # 代表的な出力 33 本を固定し、差分を見る
+npm run audit         # 実物の RFC に不変条件を当てる（本数と種類は tests/audit/corpus.mjs と invariants.mjs が正）
+npm run crosscheck    # 7 つのツールの出力が互いに矛盾しないかを見る（条件は tests/crosscheck/run.mjs）
+npm run snapshot      # 代表的な出力を固定し、差分を見る（見本は tests/snapshot/cases.mjs）
 npm run lint          # リント
 npm run format        # フォーマット
 npm start             # MCP サーバー起動
 npm run prefetch      # RFC 本文をディスクキャッシュに事前充填
 ```
 
-`DEBUG=1 npm start` で詳細ログ出力。
+`DEBUG=1 npm start` で詳細ログ出力。ログは 4 レベルすべて stderr に出る
+（stdio トランスポートでは stdout が JSON-RPC の線である）。
 
 ### 公開前に通すもの
 
 v0.6.0 から v0.6.13 まで、13 件の不具合はすべて**公開したあとの試用**で見つかった。
 どれも公開は必要なかった。手元で同じ操作をすれば同じものが出た。
 
-publish の前に、次を順に通す。
+publish の前に、次を順に通す。件数は v0.6.53 時点の実数で、増やすたびに古くなる。
+正は各ファイルと `npm test` の出力である。
 
 | 手順 | 見るもの |
 |---|---|
-| `npm test` | 書いた条件の取りこぼし（478 件） |
-| `npm run test:e2e` | MCP クライアントから見た振る舞い（72 件） |
-| `npm run audit` | 想定していない書式で破れる場所（RFC 67 本 × 47 種） |
-| `npm run crosscheck` | 出力どうしの食い違い（RFC 67 本 × 10 種） |
-| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 33 本） |
+| `npm test` | 書いた条件の取りこぼし（622 件） |
+| `npm run test:e2e` | MCP クライアントから見た振る舞い（76 件） |
+| `npm run audit` | 想定していない書式で破れる場所（RFC 171 本 × 不変条件 51 種） |
+| `npm run crosscheck` | 出力どうしの食い違い（RFC 171 本 × 14 種、X1〜X14） |
+| `npm run snapshot` | 条件に落とせない見た目の崩れ（出力見本 38 本） |
 | `rfcxml-mcp-dev` で試用 | 実際の使い方で気づくもの |
+
+CI が回すのは一部だけである。`ci.yml` は push / PR ごとに `lint` → `format:check` →
+`npm test` → `build` → `npm run test:e2e` を回す。`publish.yml` は `npm test` →
+`npm run build` → `npm run test:e2e` を通してから publish する。`audit.yml` は週次
+（月曜 00:00 UTC）と `workflow_dispatch` で `audit` → `crosscheck` → `snapshot` を
+回し、`tests/audit/.cache` を `actions/cache` に載せる。0.6.41〜0.6.45 のあいだ
+監査が手元で止まっていたことに気づけなかったので置いた。週次で通るからといって
+publish の前に手元で通さなくてよいわけではない。
 
 `audit` と `snapshot` の詳細は `tests/audit/README.md` に書いた。
 `rfcxml-mcp-dev` は `dist/index.js` を直接指すローカルの MCP 登録である。
@@ -169,7 +181,7 @@ XML の `anchor`（`section-3.5`）と `number`（`3.5`）が混在する。`src
 
 ### RFC 番号と XML 可用性
 
-RFC 8650 (2019年12月) 以降は RFCXML v3 が確実に利用可能。それ以前はテキストフォールバック（`src/config.ts` の `RFC_CONFIG.xmlAvailableFrom`）。
+RFC 8650 (2019年12月) 以降は RFCXML v3 が確実に利用可能。それ以前はテキストフォールバック（`src/config.ts` の `RFC_CONFIG.xmlAvailableFrom`）。8650 以降でも、XML が 404 以外の理由で取れなければテキストに落ちる（後述「404 と一時的な失敗を分ける」）。
 
 ### 要求 ID ラベルと重複排除
 
@@ -225,6 +237,45 @@ RFC は「文 + 箇条書き」「文 + 表示例 + 文」で 1 つの文を書�
 **箇条書きは RFC 自身の区切りを使うこと**（`joinListItems()`）。RFC の項目は
 "…enacted," "…supplied, or" "…status." と自分で区切りを持っていることが多い。
 一律に "; " で繋ぎ末尾に "." を足すと `enacted,; a 204` `status..` になる。
+
+### XML 経路: `<dl>/<dd>` `<aside>` `<blockquote>` `<figure>` `<table>` の中身
+
+`orderedElements()` は節の直下の `<t>` / `<ul>` / `<ol>` / `<sourcecode>` /
+`<artwork>` しか見ていなかった。`<dl><dd><t>…</t></dd></dl>`、`<aside>` /
+`<blockquote>` の中の `<t>`、`<figure>` の中の `<artwork>` / `<sourcecode>`、
+`<table>` は content block にならず、その中の BCP 14 キーワードは
+`get_requirements` / `generate_checklist` / `validate_statement` のどれにも
+出なかった。RFC 9113 §4.1（Frame Format）は `<dd>` の中に `<bcp14>` が 6 個あるのに
+0 件、RFC 9051 は 457 個のうち 92 個（20%）が `<dd>` の中で、crosscheck の X6
+（0.55）はこれを通していた。
+
+`collectElements()` が入れ物（節・`<dd>` / `<aside>` / `<blockquote>`）の中の要素を
+集め、`paragraphOrder()` が入れ子の `pn`（`section-4.1-4.2.1` → `[4, 2, 1]`）を
+読んで `pn` 順に並べる。`<dd>` は `<dd>text</dd>` と `<dd><t>…</t></dd>` の両方の
+形があり、直下のテキストは `<dd>` 自身の `pn` の位置に置く。`<table>` の `pn` は
+`table-1` で位置を持たないので、`annotateTableOrder()` がパース前に直前の
+`pn="section-…"` から位置を作って `x-order` 属性に書く。
+
+実測: RFC 9113 §4.1 が 0 → 4 件、RFC 9051 の要件化率が 0.75 → 0.92、RFC 9260 が
+0.81 → 0.95。XML を持つ 31 本すべてで、修正前の要件文の集合は修正後の集合に含まれる。
+crosscheck の X14（`<dd>` の中の `<bcp14>` が要件になる）がこれを見張る。
+
+守ること:
+
+- `<dt>` の用語は要件文に混ぜない。`<dd>` の本文だけを text block にする。`<dl>` の
+  定義は `extractDefinitions()` が別に読んでおり、そちらは変えない（snapshot の
+  `definitions-*` が見張る）。
+- `mergeContinuations()` は入れ物（`OrderedElement.scope`）をまたいで繋がない。
+  `<dd>` の最後の段落が文末記号を持たなくても、次の `<dd>` はその続きではない。
+  `<figure>` の中の図は親と同じ scope で、節の直下の `<sourcecode>` と同じ扱い
+  （RFC 9110 §14.3 の "MAY send Accept-Ranges: none to advise …"）。`<table>` は
+  繋がない。
+- `<li>` の中は再帰しない。`extractProse(li)` が入れ子の `<t>` / `<ul>` / `<dl>` を
+  含めて 1 項目にしているので、再帰すると同じ文が 2 回出る。
+- `<artwork type="svg">` は出さない。`<artset>` は svg でない `<artwork>` を 1 つ採る。
+- 要件の id は節ごとの連番なので、block が増えると同じ節の後続の番号はずれる。
+  v0.6.53 では snapshot の見本の節に差分が出なかった。
+- `pn` の無い RFCXML（公開前）でも `<dd>` 等の中身は出る。並べ直しと繋ぎはしない。
 
 ### 散文の空白は畳む。図とコードは畳まない
 
@@ -326,6 +377,23 @@ RFC の .txt は 1 ページ 58 行で組まれ、段落の途中でもページ
 **直前の行が文末で終わっていなければ空行を入れずに続ける。** ページの変わり目が
 段落の切れ目でもあるかどうかはテキストからは判らないので、文が途中かどうかで決める。
 
+### `- N -` 形のページ番号は語の無い行に限る
+
+RFC 822 のフッタ `August 13, 1982   - 1 -   RFC #822` を落とすために足した
+`(?:^|\s)-\s*\d{1,4}\s*-(?:\s|$)` が、RFC 7049 §2.4.2 の `-1 - n.  Decoders` と
+RFC 4271 §4.3 の `Length - 23 - Total Path Attributes Length` に当たり、行が丸ごと
+消えて前後の文が 1 つに繋がっていた。
+
+`PAGE_FOOTER` から `- N -` の枝を外し、`isCenteredPageNumber()` に分けた。`- N -` を
+外した残りが空か、`PAGE_NUMBER_COMPANION`（西暦 `(19|20)\d{2}` または `RFC #N`）を
+含むときだけフッタとする。corpus で `- N -` に当たる行は RFC 822 の 47 行
+（全部フッタ）と、7049 / 4271 / 1771 の式 3 行だけ。`[Page N]` は大文字小文字を
+区別しない（RFC 768・1191 は `[page 1]` と書く）。
+
+守ること: `PAGE_FOOTER` に `- N -` の枝を戻さない。フッタの形を足すときは corpus
+全体で `grep` して本文に当たる行が無いことを見る。著者名だけを伴う
+`Postel   - 3 -` のような形が出てきたら `PAGE_NUMBER_COMPANION` を広げる。
+
 ### 節見出しの判定に題名の中身を使わない
 
 `isValidSectionHeader()` が見るのは、目次の行かどうかと、節番号として不自然な数
@@ -370,6 +438,38 @@ RFC の .txt は 1 ページ 58 行で組まれ、段落の途中でもページ
 節として拾う。拾うと節番号が重複し、その行の要件も抽出されなくなる
 （題名として消費されるため）。
 
+### リーダー無しの目次
+
+`isTableOfContentsEntry` はドットのリーダーを必須にしている。RFC 1305 の目次は
+`3.2.     State Variables and Parameters 9` とリーダー無しでページ番号を書くため、
+目次の全行が節になり（題名にページ番号が付いた節 14、本文の無い葉 12）、本文の
+見出しは番号を持たないので取り直しも効かなかった。
+
+`leaderlessToc()` は「番号 + 題名 + 空白 + 1〜3 桁の数字で終わる」行
+（`LEADERLESS_TOC_ENTRY`）が空行だけを挟んで `LEADERLESS_TOC_MIN_ENTRIES`（3）行
+以上続き、ページ番号が減らず、段のある番号（`3.2` `B.1`）を含む塊を目次とし、その行は
+節にしない。目次の題名と同じ番号無しの行（直前が空行、60 文字以下）は
+`tocTitleHeader()` が目次の並びの順に `TOC_TITLE_LOOKAHEAD`（3）件先まで照合し、
+目次の番号で節にする。実測: RFC 1305 の節 52 → 95。
+
+守ること:
+
+- 1 行だけでは本文の表と区別できない（題名が数字で終わる見出しもある:
+  `Appendix A. NTP Data Format - Version 3`）ので、塊の条件を外さない。空白は
+  1 個以上でよい（RFC 1305 はタブ展開のずれで `2.2.     Network Configurations 7`
+  と空白 1 個の行がある）。
+- 目次の題名との照合は順番を守る。同じ語が本文に単独で現れても、番号の順番が
+  来ていなければ節にしない。
+- 直後の空行は求めない（RFC 1305 は `Clock-Update Procedure` の直後に本文を続ける）。
+- `isValidSectionHeader()` は記号だけの題名（C の注釈の折り返し `1 */`）と、閉じ
+  括弧・読点で始まる題名（troff の数式の折り返し）を落とす。`;` は落とさない
+  （RFC 822 §2.8 `; COMMENTS`）。
+- `isWrappedBodyLine()`: 1 桁目の数字見出しで、直前の行が文末記号無しで終わり、
+  直前が読点で終わるか、題名が前置詞・接続詞で終わって次の行に続くなら本文
+  （RFC 1305 `6. When present, the data field contains a list of identifiers or`）。
+  題名が句点で終わることは使わない（RFC 4960 §5.2.5 `Handle Duplicate COOKIE-ACK.`
+  がページ先頭にあり落ちる）。
+
 ### 別文書の節と、この RFC の節を混ぜない
 
 `<xref>` を描画すると本文に "Section 11.2 of [HTTP/1.1]" が現れる。これは
@@ -403,6 +503,24 @@ How to apply: 新しい抽出で「最初のピリオドまで」を書きたく
 読点の有無も同じである。RFC 6749 は `([RFC3986] Section 3.4)` と読点なしで書く。
 読点を必須にしていたため、この形が「RFC 6749 の §3.4」になり、
 `get_related_sections` が実在しない節を返していた（RFC 6749 に §3.4 は無い）。
+
+### 相互参照の複数形と列挙
+
+`[Ss]ection\s+` は `Sections 4.1 and 4.2` に当たらず、RFC 9110 の .txt にある
+4 か所の列挙を 1 件も拾っていなかった。`createSectionReferenceRegex` を
+`[Ss]ections?` にし、`SECTION_LIST_TAIL` で ` and N` / ` or N` / `, and N` / `, N` を
+続けて取る（`splitSectionList()` が列挙から番号を全部取る）。読点だけで続く番号は
+`Section 3, 2 octets long` と区別がつかないので、番号のあとに列挙の続き
+（読点・`and`・`or`）か文の切れ目（句点・セミコロン・閉じ括弧・末尾）が来るときだけ
+取る。番号のあとの括弧の補足（`10.12 ("JSON Security Considerations") and 10.13`）は
+許す。別文書参照（`createExternalSectionRegexes`）も同じ列挙を認め、
+`Sections 4.1 and 4.2 of [RFC9110]` は external 2 件になる。
+`of the 2020 version of C++` のように版を書いて別規格を指す形も別文書扱い
+（RFC 8949 §1.2）。
+
+守ること: external の重複排除の鍵は `type + target + section`（文書だけを鍵にすると
+2 つ目が落ちる）。`SECTION_LIST_TAIL` は列挙の各番号に `(?!\d)` を残す
+（`111` の頭 2 桁を採る）。
 
 ### 切り詰めは `clipAtWord` に集約する
 
@@ -486,22 +604,24 @@ receiving:` — コロンで終わる要件文は、続く項目を取らない�
 **これは本物の要件文である。** F3 の上限（900 文字）は暴走した取り込みを見る
 ためのものなので動かさず、この 1 件を基準に入れた。
 
-### 表の行を要件として出すかは、まだ決めていない
+### 表の行は、その 1 行だけを要件にする
 
 図・表の行にキーワードが当たったときは、**その 1 行だけ**を要件文にする。
 RFC 2131 §4.3.1 の Table 3 は 2 ページにわたるので、段落全体を返すと
 `generate_checklist` に 2,000 文字の「要件」がレベルごとに 4 回並ぶ。
 
-その規則の結果として、ASN.1 の型定義の欄と値を並べた表から `OPTIONAL` の要件が出る。
+XML 経路の `<table>` も同じ規則で、`TableBlock { headers, rows }` の本文の行から
+1 行ずつ（セルを `" | "` で繋いで）要件にする。見出し行は見ない（RFC 9293 §3.11 は
+見出しに MUST / SHOULD / MAY を並べる）。キーワードの直後が `-\d`（要求 ID ラベル
+`MUST-14`）だけの行は要件にしない。RFC 9293 Appendix B は
+`Treat as unsigned number | MUST-1 | X | | | |` を 110 行並べ、ラベルのレベルと X の
+列のレベルが違う行がある（`MUST-60` の X は MUST NOT の列）。要件そのものは §3.1
+などの本文から出ている。`fullContext` は見出し行 + その行。主語・条件・アクションは
+付けない（図・表の行の既存規則）。corpus の XML 32 本には本文の行にキーワードを持つ
+`<table>` が無く、この経路は単体テストでのみ検証している。
 
-```
-   AuthorityKeyIdentifier ::= SEQUENCE {
-      keyIdentifier             [0] KeyIdentifier           OPTIONAL,
-```
-
-要件文は `keyIdentifier [0] KeyIdentifier OPTIONAL,` になる。RFC 4253 §6.3 の
-暗号方式の表も同じ。実測（RFC 67 本）: 86 件、うち RFC 5280 が 46 件、
-RFC 4253 が 12 件、RFC 5652 が 12 件。**判断待ちである。**
+ASN.1 の型定義の欄と値を並べた表（`keyIdentifier [0] KeyIdentifier OPTIONAL,`）は
+散文ではないので要件にしない（後述「ASN.1 の型定義は散文ではない」）。
 
 ### 出力どうしを突き合わせる（`npm run crosscheck`）
 
@@ -515,7 +635,7 @@ RFC 4253 が 12 件、RFC 5652 が 12 件。**判断待ちである。**
 | v0.6.35 | 同じ RFC の目次が、XML 経路とテキスト経路で食い違っていた |
 | v0.6.36 | `validate_statement` が教えた id を `get_requirements` で引けなかった |
 
-10 種を当てる。
+14 種を当てる（X1〜X14。正は `tests/crosscheck/run.mjs`）。
 
 | | 見ること |
 |---|---|
@@ -525,12 +645,17 @@ RFC 4253 が 12 件、RFC 5652 が 12 件。**判断待ちである。**
 | X5 | `generate_checklist` の件数が要件の数と合う |
 | X6 | 目印の 55% 以上が要件になる（静かに落ちていないか） |
 | X7 | 節を指定した取得が、全件のうちその節のものと **id を含めて** 一致する |
-| X8 | レベルを指定した取得が、全件のうちそのレベルのものと一致する |
+| X8 | レベルを指定した取得（MUST / MUST NOT / SHOULD / MAY）が、全件のうちそのレベルのものと **id を含めて** 一致する |
 | X9 | 親節を指定すると下位節も入る |
 | X10 | `get_related_sections` が返す節が構造にある |
+| X11 | `validate_statement` が示す矛盾の相手が、一致の一覧に入っている |
+| X12 | `_matchedKeywords` の語が、その要件文そのものにある |
+| X13 | `get_related_sections` が、その節の本文の相互参照と一致する（取りこぼしと、本文に無い節） |
+| X14 | `<dd>` の中の `<bcp14>` が要件になる（`<dd>` に `<bcp14>` がある RFC に限る） |
 
 X6 の下限 0.55 は、1 つの文に同じレベルのキーワードが 2 回あると 1 件に畳まれる
-ためである。実測の中央値は 0.95、最も低い RFC 9293 で 0.60 だった。
+ためである。実測の中央値は 0.95、最も低い RFC 9293 で 0.60 だった。X14 は v0.6.52 の
+dist で 13 本が落ちる（`<dd>` の中身が content block になっていなかった）。
 
 ### 要件の id は節ごとに数える
 
@@ -545,6 +670,22 @@ X6 の下限 0.55 は、1 つの文に同じレベルのキーワードが 2 回
 **教えられた id が存在しない。** 節ごとに数えれば「その節の n 番目」という意味に
 なり、絞り込みで変わらない。実測（RFC 67 本）: 節を指定した取得 245 件のうち
 194 件で id が食い違っていた → 0 件。不変条件 B18 が連番の始まりと飛びを見る。
+
+### 要件の id はレベルで絞る前に進める
+
+v0.6.36 で id を節ごとの連番にしたが、`extractRequirementsFromSections()` の
+`filter.level` の `continue` が `nextId()` より前にあった。レベルで絞るとその節の中で
+一致するものだけを 1 から数え直し、RFC 6455 §5.1 の R-5.1-6（MAY）が
+`level: "MAY"` では R-5.1-2 になっていた。`validate_statement` は全件から id を
+報告するので、利用者が `level` を付けて引くと「教えられた id が存在しない」。
+B18 / X7 は `section` 指定しか見ていなかった。
+
+`nextId()` はレベル判定より先に呼ぶ。重複排除（`isDuplicate`）・`hasSubstance`・
+`namesTheKeyword`・`looksLikeWordList` はレベルによらないので `nextId()` より前に
+置く。crosscheck の X8 は id を含めて比べる。
+
+不変条件: 要件を落とす判定のうち、フィルタ由来のもの（section / level）は
+`nextId()` の後、内容由来のものは前。
 
 ### 同じ RFC を両経路で読んで突き合わせる
 
@@ -601,6 +742,18 @@ RFC 1035 §6.4.1 は見出しの直後に本文が 1 桁目から続くので当
 実測（RFC 66 本）: 題名を継いだ節 6 件、節の総数は変わらず、
 誤って本文を継いだものは 0 件。
 
+### 題名に継いだ行の分だけ `index` を進める
+
+`indentedSectionHeader()` は `wrappedHeaderContinuation()` で 2 行目を題名に継ぐが、
+呼び出し側が `index` を進めていなかったため、同じ行が本文としても読まれ、
+RFC 1122 §4.2.2.9 の要件文が `3.3, page 27 A TCP MUST …` から始まっていた
+（1 桁目の見出しの経路は `titleContinuation` のあとで `index++` している）。
+見出しを返す関数は継いだ最後の行を `lastLine` で返し、`extractTextSections()` は
+`index = header.lastLine` でそこまで進める。`appendixHeader()` も同じ。
+
+守ること: 見出しの判定関数に折り返しの継ぎ足しを足すときは、必ず `lastLine` を
+返して呼び出し側で進める。
+
 ### 付録の見出しは、順番で見分ける
 
 テキスト経路は `1.` `2.1` のような数字の節しか拾っていなかった。RFC 8446 の
@@ -627,6 +780,53 @@ RFC 8446 は付録 46 件を拾う。
 `   Appendix A.2 of [JWE], including the keys used.` を見出しとして拾い、
 そのあとの本物の `A.2.  Example Nested JWT` が番号の重複で落ちていた。
 RFC 5280 の C.1〜C.3 も題名が本文になっていた。
+
+### 付録の下位見出しにも数字の見出しと同じ検査を課す
+
+`appendixHeader()` の `A.x.y` の枝は親の文字の一致しか見ておらず、RFC 2328 の
+折り返し `        A.3.6 for details.` が §A.3.6 に、
+`    A.4.1. Detailed formats … are described` が §A.4.1 になり、本物の見出しは
+`seen` の重複で手前の節に吸われていた。`Appendix` 明示の形も RFC 1305 §3 の
+折り返し `Appendix A for comprehensive list):` を Appendix A にしていた。
+
+`appendixHeader(lines, index, previous: AppendixState)` は `{ number, title,
+lastLine }` を返し、次を求める。
+
+- 次の行が空く、または折り返しの 2 行目（`appendixTitleContinuation()`）であること。
+- `A.x.y` の形は題名が `[.,;:]` で終わらず、`isSuccessorSectionNumber` で直前の
+  付録の次に来る番号であること（`appendixAsNumber` が `A.3.5` → `1.3.5` にする）。
+- `Appendix` 明示の形は題名が小文字で始まらず、`[,;:]` で終わらないこと。
+
+実測: RFC 2328 の §A.3.6 が `The Link State Acknowledgment packet`、§A.4.1 が
+`The LSA header`。RFC 706 は折り返した本文が付録 A になっていたのが消えて節 0
+（本物の見出しは無い。A7 の基準に記録）。
+
+守ること:
+
+- `A.x.y` の題名の**先頭**は問わない（RFC 6749 `A.1.  "client_id" Syntax`、
+  RFC 5321 `F.4.  #-literals`、RFC 7489 `B.5.  mailto Transport Example`）。
+- 1 段目の `Appendix X.` の題名は句点で終わってよい（RFC 1305
+  `Appendix D. Differences from Previous Versions.`）。
+- 次の行が別の見出し（`APPENDIX_HEADER_PATTERN` / `SECTION_HEADER_PATTERN`）なら
+  空行と同じ扱い（RFC 822 の `C.5.  ADDRESS SPECIFICATION` はページ末にあり、
+  `C.5.1.  ADDRESS` が直後に来る）。
+- 折り返しは開始桁揃えのほかに、見出しより深く字下げした 40 文字以下の行でその次が
+  空くものも認める（RFC 1521 `   E.2  Registration of New Access-type Values` /
+  `           for Message/external-body`）。
+
+### 定義の節追跡は付録も見る
+
+テキスト経路の `extractTextDefinitions` は `SECTION_HEADER_PATTERN` の数字見出し
+しか見ておらず、付録に入っても `currentSection` が更新されず、RFC 1812 の
+Appendix B（GLOSSARY）の用語 54 件が §11（REFERENCES）に、RFC 8446 の Appendix E.1
+の用語 10 件が §12.2 に付いていた。節は実在するので `G4` では見つからない。
+`extractTextSections` と同じ `appendixHeader()` を同じ状態（`AppendixState` +
+`seen`）で呼び、継いだ行は読み飛ばす（`index = appendix.lastLine`）。
+実測: RFC 1812 の section `11` が 73 件 → 0 件、`B` 41 件。付録の見出し自体が
+定義として出ていたもの（RFC 791 / 1057 / 1323 / 3550 / 3711 / 4291）が消えた。
+
+守ること: 節の経路と定義の経路で付録の判定を別々に書かない。判定を変えるときは
+両方が同じ関数を通ることを確かめる。
 
 ### 節番号は一度しか使われない
 
@@ -719,6 +919,31 @@ RFC 894（IP over Ethernet）が含まれる。どれも RFC 1122 や RFC 1123 �
 除くもの 2 つ。ページの飾り（RFC 792 はページ見出しを `RFC 792` の 1 行で
 書くため前後が空行になる）と、表の見出し（RFC 854 の
 `NAME                  CODE         MEANING`）。
+
+### 下線付き見出し・小文字の `[page N]`・`Title:` 欄
+
+1980 年前後の RFC の書式で、3 つある。
+
+1. RFC 826 は `Notes:` の次の行に `------` を置くため、「見出しの直後は空行」の
+   条件で節 0 件だった。`unnumberedHeadings()` は直後が `isUnderline()`
+   （`-{3,}` / `={3,}` だけの行）なら見出しとし、空行の検査は下線の次の行に対して
+   行う。`extractUnnumberedSections()` は下線の行を本文に入れない。下線付きのとき
+   だけ末尾の `:` と `?` を許す（`Notes:`、`Why is it done this way??`）。
+   実測: RFC 826 の節 0 → 12。
+2. RFC 768・1191 は `[page 1]` と小文字で書く。`PAGE_FOOTER` は大文字小文字を区別
+   しない。RFC 768 ではフッタが残って次ページの柱 `28 Aug 1980` が唯一の節になり、
+   題名に下線 `----------------------` が付いていた。実測: RFC 768 の節 1 → 9、
+   RFC 1191 の参照 10 → 11（フッタが参照の項目を割っていた）。
+3. RFC 1 の表紙は `Title:` `Author:` `Installation:` の欄で、3 行を繋いで題名に
+   していた。`extractTextTitle()` は最初の行が `Title:` で始まればその値だけを
+   題名にし、`isUnderline()` に当たる行を落とす。実測: RFC 1 の題名 `Host Software`、
+   RFC 768 の題名 `User Datagram Protocol`。
+
+守ること: 下線の無い行の末尾の `:` は見出しにしない（`The options are:` は本文）。
+RFC 768 の本文の 1 行段落 `A user interface should allow` は番号無しの見出しの条件
+（前後が空行・短い・文末記号無し）を満たして節になる。番号無し見出しの経路には
+文らしさの検査が無く、`SENTENCE_OPENER` を当てると `A Note on "Subnegotiation"`
+（RFC 855）のような本物の見出しも落ちるので、触っていない。
 
 ### 小文字で始まる題名は、番号の句点か直前の空行で見分ける
 
@@ -887,6 +1112,29 @@ RFC 9110 §7.1 の直前は `See the respective method definitions for details.`
 `Other servers MUST perform …` を振り分けられず、実測で **449 件（4.6%）** が
 どちらの role にも残っていた。
 
+### 肯定レベルの主語・action は否定形の一部と小文字に当てない
+
+`parseRequirementComponents()` の主語と action の正規表現は `\s+MUST\b` の形で
+`i` フラグ付きだった。`level = 'MUST'` の要件で文中に先に `MUST NOT` があると、
+主語と action が禁止側のものになる。RFC 8446 §4.5 の "Servers MUST NOT send this
+message, and clients receiving it MUST terminate the connection …" は
+`subject: "servers"`, `action: "NOT send this message"` になり、`filterByRole` が
+`role: "client"` から落としていた。`i` フラグは RFC 8446 §D.4 の "as they must be
+ignored" や RFC 6455 §7.2.3 の "Should the first reconnect attempt fail" を BCP 14 の
+キーワードとして読んでいた。実測（11 本・3,175 件）: 42 件 → 0 件。
+
+`requiredActionOf()` と同じく `\bMUST\b(?!\s+NOT)`（`level` が `NOT` で終わるときは
+guard 無し）で、原文どおりの大文字だけに当てる。冠詞は
+`[Tt]he|[Aa]n?|[Ee]ach|[Ee]very|[Aa]ll` で大文字・小文字を明示する。主語と
+キーワードのあいだの「分詞 + 代名詞」（`clients receiving it MUST`）は読み飛ばす。
+2 つ目のキーワードの直前が接続詞（`… detail and SHOULD limit …`）なら、その節は前の
+節と主語を共有しているので、同じ文の手前のキーワードの直前の語
+（`lastSubjectBefore()`）を採る。
+
+不変条件: BCP 14 のキーワードを照合する正規表現に `i` フラグを付けない。肯定
+レベルには `(?!\s+NOT)` を付ける。`subject` は依然「キーワードの直前 1〜2 語」
+なので、関係節や前置詞句で主語が離れているものは取れない。
+
 ### 否定は動詞に付いたものだけを見る
 
 `validate_statement` の違反検出は、主張の文全体から否定語を探していた。
@@ -898,7 +1146,16 @@ RFC 9110 §7.1 の直前は `See the respective method definitions for details.`
 ```
 
 この `without` は行為を否定していない。条件を書き写しただけで、これは違反
-そのものである。動詞の直前 2 語だけを見る。
+そのものである。動詞の前 2 語と後 2 語だけを見る。
+
+**否定は動詞の後ろにも来る。** `isNegatedVerb()` は動詞の前 2 語しか見ていなかった。
+"sends no content" / "sends nothing" / "masks none of" は動詞の後ろに否定が来る。
+RFC 9110 §9.3.8 の `MUST NOT send content in a TRACE request` に対する準拠の記述
+"The client sends no content in a TRACE request." が `false` になっていた。直後 2 語の
+`no` / `nothing` / `none` / `neither`（`NEGATION_AFTER_VERB`）も否定とみなす。
+`detectConflicts()` の `NEGATION_PAIRS` の枝は `hasPositiveAction`（文字列の否定形
+一覧。`not send` しか持たない）だけで見ていたので、こちらも `findStatementVerb` で
+動詞の位置を取り、`isNegatedVerb` を通す。
 
 **主語と動詞のあいだの限定句は飛ばす。ただし限定句だけ。** 語なら何でも
 飛ばすと、目的語の中の語を動詞と取り違える。
@@ -910,6 +1167,24 @@ RFC 9110 §7.1 の直前は `See the respective method definitions for details.`
 `masking` を動詞と取ると「サーバはマスクしてはならない」に違反していると
 誤って報告する。実際はマスクを外す側の話である。飛ばしてよいのは
 `SUBJECT_QUALIFIER_WORDS`（with / without / that / a / the …）と、その次の 1 語だけ。
+
+**`saysTheSame` が拾う言い換えは `SUBJECT_QUALIFIER_WORDS` にも入れる。**
+`findQualifierOnlyViolation()` は `lacks?|lacking|missing` を `without` の言い換えとして
+拾うが、`findStatementVerb()` が `lacking` を限定語と認めず動詞に届かないため、
+"An origin server lacking a clock generates …" は `true` だった。`lacking` / `lacks` /
+`lack` / `missing` を `SUBJECT_QUALIFIER_WORDS` に足した（→ `null`）。`saysTheSame` に
+言い換えを足すときは、それが主語の直後に来る形（分詞・関係節）で
+`findStatementVerb` が動詞に届くかを確かめる。
+
+**複数語の主語は最後の主語語のあとから動詞を探す。** `SUBJECT_TERMS` は 1 語ずつ
+持つので、"user agent" の主語は `user` になる。`findStatementVerb()` は主語の次の語
+`agent` を限定語でないとみなして `null` を返し、`statementPerformsVerb` が常に false に
+なって矛盾検出が動かなかった。RFC 9110 は 36 件、RFC 6265 は 62 件中 38 件の要件が
+主語 `user agent` で、すべての違反が `isValid: true` だった。
+`afterCompoundSubject()` で主語語が続くあいだ（`user agent` / `proxy server`）を
+読み飛ばす。`SUBJECT_TERMS` に語を足すときは、それが別の主語語の直後に来る複合語
+（`agent`）かを考える。`extractSubject()` は依然 `user` を返す
+（`detectedSubject: "user"`）。照合は両側で同じ規則なので動作には影響しない。
 
 実測: 手書きの準拠 10 文・違反 5 文で誤検出 0 件・検出 5/5。
 要件から機械生成した準拠 40 文・違反 40 文で誤検出 **0 件**・検出 **23 件（57.5%）**。
@@ -980,6 +1255,19 @@ v0.6.19 の 2 つ（番号の句点・直前の空行）ではまだ足りない
 閉じ引用符が無い項目がある（RFC 2131 [4]、原文の誤り）。開き引用符から
 `, STD` / `, RFC` / `, Work in Progress` までを題名とみなす。
 
+### `TAG:n` 形の目印は句点が無くてもよい
+
+RFC 1812 は `ARCH:8.` と `ARCH:9` を混ぜて書く。句点を必須にしていたため 104 件の
+うち 19 件が直前の項目に繋がれ、ARCH:8 の題名が ARCH:9 のものになっていた。落ちた
+`ARCH:9` の行は `hangingDefinition()` にも当たり、参考文献の項目 19 件が用語として
+出ていた。`REFERENCE_ENTRY_PATTERN` の 3 つ目の枝は `([A-Z][A-Z0-9]*:\d+)\.?\s*$`、
+`hangingDefinition` は `REFERENCE_TAG_ANCHOR`（`^[A-Z][A-Z0-9]*:\d+\.?$`）に当たる行を
+用語にしない、`titleWithoutQuotes` は項目の頭の `ARCH:8.` を題名から外す。
+実測: RFC 1812 の参照 85 → 104 件。
+
+守ること: この枝は `bucket` がある（参考文献の欄の中）ときだけ当てる。本文には
+`REPEAT:4` のような同じ形の行がある（RFC 2445 / 5545 の iCalendar の例）。
+
 ### `unless` は例外であって条件ではない
 
 `condition` の抽出に `unless` を入れると、`exception` と同じ文字列が入る。
@@ -1001,6 +1289,111 @@ Datatracker の `document.time` は**レコードの最終更新時刻**であ�
 （RFC 9293 は 2026-05-20 を返す。公開は 2022-08）。公開日は RFCXML の `front/date`、
 テキスト経路ではヘッダ行から取る。`RFCMetadata.datatrackerUpdated` が前者の値だが、
 ツールの応答には出さない。
+
+### `category` / `stream` は取れたときだけ付ける
+
+`fetchRFCMetadata` は Datatracker の document API が失敗したとき `category: 'info'`,
+`stream: 'IETF'` を既定値として返し、`mapCategory` / `mapStream` の default も同じ値
+だった。RFC 1（Datatracker は `std_level = unkn`, `stream = legacy`）が info / IETF に
+なり、RFC 9112（Proposed Standard）は API 不達で info になった。取れなかったことは
+応答のどこにも出なかった。
+
+`RFCMetadata.category` / `stream` を optional にし、不達のときと対応表に無い値の
+ときは省く。不達の理由は `RFCMetadata.datatrackerError`（`HTTP 500` / `fetch failed`）
+に載せ、`handleGetRFCStructure` が `joinNotes()` で `_sourceNote` に
+`IETF Datatracker API was not reachable (…); category, stream and abstract are
+omitted.` を足す。`'info'` は `'inf'` スラグへの対応として明示する（Datatracker の
+`stdlevelname` は bcp / ds / exp / hist / inf / std / ps / unkn、`streamname` は
+ietf / ise / irtf / iab / editorial / legacy）。
+
+不変条件: `category` / `stream` に既定値を入れない。Datatracker に届かなかった応答は
+`_sourceNote` にその旨を含む。`stream = legacy` の RFC（1 / 792 / 793 / 854 / 1035
+など）は `stream` を出さない（snapshot の `structure-792` などがそれを固定している）。
+
+### 404 と一時的な失敗を分ける
+
+`getParsedRFC` がテキストへ落ちる条件は `isOldRFC`（8650 未満）だけで、
+`fetchRFCXML` は 404・5xx・タイムアウトを同じ `RFCXMLNotAvailableError` に載せ替えて
+いた。rfc-editor.org が一時的に 5xx を返すと RFC 9110 でも `.txt` を試さずに失敗した。
+
+`RFCXMLNotAvailableError.notFound`（全取得元が 404）を持たせ、`fetchAndParse` は
+`isOldRFC || !notFound` でテキストに落ちる。`fetchFromMultipleSources` のエラー文は
+取得元ごとに `;` で連なる（`[rfcEditor] HTTP 503; [datatracker] HTTP 404`）ので、
+`;` で分けてから全部が 404 かを見る。一時失敗で落ちた結果は
+`ParsedRFCWithSource.xmlFetchError` を持ち、7 ツールすべての `_sourceNote` に
+`getXMLFetchFailureNote()`（`XML fetch failed (…); this may be temporary, so the text
+format was used instead. Retry later for XML-based results.`）を足す。`parseCache`
+には入れない。
+
+不変条件: 8650 以上で全取得元が 404 なら「未公開」として失敗する（テキストは
+試さない）。`notFound` の判定は取得元ごとに分けてから行う。`xmlFetchError` 付きの
+結果を `parseCache` に入れない（入れると「一時的」の注記が嘘になる）。その代わり、
+XML 側の障害が続くあいだは呼び出しごとに XML の取得（最大 30 秒のタイムアウト）を
+試してからテキスト（`textCache` から即時）に落ちる。障害中の応答が遅くなるのを
+避けたいなら、短い TTL 付きで cache する案がある。
+
+### 同じ RFC への同時呼び出しは 1 本にまとめる
+
+`xmlCache` / `textCache` / `parseCache` は結果が入るまでのあいだ何も持たない。
+MCP クライアントは 1 つの RFC に `get_rfc_structure` と `get_requirements` を並列に
+出すので、その数だけ rfc-editor.org と datatracker を叩き、`parseRFCXML` も回数分
+走っていた（3 本同時で `Fetched from rfcEditor` が 3 行）。
+
+`InFlightMap`（`src/utils/cache.ts`）を `fetchRFCXML` / `fetchRFCText` /
+`fetchRFCMetadata` / `getParsedRFC` に置き、2 本目以降は 1 本目の Promise を返す。
+`share(key, start)` は走っている Promise があればそれを返し、無ければ `start()` を
+走らせて `finally` で外す。
+
+不変条件: 終わった Promise は成功・失敗を問わず map から外す（失敗を残すと一時的な
+ネットワーク失敗がプロセスの生きているあいだ再現し続ける）。`forceFresh` は
+まとめ合わせもキャッシュも通さない。`fetchRFCMetadata` の鍵には `includeAuthors` を
+含める（`${rfc}:${authors|core}`。求める深さが違うと共有できない）。
+`clearParseCache` / `clearCache` は in-flight も消す。
+
+### 無い節は `isError`、空文字は入力エラー
+
+`findSection` の `secNumber === normalizedTarget` は `'' === ''` で真になり、XML 経路が
+番号無しの節として持つ References に一致していた。無い節のときは `{ error }` を
+正常応答として返しており、`rfc: 0` や 404（`isError: true`）と形が違った。
+
+`get_related_sections.section` に `minLength: 1`、`findSection` は空（または空白のみ）
+の target で `null`、`handleGetRelatedSections` は無い節で
+`throw new Error('Section X not found')`（`server.ts` の catch で `isError: true`）。
+
+不変条件: ハンドラは `{ error }` を返さない。エラーは throw して `server.ts` の catch に
+任せる。`get_requirements` の無い節は絞り込み結果の空（`total: 0`）であり、エラーでは
+ない。
+
+### 未知のキーは弾く
+
+`inputSchema` に `additionalProperties: false` が無く、
+`get_requirements { rfc: 9110, sections: ["3.5"] }`（正しくは `section`）は受け取られ、
+無視され、全件 427 件が返っていた。全ツールに `additionalProperties: false` を入れ、
+SDK の入力検証で `isError: true` になる。
+
+不変条件: 新しいツールを `definitions.ts` に足すときも `additionalProperties: false` を
+付ける（`definitions.test.ts` が全ツールを見る。E2E の `tools/list` も宣言を見る）。
+
+### prefetch の skip 判定はテキストも見る
+
+`processOne` の skip 判定は `xml/rfcN.xml` の有無だけを見ていた。XML の無い RFC 8649 は
+毎回 rfcEditor と datatracker に 404 を 2 本投げてから `Text loaded from disk cache`
+になり、`fetched` と数えられた。`fetchRFCText` に `forceFresh` が無く `--force` は
+テキストに効かなかった。`--rfc` は `parseInt` で `9110abc` を 9110 として通した。
+
+不変条件: skip 判定は `xml/` と `text/` の両方。`--force` は `fetchRFCXML` /
+`fetchRFCText` の両方に `forceFresh` を渡す。RFC 番号は `parseRFCNumber`
+（`/^\d+$/`）で読む。引数の誤りは exit 1（v0.6.52 までは 2）。`main()` は
+`process.argv[1]` が自分のときだけ走る（テストから `parseRFCNumber` を import する
+ため）。
+
+### ログはすべて stderr
+
+stdio トランスポートでは stdout が JSON-RPC の線である。`logger.debug` だけが
+`console.debug`（stdout）で、`DEBUG=1` で使った途端に線が壊れる状態だった。`logger` の
+4 レベルはすべて `console.error` に書く（`logger.test.ts` が stdout と `console.debug`
+が呼ばれないことを見る）。`HTTP_CONFIG.maxRetries` は未使用のまま置かれていたので
+外した。リトライは無く、並列取得（rfcEditor + datatracker）が唯一の冗長化である。
 
 ### `get_definitions` はテキスト経路では当てにならない
 
@@ -1030,7 +1423,9 @@ RFC 7519 が返していた 21 件は**全件が用語ではなかった**。XML
 2. 段落の途中の行は見ない（空行のあと、または前の行より深い字下げ）。
 3. `X: Y` の形は**地の文の桁（4 桁目まで）に限る**。それより深いものは例示である。
 4. 節の追跡は 1 桁目の見出しだけを見る。字下げした行を数えると、RFC 6455 の
-   フレーム図の目盛り `0 1 2 3` を節 0 として記録していた。
+   フレーム図の目盛り `0 1 2 3` を節 0 として記録していた。付録の見出しは
+   `extractTextSections` と同じ `appendixHeader()` で追う（前述「定義の節追跡は
+   付録も見る」）。
 
 ### 用語欄で最も多いのは「ぶら下げ」の形
 
@@ -1056,6 +1451,22 @@ RFC 7519 §2 の 10 件、RFC 2616 §1.3 の 77 件、RFC 5246 §6.1 が丸ご�
   `MIN_SCORE_FOR_VERDICT` と `MIN_CONTENT_KEYWORDS_FOR_VERDICT`（主語以外の一致語 2 語）の
   両方を満たさなければ `null` を返す。主語だけの一致はスコア 8 に達するが、
   何を論じているかを示していないので判定しない。`true` を準拠の証明として扱わないこと。
+- **判定の根拠は、矛盾の相手の一致でも足りる。** `hasVerdictEvidence` は最上位の
+  一致だけで見ていた。最上位が段落内の一致だけで上に来る（RFC 6455 §5.1 の
+  "In this case, it MAY use the status code 1002" は段落に client / send / frames /
+  server がある）と、`conflicts` に R-5.1-1 を並べながら `isValid: null` になり、
+  注記は「一致が無い」と読めた。`handleValidateStatement()` の `strongEnough(match)`
+  を `conflicts` の相手の一致に当て、1 つでも `MIN_SCORE_FOR_VERDICT` と
+  `MIN_CONTENT_KEYWORDS_FOR_VERDICT` に届けば `false`。届かなければ `null` のまま、
+  `verdictNote()` を「矛盾はあるが判定の閾値に届かない」にする。
+  不変条件: `conflicts` が非空のとき、注記に「一致が無い」と読める文言を出さない。
+  `true` の条件（最上位の根拠 + 矛盾無し + 受動態・限定語の取り下げ無し）は変えない。
+- **主張のレベルは原文どおりの大文字だけ。** `extractRequirementLevel()` は
+  `toUpperCase()` してから照合していたので、"the optional cookie extension" の
+  optional が `OPTIONAL` になり、RFC 8446 §4.2.2 の MUST と「レベルの対」で 8 件の
+  矛盾を出していた。BCP 14 は全大文字のときだけキーワードである（RFC 8174）。
+  小文字のキーワードは `detectedLevel: null`。BCP 14 のキーワードの照合はすべて
+  大文字・小文字を区別する（要件抽出の主語・action と同じ）。
 - `STOP_WORDS` には 3 文字以上の機能語と BCP 14 キーワードを入れる。入れ忘れると
   内容の一致が無い要件でも機能語だけでスコアが積み上がり、順位が内容で決まらなくなる。
 - 語形の違いは `keywordVariants` が吸収する（主張 "masks" と要件 "mask"）。
@@ -1123,6 +1534,29 @@ RFC 7519 §2 の 10 件、RFC 2616 §1.3 の 77 件、RFC 5246 §6.1 が丸ご�
 （`An origin server without a clock MUST NOT …` / `The HEAD method is identical to GET
 except that the server MUST NOT …`）。
 
+#### 選言で結ばれた固有名は「いずれか 1 つ」で足りる
+
+`describesSameAct()` は `identifiersOf(scope)` の名前をすべて主張に求めていた。
+RFC 9110 §8.6 の "MUST NOT send a Content-Length header field in any response with a
+status code of 1xx (Informational) or 204 (No Content)." に対し、204 だけを述べた
+違反は `1xx` が無いので「別の行為」になり、`conflicts` が空のまま `true` だった。
+同型は 6 本で 11 件。
+
+`identifierGroupsOf()` が名前の出現を並べ、`IDENTIFIER_CONNECTOR`（括弧・読点・
+or / and・`a)`・冠詞だけの並び）でつながる連なりを 1 つの並びにする。並びに `or` が
+あれば `anyOf` の群で、群ごとに 1 つを求める（`statementNamesIdentifiers()`）。
+`and` や読点だけの並び・単独の名前は従来どおりすべて要る。
+
+- RFC 9110 §8.6: required `Content-Length`、anyOf `[1xx, 204]`
+- RFC 9110 §9.3.6: required `2xx`, `CONNECT`、anyOf `[Transfer-Encoding, Content-Length]`
+- RFC 9110 §13.1.2: required `304`、anyOf `[GET, HEAD, 412]`（`… GET or HEAD or b)
+  the 412` を 1 つの並びと読む。厳密には 304 と 412 が選言だが、違反の検出には
+  影響しない）
+
+不変条件: connector に動詞・目的語・句点を許さない。群でない名前（`MAX_PUSH_ID`）の
+扱いを変えない。`either A or B` の `either` は見ていない（`or` があれば群になるので
+結果は同じ）。`A or B, and C` のような混在は「並びに or があれば全部が群」になる。
+
 #### 語の重なりは「同じ話題」を示すが「同じ行為」を示さない
 
 矛盾検出の誤りは、ほぼすべてこの一点から出ている。個別の例外を足すのではなく、
@@ -1135,7 +1569,10 @@ except that the server MUST NOT …`）。
 2. 要求アクションに限定語（`arbitrarily` `unless` `except` など）があれば、主張にも
    あることを求める。"close … arbitrarily" が禁じているのは理由なく閉じることである。
 3. 双方に条件節があるなら、内容語が 1 語以上重なることを求める。片方にしか無い場合は
-   判断材料が無いので通す。
+   判断材料が無いので通す。**双方に内容語があるときだけ比べる**（`conditionsDiverge()`
+   / `contentWordsOf()`）。RFC 9110 §10.1.3 の `if any` は `condition: "any"` になり、
+   機能語しか無いので常に「重ならない」になっていた。これが無いと主語 `user agent` を
+   直しても "A user agent includes the fragment component …" は `false` にならなかった。
 
 さらに「主張が禁じられた行為をしている」と言うには、`statementMainVerb()` で取った
 **主張の主動詞**がその行為であることを求める。"The server removes masking …" の主動詞は

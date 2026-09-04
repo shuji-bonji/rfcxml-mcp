@@ -31,6 +31,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      # 実物の RFC を数本取りに行く（rfc-editor.org / datatracker）。1 分程度。
+      # audit / crosscheck / snapshot は取得が多いので audit.yml（週次・手動）に置く。
+      - name: Run E2E tests
+        run: npm run test:e2e
+
       - name: Verify version matches tag
         run: |
           PACKAGE_VERSION=$(node -p "require('./package.json').version")

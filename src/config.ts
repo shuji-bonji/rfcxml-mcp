@@ -23,8 +23,9 @@ export const HTTP_CONFIG = {
   userAgent: `${PACKAGE_INFO.name}/${PACKAGE_INFO.version}`,
   /** Timeout in milliseconds */
   timeout: 30000,
-  /** Maximum retry attempts */
-  maxRetries: 3,
+  // リトライは実装していない（`maxRetries` は v0.6.52 まで未使用のまま置かれていた）。
+  // 一時的な失敗への備えは `fetchFromMultipleSources` の Promise.any による
+  // 並列取得（rfc-editor + datatracker）で代替している。
 } as const;
 
 /**

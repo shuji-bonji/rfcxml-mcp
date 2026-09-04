@@ -346,8 +346,12 @@ export function extractKeywords(text: string): Map<string, number> {
  * Extract requirement level from text
  */
 export function extractRequirementLevel(text: string): RequirementLevel | null {
+  // **原文どおりの大文字だけ**をレベルとみなす。`toUpperCase()` してから照合
+  // していたため、"the optional cookie extension" の optional が `OPTIONAL` に
+  // なり、RFC 8446 §4.2.2 の MUST と「レベルの対」で矛盾していた（8 件）。
+  // BCP 14 は「すべて大文字で書かれたときに限る」と定めている（RFC 8174）。
   const regex = createRequirementRegex();
-  const match = regex.exec(text.toUpperCase());
+  const match = regex.exec(text);
   if (match) {
     return match[1] as RequirementLevel;
   }
@@ -831,6 +835,88 @@ export function identifiersOf(text: string): string[] {
 }
 
 /**
+ * 固有の名前どうしをつなぐ語。前の名前の直後から次の名前の直前まで。
+ *
+ * "1xx (Informational) or 204 (No Content)" / "GET, PUT, or DELETE" /
+ * "Transfer-Encoding or Content-Length" / "a) the 304 … or b) the 412" の形。
+ * 句点・動詞・目的語を挟むものはつながない。
+ */
+const IDENTIFIER_CONNECTOR =
+  /^\s*(?:\([^()]*\)\s*)?,?\s*(?:(?:or|and|nor|and\/or)\s+)?(?:[a-z]\)\s*)?(?:(?:a|an|the)\s+)?$/i;
+
+/**
+ * 固有の名前を「すべて要る」ものと「いずれか 1 つで足りる」群に分ける。
+ *
+ * `describesSameAct` は `identifiersOf` の名前を**すべて**主張に求めていた。
+ * 要件が選言で書かれていると、片方だけを述べた違反を見逃す。RFC 9110 §8.6 の
+ * "A server MUST NOT send a Content-Length header field in any response with a
+ * status code of 1xx (Informational) or 204 (No Content)." に対し、
+ * "A server sends a Content-Length header field in a 204 response." は
+ * `1xx` が無いので「別の行為」になり、`isValid: true` を返していた。
+ * 同型の否定要件は 6 本で 11 件（RFC 9110 §9.3.6 `Transfer-Encoding or
+ * Content-Length`、RFC 9114 §4.1.1 `GET, PUT, or DELETE` など）。
+ *
+ * 名前の出現を並べ、`IDENTIFIER_CONNECTOR` でつながる連なりを 1 つの並びと
+ * みなす。並びのどこかに `or` があればその並びは選言で、いずれか 1 つが
+ * 主張にあればよい。`and` や読点だけの並び、単独の名前は従来どおりすべて要る
+ * （`MAX_PUSH_ID` のような名前は 1 つしか無いので、これまでと変わらない）。
+ */
+export function identifierGroupsOf(text: string): { required: string[]; anyOf: string[][] } {
+  // 引用は落とすが、位置がずれないよう同じ長さの空白にする。
+  const scrubbed = text.replace(/\[[^\]]*\]/g, (citation) => ' '.repeat(citation.length));
+  const identifiers = identifiersOf(scrubbed);
+
+  const occurrences: { name: string; start: number; end: number }[] = [];
+  for (const name of identifiers) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`(?<![A-Za-z0-9_])${escaped}(?![A-Za-z0-9_])`, 'g');
+    for (const match of scrubbed.matchAll(pattern)) {
+      occurrences.push({ name, start: match.index, end: match.index + name.length });
+    }
+  }
+  occurrences.sort((a, b) => a.start - b.start);
+
+  const runs: { names: string[]; disjunctive: boolean }[] = [];
+  let previous: { name: string; start: number; end: number } | null = null;
+  for (const current of occurrences) {
+    const between = previous ? scrubbed.slice(previous.end, current.start) : '';
+    const run = runs[runs.length - 1];
+    if (previous && run && IDENTIFIER_CONNECTOR.test(between)) {
+      run.names.push(current.name);
+      if (/\bor\b/i.test(between)) run.disjunctive = true;
+    } else {
+      runs.push({ names: [current.name], disjunctive: false });
+    }
+    previous = current;
+  }
+
+  const anyOf: string[][] = [];
+  const grouped = new Set<string>();
+  for (const run of runs) {
+    if (run.disjunctive && run.names.length > 1) {
+      const names = [...new Set(run.names)];
+      anyOf.push(names);
+      for (const name of names) grouped.add(name);
+    }
+  }
+
+  return { required: identifiers.filter((name) => !grouped.has(name)), anyOf };
+}
+
+/** 主張が、要件の固有の名前を（選言は 1 つで足りるとして）すべて含むか。 */
+function statementNamesIdentifiers(statementLower: string, scope: string): boolean {
+  const { required, anyOf } = identifierGroupsOf(scope);
+  for (const identifier of required) {
+    if (!statementLower.includes(identifier.toLowerCase())) return false;
+  }
+  for (const group of anyOf) {
+    if (!group.some((identifier) => statementLower.includes(identifier.toLowerCase())))
+      return false;
+  }
+  return true;
+}
+
+/**
  * 禁止や要求を限定している語。
  *
  * RFC 6455 §7.3 の "Clients SHOULD NOT close the WebSocket connection arbitrarily."
@@ -869,16 +955,36 @@ export function conditionOf(text: string): string | null {
   return condition.length > 0 ? condition : null;
 }
 
+/** 内容語（機能語と BCP 14 キーワードを除いた 3 文字以上の語）。 */
+function contentWordsOf(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= MATCHING_LIMITS.MIN_KEYWORD_LENGTH && !STOP_WORDS.has(word));
+}
+
 /** 2 つの文字列に共通する内容語があるか。 */
 function sharesContentWord(a: string, b: string): boolean {
-  const wordsOf = (text: string): string[] =>
-    text
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter((word) => word.length >= MATCHING_LIMITS.MIN_KEYWORD_LENGTH && !STOP_WORDS.has(word));
+  const other = contentWordsOf(b).join(' ');
+  return contentWordsOf(a).some((word) => requirementTextHasKeyword(other, word));
+}
 
-  const other = wordsOf(b).join(' ');
-  return wordsOf(a).some((word) => requirementTextHasKeyword(other, word));
+/**
+ * 双方の条件節に内容語があるときだけ、重なりを求める。
+ *
+ * RFC 9110 §10.1.3 の "MUST NOT include the fragment and userinfo components
+ * of the URI reference [URI], **if any**, when generating the Referer field
+ * value." は、`condition` が "any" になる。内容語が 1 つも無い条件節は
+ * 比べようがなく、求めると当の要件が常に「別の行為」になる。
+ * 片方にしか無いときと同じく、判断材料が無いので通す。
+ */
+function conditionsDiverge(requirementCondition: string | undefined, statement: string): boolean {
+  if (!requirementCondition) return false;
+  const statementCondition = conditionOf(statement);
+  if (!statementCondition) return false;
+  if (contentWordsOf(requirementCondition).length === 0) return false;
+  if (contentWordsOf(statementCondition).length === 0) return false;
+  return !sharesContentWord(requirementCondition, statementCondition);
 }
 
 /**
@@ -898,9 +1004,30 @@ export function statementMainVerb(statement: string, subject: string | null): st
     .filter(Boolean);
 
   const index = words.findIndex((word) => singular(word) === subject);
-  if (index === -1 || index + 1 >= words.length) return null;
+  if (index === -1) return null;
 
-  return words[index + 1];
+  const next = afterCompoundSubject(words, index);
+  if (next >= words.length) return null;
+
+  return words[next];
+}
+
+/**
+ * 複数語の主語の終わり。主語語の次の語を返す。
+ *
+ * `SUBJECT_TERMS` は 1 語ずつ持つので、"user agent" の主語は `user` になる。
+ * その次の語 `agent` を動詞の位置として読むと、`findStatementVerb` は
+ * 限定語でない語に当たって `null` を返し、**矛盾検出が一切動かない**。
+ * RFC 9110 §10.1.3 の Referer の禁止に反する主張が `isValid: true` になっていた
+ * （RFC 9110 で 36 件、RFC 6265 で 62 件中 38 件の要件が主語 `user agent`）。
+ *
+ * 主語語が続いているあいだ（"user agent" "proxy server"）は主語の一部として
+ * 読み飛ばす。"a user sends …" は次の語が主語語ではないので従来どおり。
+ */
+function afterCompoundSubject(words: string[], subjectIndex: number): number {
+  let index = subjectIndex + 1;
+  while (index < words.length && SUBJECT_TERMS.has(singular(words[index]))) index++;
+  return index;
 }
 
 /** 主張が実際にその動詞の行為を述べているか（主動詞で見る）。 */
@@ -930,8 +1057,11 @@ function findStatementVerb(
     .map((word) => word.replace(/[^a-z']/g, ''))
     .filter(Boolean);
 
-  const start = words.findIndex((word) => singular(word) === subject);
-  if (start === -1) return null;
+  const found = words.findIndex((word) => singular(word) === subject);
+  if (found === -1) return null;
+
+  // 複数語の主語（"user agent"）は、最後の主語語のあとから動詞を探す。
+  const start = afterCompoundSubject(words, found) - 1;
 
   const group = VERB_SYNONYMS.find((synonyms) => synonyms.includes(verb)) ?? [verb];
   const limit = Math.min(words.length, start + 1 + SUBJECT_TO_VERB_GAP);
@@ -967,6 +1097,13 @@ function findStatementVerb(
 const SUBJECT_QUALIFIER_WORDS = new Set([
   'with',
   'without',
+  // `findQualifierOnlyViolation` の `saysTheSame` が拾う言い換え。ここに無いと
+  // "An origin server lacking a clock generates …" で動詞に届かず、
+  // `isValid: true` になっていた（"that lacks a clock" は `that` で届く）。
+  'lacking',
+  'lacks',
+  'lack',
+  'missing',
   'that',
   'which',
   'who',
@@ -1027,9 +1164,8 @@ export function describesSameAct(
   //   "The **HEAD** method is identical to GET except that the server MUST NOT send content …"
   const scope = `${requirement.text} ${action}`;
 
-  for (const identifier of identifiersOf(scope)) {
-    if (!lower.includes(identifier.toLowerCase())) return false;
-  }
+  // 選言（"1xx … or 204"）の名前は、いずれか 1 つが主張にあればよい。
+  if (!statementNamesIdentifiers(lower, scope)) return false;
 
   if (!options.ignoreQualifiers) {
     for (const qualifier of qualifiersOf(scope)) {
@@ -1037,10 +1173,7 @@ export function describesSameAct(
     }
   }
 
-  const statementCondition = conditionOf(statement);
-  if (requirement.condition && statementCondition) {
-    if (!sharesContentWord(requirement.condition, statementCondition)) return false;
-  }
+  if (conditionsDiverge(requirement.condition, statement)) return false;
 
   return true;
 }
@@ -1088,13 +1221,27 @@ const VERB_SYNONYMS: string[][] = [
  * 否定を含む主張は、禁止に従っていることを述べている見込みが高いので、
  * 「禁止された行為をしている」検査の対象から外す。
  */
-/** 動詞に否定が付いているか。直前の 2 語だけを見る。 */
+/** 動詞に否定が付いているか。直前の 2 語と、直後の 2 語を見る。 */
 const NEGATION_WORD = /^(?:not|never|cannot|without|refrain|neither|nor|no)$|n't$/;
+
+/**
+ * 動詞の後ろに置かれる否定。"sends **no** content" / "sends **nothing**" /
+ * "masks **none** of the frames"。
+ *
+ * 動詞の前しか見ていなかったため、RFC 9110 §9.3.8 の "A client MUST NOT send
+ * content in a TRACE request." に対する "The client sends no content in a TRACE
+ * request." が「禁じられた行為をしている」になり、`isValid: false` を返していた。
+ * 準拠を述べている文である。
+ */
+const NEGATION_AFTER_VERB = /^(?:no|nothing|none|neither)$/;
 
 function isNegatedVerb(words: string[], verbIndex: number): boolean {
   for (let offset = 1; offset <= 2; offset++) {
-    const word = words[verbIndex - offset];
-    if (word && NEGATION_WORD.test(word)) return true;
+    const before = words[verbIndex - offset];
+    if (before && NEGATION_WORD.test(before)) return true;
+
+    const after = words[verbIndex + offset];
+    if (after && NEGATION_AFTER_VERB.test(after)) return true;
   }
   return false;
 }
@@ -1221,14 +1368,9 @@ function sameActForWithdrawal(
 ): boolean {
   const scope = `${requirement.text} ${action}`;
 
-  for (const identifier of identifiersOf(scope)) {
-    if (!statementLower.includes(identifier.toLowerCase())) return false;
-  }
+  if (!statementNamesIdentifiers(statementLower, scope)) return false;
 
-  const statementCondition = conditionOf(statementLower);
-  if (requirement.condition && statementCondition) {
-    if (!sharesContentWord(requirement.condition, statementCondition)) return false;
-  }
+  if (conditionsDiverge(requirement.condition, statementLower)) return false;
 
   return true;
 }
@@ -1528,9 +1670,13 @@ export function detectConflicts(
         // 禁じられているのはこの動詞であること（付随的な言及ではない）
         if (!forbiddenHeadVerb || !forbiddenHeadVerb.startsWith(pair.positive)) continue;
 
+        // 動詞の後ろの否定（"sends no content"）は `hasPositiveAction` の
+        // 否定形一覧（"not send"）に無い。動詞の位置で否定を見る。
+        const performed = hasPositiveAction(statementLower, pair)
+          ? findStatementVerb(statementLower, statementSubject, pair.positive)
+          : null;
         const statementDoesPositive =
-          hasPositiveAction(statementLower, pair) &&
-          statementPerformsVerb(statementLower, statementSubject, pair.positive);
+          performed !== null && !isNegatedVerb(performed.words, performed.index);
 
         // 一般的な動詞では、動詞が一致しただけの当たりを落とす（例: "MUST NOT send
         // back a |Sec-WebSocket-Protocol| header field" と「マスクなしのフレームを送る」）

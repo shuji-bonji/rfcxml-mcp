@@ -66,6 +66,35 @@ describe('extractCrossReferences', () => {
     expect(refs.filter((r) => r.type === 'external').map((r) => r.section)).toEqual(['11.2']);
   });
 
+  it('"Sections 4.1 and 4.2" を列挙として 2 件拾う', () => {
+    // `[Ss]ection\s+` は複数形に当たらず、RFC 9110 の .txt にある 4 か所の
+    // `Sections A and B` が 1 件も拾えていなかった。
+    const refs = extractCrossReferences('as described in Sections 4.1 and 4.2 of this document');
+
+    expect(refs.map((r) => r.section)).toEqual(['4.1', '4.2']);
+    expect(refs.every((r) => r.type === 'section')).toBe(true);
+  });
+
+  it('"Sections 4.1, 4.2, and 4.3" の読点の列挙も拾う', () => {
+    const refs = extractCrossReferences('see Sections 4.1, 4.2, and 4.3.');
+
+    expect(refs.map((r) => r.section)).toEqual(['4.1', '4.2', '4.3']);
+  });
+
+  it('読点のあとの数量は節番号にしない', () => {
+    // "Section 3, 2 octets long" の 2 は節ではない
+    const refs = extractCrossReferences('see Section 3, 2 octets long.');
+
+    expect(refs.map((r) => r.section)).toEqual(['3']);
+  });
+
+  it('"Sections 4.1 and 4.2 of [RFC9110]" は external のまま', () => {
+    const refs = extractCrossReferences('as defined in Sections 4.1 and 4.2 of [RFC9110].');
+
+    expect(refs.filter((r) => r.type === 'section')).toHaveLength(0);
+    expect(refs.filter((r) => r.type === 'external').map((r) => r.section)).toEqual(['4.1', '4.2']);
+  });
+
   it('RFC 番号を rfc として拾う', () => {
     const refs = extractCrossReferences('This updates RFC 1122 and RFC 793.');
 

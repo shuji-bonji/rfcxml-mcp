@@ -9,8 +9,7 @@ args: {"rfc":793}
     "title": "TRANSMISSION CONTROL PROTOCOL",
     "number": 793,
     "date": "1981-09",
-    "category": "std",
-    "stream": "IETF"
+    "category": "std"
   },
   "sections": [
     {

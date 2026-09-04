@@ -15,6 +15,9 @@ import {
   isSubjectTerm,
   findUndecidablePassiveProhibition,
   findQualifierOnlyViolation,
+  identifierGroupsOf,
+  statementPerformsVerb,
+  statementMainVerb,
 } from './statement-matcher.js';
 import type { Requirement } from '../types/index.js';
 
@@ -109,8 +112,13 @@ describe('extractRequirementLevel', () => {
     expect(extractRequirementLevel('The client sends a request')).toBe(null);
   });
 
-  it('should be case insensitive', () => {
-    expect(extractRequirementLevel('the client must send')).toBe('MUST');
+  it('小文字のキーワードはレベルではない（Issue #6-2）', () => {
+    // `toUpperCase()` してから照合していたため、"the optional cookie extension"
+    // の optional が OPTIONAL になり、MUST と「レベルの対」で矛盾していた。
+    // BCP 14 は全大文字のときだけキーワードである（RFC 8174）。
+    expect(extractRequirementLevel('the client must send')).toBe(null);
+    expect(extractRequirementLevel('The client echoes the optional cookie extension.')).toBe(null);
+    expect(extractRequirementLevel('クライアントは Date ヘッダを送る。')).toBe(null);
   });
 });
 
@@ -1191,5 +1199,201 @@ describe('一致した語を、要件文と段落で分けること', () => {
     );
 
     expect(withContext.score).toBeGreaterThan(withoutContext.score);
+  });
+});
+
+describe('複数語の主語 user agent（Issue #4）', () => {
+  // `SUBJECT_TERMS` の 1 語 `user` が主語になり、次の語 `agent` を動詞の位置と
+  // 読んで `findStatementVerb` が null を返していた。矛盾検出が一切動かず、
+  // RFC 9110 §10.1.3 の Referer の禁止に反する主張が `isValid: true` だった。
+  const referer: Requirement = {
+    id: 'R-10.1.3-5',
+    level: 'MUST NOT',
+    section: '10.1.3',
+    sectionTitle: 'Referer',
+    text: 'A user agent MUST NOT send a Referer header field in an unsecured HTTP request if the referring resource was accessed with a secure protocol.',
+    fullContext: '',
+    subject: 'user agent',
+    action:
+      'send a Referer header field in an unsecured HTTP request if the referring resource was accessed with a secure protocol',
+  };
+  const fragment: Requirement = {
+    id: 'R-10.1.3-1',
+    level: 'MUST NOT',
+    section: '10.1.3',
+    sectionTitle: 'Referer',
+    text: 'A user agent MUST NOT include the fragment and userinfo components of the URI reference [URI], if any, when generating the Referer field value.',
+    fullContext: '',
+    subject: 'user agent',
+    condition: 'any',
+    action: 'include the fragment and userinfo components of the URI reference [URI]',
+  };
+
+  it('主語語が続くあいだは主語として読み飛ばす', () => {
+    expect(statementMainVerb('A user agent sends a Referer header field.', 'user')).toBe('sends');
+    expect(
+      statementPerformsVerb('a user agent sends a referer header field.', 'user', 'send')
+    ).toBe(true);
+  });
+
+  it('user agent の主張で禁止違反を検出する', () => {
+    const sent = matchStatement(
+      'A user agent sends a Referer header field in an unsecured HTTP request if the referring resource was accessed with a secure protocol.',
+      [referer]
+    );
+    expect(sent.conflicts.map((c) => c.requirement.id)).toEqual(['R-10.1.3-5']);
+  });
+
+  it('内容語の無い条件節（"if any"）は比べない', () => {
+    // `condition` が "any" になる要件は、主張の条件節と内容語が重ならず、
+    // 常に「別の行為」になっていた。
+    const included = matchStatement(
+      'A user agent includes the fragment component of the URI reference when generating the Referer field value.',
+      [fragment]
+    );
+    expect(included.conflicts.map((c) => c.requirement.id)).toEqual(['R-10.1.3-1']);
+  });
+
+  it('1 語の主語 "a user sends" は引き続き検出される', () => {
+    const sent = matchStatement(
+      'A user sends a Referer header field in an unsecured HTTP request if the referring resource was accessed with a secure protocol.',
+      [referer]
+    );
+    expect(sent.conflicts).toHaveLength(1);
+  });
+});
+
+describe('選言の固有名（Issue #5）', () => {
+  const contentLength: Requirement = {
+    id: 'R-8.6-7',
+    level: 'MUST NOT',
+    section: '8.6',
+    sectionTitle: 'Content-Length',
+    text: 'A server MUST NOT send a Content-Length header field in any response with a status code of 1xx (Informational) or 204 (No Content).',
+    fullContext: '',
+    subject: 'server',
+    action:
+      'send a Content-Length header field in any response with a status code of 1xx (Informational) or 204 (No Content)',
+  };
+
+  it('or で結ばれた名前は 1 つの群になる', () => {
+    expect(identifierGroupsOf(contentLength.text)).toEqual({
+      required: ['Content-Length', 'Length'],
+      anyOf: [['1xx', '204']],
+    });
+    expect(identifierGroupsOf('Only idempotent actions such as GET, PUT, or DELETE')).toEqual({
+      required: [],
+      anyOf: [['GET', 'PUT', 'DELETE']],
+    });
+    expect(
+      identifierGroupsOf('MUST NOT send any Transfer-Encoding or Content-Length header fields')
+        .anyOf[0]
+    ).toContain('Transfer-Encoding');
+  });
+
+  it('群でない名前は従来どおりすべて要る', () => {
+    expect(identifierGroupsOf('send a MAX_PUSH_ID frame')).toEqual({
+      required: ['MAX_PUSH_ID'],
+      anyOf: [],
+    });
+    expect(identifierGroupsOf('send a PUSH_PROMISE frame and a CANCEL_PUSH frame')).toEqual({
+      required: ['PUSH_PROMISE', 'CANCEL_PUSH'],
+      anyOf: [],
+    });
+    // 文をまたいだ名前はつながない
+    expect(identifierGroupsOf('Send a 204. Or send a 1xx.').anyOf).toEqual([]);
+  });
+
+  it('片方だけを述べた主張を違反として挙げる', () => {
+    for (const statement of [
+      'A server sends a Content-Length header field in a 204 (No Content) response.',
+      'A server sends a Content-Length header field in a 1xx response.',
+      'A server sends a Content-Length header field in a 204 response and in a 1xx response.',
+    ]) {
+      const result = matchStatement(statement, [contentLength]);
+      expect(
+        result.conflicts.map((c) => c.requirement.id),
+        statement
+      ).toEqual(['R-8.6-7']);
+    }
+  });
+
+  it('どちらの名前も無い主張は別の行為', () => {
+    const result = matchStatement(
+      'A server sends a Content-Length header field in a 200 response.',
+      [contentLength]
+    );
+    expect(result.conflicts).toEqual([]);
+  });
+});
+
+describe('動詞の後ろの否定（Issue #6-1）', () => {
+  const trace: Requirement = {
+    id: 'R-9.3.8-4',
+    level: 'MUST NOT',
+    section: '9.3.8',
+    sectionTitle: 'TRACE',
+    text: 'A client MUST NOT send content in a TRACE request.',
+    fullContext: '',
+    subject: 'client',
+    action: 'send content in a TRACE request',
+  };
+  const mask: Requirement = {
+    id: 'R-5.1-4',
+    level: 'MUST NOT',
+    section: '5.1',
+    sectionTitle: 'Overview',
+    text: 'A server MUST NOT mask any frames that it sends to the client.',
+    fullContext: '',
+    subject: 'server',
+    action: 'mask any frames that it sends to the client',
+  };
+
+  it('sends no / sends nothing / masks none は準拠の記述', () => {
+    expect(
+      matchStatement('The client sends no content in a TRACE request.', [trace]).conflicts
+    ).toEqual([]);
+    expect(
+      matchStatement('A client sends nothing in the content of a TRACE request.', [trace]).conflicts
+    ).toEqual([]);
+    expect(
+      matchStatement('The server masks none of the frames that it sends to the client.', [mask])
+        .conflicts
+    ).toEqual([]);
+  });
+
+  it('否定の無い主張は引き続き違反', () => {
+    expect(
+      matchStatement('The client sends content in a TRACE request.', [trace]).conflicts
+    ).toHaveLength(1);
+    expect(
+      matchStatement('The server masks the frames that it sends to the client.', [mask]).conflicts
+    ).toHaveLength(1);
+  });
+});
+
+describe('主語直後の lacking（Issue #6-3）', () => {
+  const prohibition: Requirement = {
+    id: 'R-6.6.1-4',
+    level: 'MUST NOT',
+    section: '6.6.1',
+    sectionTitle: 'Date',
+    text: 'An origin server without a clock MUST NOT generate a Date header field.',
+    fullContext: '',
+    subject: 'origin server',
+    action: 'generate a Date header field',
+  };
+
+  it('lacking a clock を without の言い換えとして拾う', () => {
+    for (const statement of [
+      'An origin server lacking a clock generates a Date header field.',
+      'An origin server that lacks a clock generates a Date header field.',
+      'An origin server missing a clock generates a Date header field.',
+    ]) {
+      const matches = matchStatement(statement, [prohibition]).matches;
+      expect(findQualifierOnlyViolation(statement, matches)?.requirement.id, statement).toBe(
+        'R-6.6.1-4'
+      );
+    }
   });
 });

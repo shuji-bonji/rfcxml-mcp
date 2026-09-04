@@ -4,7 +4,7 @@
  */
 
 import type { Author, RFCMetadata, ReferencedByEntry } from '../types/index.js';
-import { LRUCache } from '../utils/cache.js';
+import { InFlightMap, LRUCache } from '../utils/cache.js';
 import { DiskCache } from '../utils/disk-cache.js';
 import { fetchFromMultipleSources } from '../utils/fetch.js';
 import { logger } from '../utils/logger.js';
@@ -21,6 +21,12 @@ import {
 const xmlCache = new LRUCache<number, string>(CACHE_CONFIG.xml);
 const textCache = new LRUCache<number, string>(CACHE_CONFIG.text);
 const metadataCache = new LRUCache<number, RFCMetadata>(CACHE_CONFIG.metadata);
+
+// 同じ RFC への同時呼び出しを 1 本にまとめる（Issue #15）。結果が入るまでの
+// あいだ LRU は空なので、これが無いと呼び出しの数だけ取りに行く。
+const xmlInFlight = new InFlightMap<number, string>();
+const textInFlight = new InFlightMap<number, string>();
+const metadataInFlight = new InFlightMap<string, RFCMetadata>();
 
 /**
  * Disk-backed XML cache (Phase 3). Lazily initialized so tests / the prefetch
@@ -98,10 +104,15 @@ export async function fetchRFCXML(
   rfcNumber: number,
   options: FetchRFCXMLOptions = {}
 ): Promise<string> {
-  if (!options.forceFresh) {
-    const cached = xmlCache.get(rfcNumber);
-    if (cached) return cached;
+  if (options.forceFresh) {
+    // 取り直しはキャッシュもまとめ合わせも通さない（prefetch の --force）。
+    return fetchRFCXMLFromNetwork(rfcNumber);
+  }
 
+  const cached = xmlCache.get(rfcNumber);
+  if (cached) return cached;
+
+  return xmlInFlight.share(rfcNumber, async () => {
     const disk = getDiskCache();
     if (disk) {
       const fromDisk = await disk.get(rfcNumber);
@@ -111,8 +122,15 @@ export async function fetchRFCXML(
         return fromDisk;
       }
     }
-  }
 
+    return fetchRFCXMLFromNetwork(rfcNumber);
+  });
+}
+
+/**
+ * RFCXML をネットワークから取り、両方のキャッシュに入れる。
+ */
+async function fetchRFCXMLFromNetwork(rfcNumber: number): Promise<string> {
   // Build source list
   const sources = Object.entries(RFC_XML_SOURCES).map(([name, urlFn]) => ({
     name,
@@ -175,26 +193,35 @@ export async function fetchRFCMetadata(
     return cached;
   }
 
+  // 著者の有無で求めるものが違うので、鍵に含める。
+  const key = `${rfcNumber}:${options.includeAuthors ? 'authors' : 'core'}`;
+  return metadataInFlight.share(key, () => fetchRFCMetadataUncached(rfcNumber, options));
+}
+
+async function fetchRFCMetadataUncached(
+  rfcNumber: number,
+  options: FetchRFCMetadataOptions
+): Promise<RFCMetadata> {
   const [coreResult, authorsResult] = await Promise.allSettled([
     fetchDocumentCore(rfcNumber),
     options.includeAuthors ? fetchAuthors(rfcNumber) : Promise.resolve([] as Author[]),
   ]);
 
-  // Core fetch failed -> fallback to minimal metadata (preserve previous behavior)
+  // Datatracker に届かなかった。category / stream は**付けない**。
+  // v0.6.52 までは 'info' / 'IETF' を既定値にしていたため、RFC 9112
+  // （Proposed Standard）が API 不達のときに info として返り、取れなかった
+  // ことが応答のどこにも出なかった。理由は `datatrackerError` に載せ、
+  // `get_rfc_structure` が `_sourceNote` に書く。キャッシュには入れない。
   if (coreResult.status === 'rejected') {
-    logger.warn(
-      `RFC ${rfcNumber}`,
-      `Metadata fetch failed: ${
-        coreResult.reason instanceof Error ? coreResult.reason.message : String(coreResult.reason)
-      }`
-    );
+    const reason =
+      coreResult.reason instanceof Error ? coreResult.reason.message : String(coreResult.reason);
+    logger.warn(`RFC ${rfcNumber}`, `Metadata fetch failed: ${reason}`);
     return {
       number: rfcNumber,
       title: `RFC ${rfcNumber}`,
       authors: authorsResult.status === 'fulfilled' ? authorsResult.value : [],
       datatrackerUpdated: '',
-      category: 'info',
-      stream: 'IETF',
+      datatrackerError: reason,
     };
   }
 
@@ -210,6 +237,8 @@ export async function fetchRFCMetadata(
     stream: mapStream(core.stream ?? null),
     abstract: core.abstract || undefined,
   };
+  if (metadata.category === undefined) delete metadata.category;
+  if (metadata.stream === undefined) delete metadata.stream;
 
   metadataCache.set(rfcNumber, metadata);
   return metadata;
@@ -237,26 +266,53 @@ async function fetchDocumentCore(rfcNumber: number): Promise<DataTrackerDocument
 }
 
 /**
+ * Options for {@link fetchRFCText}. Same meaning as {@link FetchRFCXMLOptions}.
+ */
+export interface FetchRFCTextOptions {
+  /**
+   * When true, bypass the in-memory LRU cache and the disk cache and force a
+   * fresh network fetch. `rfcxml-prefetch --force` uses this; v0.6.52 まで
+   * テキストにはこの選択肢が無く、`--force` でもディスクから返っていた（Issue #17）。
+   */
+  forceFresh?: boolean;
+}
+
+/**
  * Fetch RFC text (parallel fetch)
  * Sends concurrent requests to multiple sources and returns the first successful response
  */
-export async function fetchRFCText(rfcNumber: number): Promise<string> {
-  // Check cache
+export async function fetchRFCText(
+  rfcNumber: number,
+  options: FetchRFCTextOptions = {}
+): Promise<string> {
+  if (options.forceFresh) {
+    return fetchRFCTextFromNetwork(rfcNumber);
+  }
+
   const cached = textCache.get(rfcNumber);
   if (cached) {
     return cached;
   }
 
-  const disk = getTextDiskCache();
-  if (disk) {
-    const fromDisk = await disk.get(rfcNumber);
-    if (fromDisk) {
-      textCache.set(rfcNumber, fromDisk);
-      logger.info(`RFC ${rfcNumber}`, `Text loaded from disk cache (${disk.dir})`);
-      return fromDisk;
+  return textInFlight.share(rfcNumber, async () => {
+    const disk = getTextDiskCache();
+    if (disk) {
+      const fromDisk = await disk.get(rfcNumber);
+      if (fromDisk) {
+        textCache.set(rfcNumber, fromDisk);
+        logger.info(`RFC ${rfcNumber}`, `Text loaded from disk cache (${disk.dir})`);
+        return fromDisk;
+      }
     }
-  }
 
+    return fetchRFCTextFromNetwork(rfcNumber);
+  });
+}
+
+/**
+ * テキストをネットワークから取り、両方のキャッシュに入れる。
+ */
+async function fetchRFCTextFromNetwork(rfcNumber: number): Promise<string> {
   // Build source list
   const sources = Object.entries(RFC_TEXT_SOURCES).map(([name, urlFn]) => ({
     name,
@@ -271,6 +327,7 @@ export async function fetchRFCText(rfcNumber: number): Promise<string> {
     });
 
     textCache.set(rfcNumber, text);
+    const disk = getTextDiskCache();
     if (disk) await disk.set(rfcNumber, text);
     logger.info(`RFC ${rfcNumber}`, `Text fetched from ${source}`);
     return text;
@@ -600,6 +657,13 @@ export function isRFCXMLAvailable(rfcNumber: number): boolean {
 export class RFCXMLNotAvailableError extends Error {
   public readonly rfcNumber: number;
   public readonly isOldRFC: boolean;
+  /**
+   * すべての取得元が 404 だったか（Issue #20）。
+   * `true` なら「その番号の XML は公開されていない」。`false` なら 5xx・
+   * タイムアウト・DNS など一時的な失敗を含むので、`getParsedRFC` は番号を
+   * 問わずテキストを試す。
+   */
+  public readonly notFound: boolean;
   public readonly suggestion: string;
 
   constructor(rfcNumber: number, originalErrors: string[] = []) {
@@ -608,8 +672,11 @@ export class RFCXMLNotAvailableError extends Error {
 
     // すべての取得元が 404 を返したなら、その番号の RFC は公開されていない。
     // 「Check network connection」と案内すると、利用者は無いものを探しに行く。
-    const allNotFound =
-      originalErrors.length > 0 && originalErrors.every((error) => /\b404\b/.test(error));
+    // `fetchFromMultipleSources` は取得元ごとの失敗を `;` で連ねて 1 本の文にする
+    // （`All sources failed: [rfcEditor] HTTP 503; [datatracker] HTTP 404`）ので、
+    // 取得元ごとに分けてから見る。
+    const perSource = originalErrors.flatMap((error) => error.split(/;\s*/));
+    const allNotFound = perSource.length > 0 && perSource.every((error) => /\b404\b/.test(error));
 
     const reason = allNotFound
       ? 'No RFC with that number is published'
@@ -634,6 +701,7 @@ export class RFCXMLNotAvailableError extends Error {
     this.name = 'RFCXMLNotAvailableError';
     this.rfcNumber = rfcNumber;
     this.isOldRFC = isOldRFC;
+    this.notFound = allNotFound;
     this.suggestion = suggestion;
   }
 }
@@ -648,6 +716,9 @@ export function clearCache(): void {
   metadataCache.clear();
   authorsCache.clear();
   personCache.clear();
+  xmlInFlight.clear();
+  textInFlight.clear();
+  metadataInFlight.clear();
 }
 
 // Helper functions
@@ -660,8 +731,11 @@ export function clearCache(): void {
  * the API actually returns today, so the original string-comparison logic was
  * silently falling through to `'info'` for every RFC. We extract the trailing
  * slug when given a URI and normalize.
+ *
+ * 対応表に無い値（RFC 1 の `unkn`）は `undefined` を返す。`'info'` に落とすと、
+ * Datatracker が「不明」と言っているものを Informational として返すことになる。
  */
-function mapCategory(stdLevel: string | null | undefined): RFCMetadata['category'] {
+function mapCategory(stdLevel: string | null | undefined): RFCMetadata['category'] | undefined {
   const slug = (extractTrailingSlug(stdLevel) ?? stdLevel ?? '').toLowerCase();
   switch (slug) {
     case 'std': // Internet Standard
@@ -680,16 +754,20 @@ function mapCategory(stdLevel: string | null | undefined): RFCMetadata['category
     case 'hist':
     case 'historic':
       return 'historic';
-    default:
+    case 'inf':
+    case 'informational':
       return 'info';
+    default:
+      return undefined;
   }
 }
 
 /**
  * Map a Datatracker `stream` value to the RFCMetadata stream.
  * See {@link mapCategory} for why URI-form normalization is required.
+ * 対応表に無い値（RFC 1 の `legacy`）は `undefined` を返す。
  */
-function mapStream(stream: string | null | undefined): RFCMetadata['stream'] {
+function mapStream(stream: string | null | undefined): RFCMetadata['stream'] | undefined {
   const slug = (extractTrailingSlug(stream) ?? stream ?? '').toLowerCase();
   switch (slug) {
     case 'ietf':
@@ -704,6 +782,6 @@ function mapStream(stream: string | null | undefined): RFCMetadata['stream'] {
     case 'editorial':
       return 'editorial';
     default:
-      return 'IETF';
+      return undefined;
   }
 }

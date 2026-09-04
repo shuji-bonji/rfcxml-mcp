@@ -1162,3 +1162,213 @@ describe('iref から定義を取るとき、定義している段落を採る�
     expect(definition?.definition).toContain('requests a remote, application-level loop-back');
   });
 });
+
+describe('dl / aside / blockquote / figure / table の中身を content block にすること', () => {
+  const xml = `<?xml version="1.0"?>
+<rfc number="9113">
+  <middle>
+    <section anchor="FrameHeader" pn="section-4.1">
+      <name>Frame Format</name>
+      <t pn="section-4.1-1">All frames begin with a fixed 9-octet header.</t>
+      <figure anchor="FrameLayout" pn="figure-1">
+        <name>Frame Layout</name>
+        <artwork type="inline" pn="section-4.1-2.1">
+HTTP Frame {
+  Length (24),
+  Type (8),
+}
+</artwork>
+      </figure>
+      <t pn="section-4.1-3">The fields of the frame header are defined as:</t>
+      <dl pn="section-4.1-4">
+        <dt pn="section-4.1-4.1">Length:</dt>
+        <dd pn="section-4.1-4.2">
+          <t pn="section-4.1-4.2.1">The length of the frame payload. Values greater than 2^14 <bcp14>MUST NOT</bcp14> be sent unless the receiver has set a larger value.</t>
+          <t pn="section-4.1-4.2.2">The 9 octets of the frame header are not included in this value.</t>
+        </dd>
+        <dt pn="section-4.1-4.3">Flags:</dt>
+        <dd pn="section-4.1-4.4">
+          <t pn="section-4.1-4.4.1">Unused flags <bcp14>MUST</bcp14> be ignored on receipt and <bcp14>MUST</bcp14> be left unset (0x00) when sending.</t>
+        </dd>
+        <dt pn="section-4.1-4.5">$Forwarded</dt>
+        <dd pn="section-4.1-4.6">Message has been forwarded. Once set, the flag <bcp14>SHOULD NOT</bcp14> be cleared.</dd>
+      </dl>
+      <t pn="section-4.1-5">The structure of the frame payload depends on the frame type.</t>
+    </section>
+    <section anchor="quoted" pn="section-5">
+      <name>Quoted</name>
+      <t pn="section-5-1">Body.</t>
+      <aside pn="section-5-2">
+        <t pn="section-5-2.1"><strong>Note:</strong> A user agent <bcp14>MAY</bcp14> change the request method from POST to GET.</t>
+      </aside>
+      <blockquote pn="section-5-3">
+        <t pn="section-5-3.1">An incoming SYN with an invalid source address <bcp14>MUST</bcp14> be ignored.</t>
+      </blockquote>
+      <blockquote pn="section-5-4">Any TLS cipher suite specified for use with DTLS <bcp14>MUST</bcp14> define limits on the use of the AEAD function.</blockquote>
+    </section>
+    <section anchor="tables" pn="section-6">
+      <name>Tables</name>
+      <t pn="section-6-1">The requirements are summarized as follows:</t>
+      <table pn="table-1">
+        <name>Summary</name>
+        <thead>
+          <tr><th>Feature</th><th>ReqID</th><th><bcp14>MUST</bcp14></th><th><bcp14>MAY</bcp14></th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Treat as unsigned number</td><td>MUST-1</td><td>X</td><td></td></tr>
+          <tr><td>Padding</td><td>Padding octets <bcp14>MUST</bcp14> be set to zero when sending.</td><td>X</td><td></td></tr>
+        </tbody>
+      </table>
+      <t pn="section-6-2">After the table.</t>
+    </section>
+    <section anchor="svg" pn="section-7">
+      <name>Artset</name>
+      <figure pn="figure-2">
+        <artset pn="section-7-1.1">
+          <artwork type="svg" pn="section-7-1.1.1"><svg xmlns="http://www.w3.org/2000/svg"><text>svg text</text></svg></artwork>
+          <artwork type="ascii-art" pn="section-7-1.1.2">+---+
+| A |
++---+</artwork>
+        </artset>
+      </figure>
+    </section>
+  </middle>
+</rfc>`;
+
+  const parsed = parseRFCXML(xml);
+  const sectionOf = (anchor: string) => parsed.sections.find((s) => s.anchor === anchor)!;
+  const requirementsOf = (section: string) =>
+    extractRequirements(parsed.sections, { section }).map((r) => r.text);
+
+  it('dd の中の t から要件が出る（RFC 9113 §4.1）', () => {
+    const texts = requirementsOf('4.1');
+
+    expect(texts).toContain(
+      'Values greater than 2^14 MUST NOT be sent unless the receiver has set a larger value.'
+    );
+    expect(texts).toContain(
+      'Unused flags MUST be ignored on receipt and MUST be left unset (0x00) when sending.'
+    );
+  });
+
+  it('dd の直下のテキストからも要件が出る（RFC 9051 §2.3.2）', () => {
+    expect(requirementsOf('4.1')).toContain('Once set, the flag SHOULD NOT be cleared.');
+  });
+
+  it('dt の用語を要件文に混ぜない', () => {
+    for (const text of requirementsOf('4.1')) {
+      expect(text).not.toMatch(/^(Length:|Flags:|\$Forwarded)/);
+    }
+  });
+
+  it('同じ要件を 2 か所から出さない', () => {
+    const texts = requirementsOf('4.1');
+
+    expect(new Set(texts).size).toBe(texts.length);
+    // 6 個の目印のうち、1 文に同じレベルが 2 回あるものは 1 件に畳まれる。
+    expect(texts).toHaveLength(3);
+  });
+
+  it('コロンで終わる段落は、続く dd を取り込まない', () => {
+    const texts = requirementsOf('4.1');
+
+    expect(texts.some((t) => t.startsWith('The fields of the frame header'))).toBe(false);
+  });
+
+  it('dd の段落は pn の順に、前後の t の間に並ぶ', () => {
+    const texts = sectionOf('FrameHeader')
+      .content.filter((b) => b.type === 'text')
+      .map((b) => (b as { content: string }).content.slice(0, 20));
+
+    expect(texts).toEqual([
+      'All frames begin wit',
+      'The fields of the fr',
+      'The length of the fr',
+      'The 9 octets of the ',
+      'Unused flags MUST be',
+      'Message has been for',
+      'The structure of the',
+    ]);
+  });
+
+  it('figure の中の artwork が空白を保ったまま content に入る', () => {
+    const artwork = sectionOf('FrameHeader').content.find((b) => b.type === 'artwork');
+
+    expect(artwork).toBeDefined();
+    expect((artwork as { content: string }).content).toContain('  Length (24),\n');
+  });
+
+  it('artset は svg でない artwork を採る', () => {
+    const blocks = sectionOf('svg').content;
+
+    expect(blocks).toHaveLength(1);
+    expect((blocks[0] as { content: string }).content).toContain('| A |');
+    expect((blocks[0] as { content: string }).content).not.toContain('svg text');
+  });
+
+  it('aside / blockquote の中の t と、blockquote の直下のテキストから要件が出る', () => {
+    const texts = requirementsOf('5');
+
+    expect(texts).toContain('*Note:* A user agent MAY change the request method from POST to GET.');
+    expect(texts).toContain('An incoming SYN with an invalid source address MUST be ignored.');
+    expect(texts).toContain(
+      'Any TLS cipher suite specified for use with DTLS MUST define limits on the use of the AEAD function.'
+    );
+  });
+
+  it('table は見出しと行を持つ block になる', () => {
+    const table = sectionOf('tables').content.find((b) => b.type === 'table');
+
+    expect(table).toMatchObject({
+      headers: ['Feature', 'ReqID', 'MUST', 'MAY'],
+      rows: [
+        ['Treat as unsigned number', 'MUST-1', 'X', ''],
+        ['Padding', 'Padding octets MUST be set to zero when sending.', 'X', ''],
+      ],
+    });
+  });
+
+  it('table は直前の段落の直後に並び、コロンで終わる段落に取り込まれない', () => {
+    const types = sectionOf('tables').content.map((b) => b.type);
+
+    expect(types).toEqual(['text', 'table', 'text']);
+    expect(requirementsOf('6').some((t) => t.includes('summarized as follows: '))).toBe(false);
+  });
+
+  it('table の行は 1 行ずつ要件になり、見出しの行と要求 ID ラベルだけの行は要件にしない', () => {
+    const requirements = extractRequirements(parsed.sections, { section: '6' });
+
+    expect(requirements.map((r) => r.text)).toEqual([
+      'Padding | Padding octets MUST be set to zero when sending. | X |',
+    ]);
+    expect(requirements[0].fullContext).toBe(
+      'Feature | ReqID | MUST | MAY\nPadding | Padding octets MUST be set to zero when sending. | X |'
+    );
+    expect(requirements[0].subject).toBeUndefined();
+  });
+
+  it('dl の定義はこれまでどおり取れる', () => {
+    const definition = parsed.definitions.find((d) => d.term === 'Length');
+
+    expect(definition?.definition).toContain('The length of the frame payload.');
+  });
+
+  it('pn の無い RFCXML でも dd の中身が content に入る', () => {
+    const unordered = `<?xml version="1.0"?>
+<rfc number="1">
+  <middle>
+    <section anchor="a">
+      <name>A</name>
+      <t>Intro.</t>
+      <dl>
+        <dt>Term</dt>
+        <dd><t>The value <bcp14>MUST</bcp14> be zero.</t></dd>
+      </dl>
+    </section>
+  </middle>
+</rfc>`;
+    const requirements = extractRequirements(parseRFCXML(unordered).sections);
+
+    expect(requirements.map((r) => r.text)).toEqual(['The value MUST be zero.']);
+  });
+});

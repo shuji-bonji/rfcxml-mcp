@@ -6,6 +6,7 @@
 import type { Section, Requirement, RequirementLevel } from '../types/index.js';
 import {
   clipAtClauseEnd,
+  extractRequirementMarkers,
   extractSentence,
   foldWhitespace,
   requirementSource,
@@ -215,10 +216,6 @@ export function extractRequirementsFromSections(
       for (const block of section.content) {
         if (block.type === 'text' && block.requirements.length > 0) {
           for (const marker of block.requirements) {
-            if (filter?.level && marker.level !== filter.level) {
-              continue;
-            }
-
             // 図・ABNF は空白を畳まない。ABNF の注釈は散文として組み直す。
             const source = requirementSource(block.content, marker.position, marker.level);
             const raw = extractSentence(source.text, source.position);
@@ -250,13 +247,24 @@ export function extractRequirementsFromSections(
             // 図・表の行から取った要件には主語も条件もアクションも無い。
             // RFC 2131 §4.3.1 の表の行 "Message SHOULD SHOULD SHOULD" に
             // `subject: "message should"` `action: "SHOULD SHOULD"` が付いていた。
+            // **id はレベルで絞る前に進める。** `filter.level` の `continue` が
+            // `nextId()` より前にあったため、レベルで絞るとその節の中で一致する
+            // ものだけを 1 から数え直していた。RFC 6455 §5.1 の R-5.1-6（MAY）が
+            // `level: "MAY"` では R-5.1-2 になり、`validate_statement` が教えた
+            // id を `get_requirements` で引けなかった。重複排除やキーワードの
+            // 名指しなど、レベルによらない判定はここより前に置くこと。
+            const id = nextId(sectionId);
+            if (filter?.level && marker.level !== filter.level) {
+              continue;
+            }
+
             const components =
               options.parseComponents && source.prose
                 ? parseRequirementComponents(sentence, marker.level, block.content)
                 : {};
 
             requirements.push({
-              id: nextId(sectionId),
+              id,
               level: marker.level,
               text: sentence,
               section: sectionId,
@@ -271,14 +279,62 @@ export function extractRequirementsFromSections(
           }
         }
 
+        // 表の行からも抽出する。
+        //
+        // 図・表の行にキーワードが当たったときは、**その 1 行だけ**を要件文にする
+        // （テキスト経路の `requirementSource` と同じ規則）。XML 経路の `<table>` は
+        // 行が `<tr>` で分かれているので、行のセルを " | " で繋いだものを 1 行とする。
+        // 見出しの行は見ない。RFC 9293 §3.11 の要件一覧表は見出しに
+        // MUST / SHOULD / MAY を並べており、それは要件ではない。
+        // 表の行から取った要件には主語も条件もアクションも無い。
+        //
+        // 要求 ID ラベル（`MUST-14`）だけの行は要件にしない。RFC 9293 の Appendix B は
+        // 本文の要件を `Treat as unsigned number | MUST-1 | X | | | |` の形で 110 行
+        // 並べる。行はラベルでレベルを名乗るが、実際のレベルは X の列が示すもので、
+        // `MUST-60` の行の X は MUST NOT の列にある。要件そのものは §3.1 などの本文から
+        // 既に出ている。
+        if (block.type === 'table') {
+          const headerLine = block.headers.join(' | ');
+          for (const row of block.rows) {
+            const line = foldWhitespace(row.join(' | '));
+            for (const marker of extractRequirementMarkers(line)) {
+              const level = marker.level as RequirementLevel;
+              if (filter?.level && level !== filter.level) {
+                continue;
+              }
+
+              if (/^-\d/.test(line.slice(marker.position + level.length))) {
+                continue;
+              }
+
+              if (isDuplicate(sectionId, level, line)) {
+                continue;
+              }
+
+              if (!hasSubstance(line) || looksLikeWordList(line)) {
+                continue;
+              }
+
+              if (namesTheKeyword(line, marker.position)) {
+                continue;
+              }
+
+              requirements.push({
+                id: nextId(sectionId),
+                level,
+                text: line,
+                section: sectionId,
+                sectionTitle: section.title,
+                fullContext: headerLine ? `${headerLine}\n${line}` : line,
+              });
+            }
+          }
+        }
+
         // リストアイテムからも抽出
         if (block.type === 'list') {
           for (const item of block.items) {
             for (const marker of item.requirements) {
-              if (filter?.level && marker.level !== filter.level) {
-                continue;
-              }
-
               // 箇条書きの項目も、文の単位で切り出す。
               //
               // 箇条書きの項目は 1 文であることが多く、v0.6.14 まではその前提で
@@ -306,12 +362,18 @@ export function extractRequirementsFromSections(
                 continue;
               }
 
+              // テキストブロックと同じく、id を進めてからレベルで絞る。
+              const id = nextId(sectionId);
+              if (filter?.level && marker.level !== filter.level) {
+                continue;
+              }
+
               const components = options.parseComponents
                 ? parseRequirementComponents(itemText, marker.level, itemContext)
                 : {};
 
               requirements.push({
-                id: nextId(sectionId),
+                id,
                 level: marker.level,
                 text: itemText,
                 section: sectionId,
@@ -385,9 +447,21 @@ function parseRequirementComponents(
   // "MUST log the error to an appropriate audit log (if available) and MUST
   // provide …"）。代名詞（it / this / they）も同じで、指しているものは
   // 文の前の方にある。**主語ではないので、名乗らせない。**
+  //
+  // **キーワードは原文どおりの大文字で、否定形の一部を除いて照合する。**
+  // `\s+MUST\b` は `MUST NOT` の `MUST` にも当たる。RFC 8446 §4.5 の
+  // "Servers MUST NOT send this message, and clients receiving it MUST
+  // terminate the connection …" は、level `MUST` の要件なのに主語が servers、
+  // action が "NOT send this message" になり、`generate_checklist` の
+  // `role: "client"` から落ちていた。`i` フラグも外す。RFC 8446 §D.4 の
+  // "as they must be ignored" や RFC 6455 §7.2.3 の "Should the first reconnect
+  // attempt fail" は BCP 14 のキーワードではない。`requiredActionOf()` と同じ形。
+  //
+  // 主語とキーワードのあいだに「分詞 + 代名詞」の関係節が挟まることがある
+  // （"clients receiving it MUST"）。その 2 語は主語ではないので読み飛ばす。
+  const keywordPattern = `\\b${level.replace(' ', '\\s+')}\\b${level.endsWith('NOT') ? '' : '(?!\\s+NOT)'}`;
   const subjectMatch = new RegExp(
-    `\\b(?:(?:The|A|An|Each|Every|All)\\s+)?([A-Za-z][\\w-]*(?:\\s+[A-Za-z][\\w-]*)?)\\s+${level.replace(' ', '\\s+')}\\b`,
-    'i'
+    `\\b(?:(?:[Tt]he|[Aa]n?|[Ee]ach|[Ee]very|[Aa]ll)\\s+)?([A-Za-z][\\w-]*(?:\\s+[A-Za-z][\\w-]*)?)(?:\\s+[A-Za-z][\\w-]*ing\\s+(?:it|them|this|these|those|one))?\\s+${keywordPattern}`
   ).exec(text);
   if (subjectMatch) {
     // 2 語の取り込みが冠詞ごと拾うことがある（"of a client MUST" → "a client"）。
@@ -403,7 +477,14 @@ function parseRequirementComponents(
       // 2 語の取り込みが機能語を巻き込むことがある（"response and MUST" →
       // "response and"、"methods are REQUIRED" → "methods are"）。前後の機能語を
       // 落として、残りを主語とする。全部落ちたら主語は無い。
-      const trimmed = trimFunctionWords(subject);
+      //
+      // 直前が接続詞なら、キーワードは前の節と主語を共有している。RFC 9110
+      // §10.2.4 の "An origin server SHOULD NOT generate … detail and SHOULD
+      // limit …" の SHOULD の主語は origin server であって detail ではない。
+      // 同じ文の手前にある、キーワードの直前の語を採る。
+      const coordinated = /\b(?:and|or|but|nor)$/.test(subject);
+      const shared = coordinated ? lastSubjectBefore(text.slice(0, subjectMatch.index)) : undefined;
+      const trimmed = shared ?? trimFunctionWords(subject);
       if (trimmed) result.subject = trimmed;
     }
   }
@@ -429,8 +510,8 @@ function parseRequirementComponents(
     if (exception) result.exception = exception;
   }
 
-  // アクションの抽出（キーワードの後）
-  const actionMatch = text.match(new RegExp(`${level}\\s+(.+)`, 'is'));
+  // アクションの抽出（キーワードの後）。主語と同じく否定形の一部と小文字は除く。
+  const actionMatch = text.match(new RegExp(`${keywordPattern}\\s+(.+)`, 's'));
   if (actionMatch) {
     const action = clipAtClauseEnd(actionMatch[1]);
     if (action) result.action = action;
@@ -465,11 +546,17 @@ function subjectBeforeSentence(context: string, sentence: string): string | unde
   const at = folded.indexOf(foldWhitespace(sentence));
   if (at <= 0) return undefined;
 
-  const before = folded.slice(0, at);
+  return lastSubjectBefore(folded.slice(0, at));
+}
+
+/**
+ * 与えた文字列の中で、キーワードの直前に置かれた語のうち最後のもの。
+ *
+ * 冠詞は大文字で始まることがある（文頭の "A client MUST …"）。小文字だけで
+ * 書くと、文頭の文が当たらず、その手前の文の主語を引き継いでいた。
+ */
+function lastSubjectBefore(before: string): string | undefined {
   let found: string | undefined;
-  //
-  // 冠詞は大文字で始まることがある（文頭の "A client MUST …"）。小文字だけで
-  // 書くと、文頭の文が当たらず、その手前の文の主語を引き継いでいた。
   const pattern =
     /\b(?:(?:[Tt]he|[Aa]n?|[Ee]ach|[Ee]very|[Aa]ll)\s+)?([A-Za-z][\w-]*(?:\s+[A-Za-z][\w-]*)?)\s+(?:MUST|SHALL|SHOULD|MAY|REQUIRED|RECOMMENDED|OPTIONAL)\b/g;
   let match: RegExpExecArray | null;

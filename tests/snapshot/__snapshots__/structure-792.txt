@@ -9,8 +9,7 @@ args: {"rfc":792}
     "title": "INTERNET CONTROL MESSAGE PROTOCOL",
     "number": 792,
     "date": "1981-09",
-    "category": "std",
-    "stream": "IETF"
+    "category": "std"
   },
   "sections": [
     {

@@ -30,9 +30,11 @@ function formatMessage(level: LogLevel, context: string, message: string): strin
  * Can be replaced with more sophisticated logging (e.g., winston, pino) in the future
  */
 export const logger: Logger = {
+  // stdio トランスポートでは stdout が JSON-RPC の線なので、すべて stderr に書く。
+  // `console.debug` は stdout に出るため、DEBUG=1 で使った途端に線が壊れる（Issue #19）。
   debug(context: string, message: string): void {
     if (process.env.DEBUG) {
-      console.debug(formatMessage('debug', context, message));
+      console.error(formatMessage('debug', context, message));
     }
   },
 

@@ -19,6 +19,8 @@ import {
   fetchReferencedBy,
   fetchDocEvents,
   fetchRFCXML,
+  fetchRFCText,
+  RFCXMLNotAvailableError,
   clearCache,
   resetDiskCacheForTesting,
 } from './rfc-fetcher.js';
@@ -116,6 +118,42 @@ describe('fetchRFCMetadata', () => {
     expect(meta.number).toBe(9000);
     expect(meta.title).toBe('RFC 9000');
     expect(meta.authors).toEqual([]);
+    // Issue #14: 届かなかったときに 'info' / 'IETF' を捏造しない。理由を残す。
+    expect(meta.category).toBeUndefined();
+    expect(meta.stream).toBeUndefined();
+    expect(meta.datatrackerError).toBe('HTTP 500');
+    expect('category' in meta).toBe(false);
+  });
+
+  it('omits category / stream for values outside the mapping (RFC 1: unkn / legacy)', async () => {
+    // Issue #14: Datatracker は RFC 1 を std_level=unkn, stream=legacy と返す。
+    // 以前は default 節で 'info' / 'IETF' にしていた。
+    mockFetchByUrl({
+      '/doc/document/rfc1/': {
+        title: 'Host Software',
+        std_level: '/api/v1/name/stdlevelname/unkn/',
+        stream: '/api/v1/name/streamname/legacy/',
+      },
+    });
+    const meta = await fetchRFCMetadata(1);
+    expect(meta.title).toBe('Host Software');
+    expect('category' in meta).toBe(false);
+    expect('stream' in meta).toBe(false);
+    expect(meta.datatrackerError).toBeUndefined();
+  });
+
+  it('maps the inf slug to info explicitly', async () => {
+    // 'info' は default ではなく 'inf' に対する対応でなければならない。
+    mockFetchByUrl({
+      '/doc/document/rfc6151/': {
+        title: 'Updated Security Considerations for MD5',
+        std_level: '/api/v1/name/stdlevelname/inf/',
+        stream: '/api/v1/name/streamname/ietf/',
+      },
+    });
+    const meta = await fetchRFCMetadata(6151);
+    expect(meta.category).toBe('info');
+    expect(meta.stream).toBe('IETF');
   });
 
   it('includes authors when includeAuthors=true', async () => {
@@ -438,5 +476,119 @@ describe('fetchDocEvents', () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 } as Response);
     const events = await fetchDocEvents(9110);
     expect(events).toEqual([]);
+  });
+});
+
+describe('concurrent calls share one fetch (Issue #15)', () => {
+  beforeEach(() => {
+    clearCache();
+  });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
+  });
+
+  /** 少し待ってから返す fetch。同時呼び出しが in-flight のあいだに重なるようにする。 */
+  function slowFetch(body: string, jsonBody?: unknown): ReturnType<typeof vi.fn> {
+    return vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                ok: true,
+                status: 200,
+                text: () => Promise.resolve(body),
+                json: () => Promise.resolve(jsonBody ?? {}),
+              } as Response),
+            5
+          )
+        )
+    );
+  }
+
+  it('fetchRFCXML: 3 concurrent calls hit the network once per source', async () => {
+    const xml = '<?xml version="1.0"?><rfc number="9112"></rfc>';
+    const spy = slowFetch(xml);
+    globalThis.fetch = spy;
+
+    const results = await Promise.all([fetchRFCXML(9112), fetchRFCXML(9112), fetchRFCXML(9112)]);
+
+    expect(results).toEqual([xml, xml, xml]);
+    // RFC_XML_SOURCES は 2 つ（rfcEditor + datatracker）。3 本なら 6 回だった。
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('fetchRFCText: 3 concurrent calls hit the network once', async () => {
+    const text = 'Request for Comments: 6455\n\nThe WebSocket Protocol';
+    const spy = slowFetch(text);
+    globalThis.fetch = spy;
+
+    await Promise.all([fetchRFCText(6455), fetchRFCText(6455), fetchRFCText(6455)]);
+
+    // RFC_TEXT_SOURCES は 1 つ。
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('fetchRFCText: forceFresh bypasses the in-memory cache (Issue #17)', async () => {
+    const text = 'Request for Comments: 6455\n\nThe WebSocket Protocol';
+    const spy = slowFetch(text);
+    globalThis.fetch = spy;
+
+    await fetchRFCText(6455);
+    await fetchRFCText(6455);
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    await fetchRFCText(6455, { forceFresh: true });
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('fetchRFCMetadata: concurrent calls with the same depth share one request', async () => {
+    const spy = slowFetch('{}', {
+      title: 'HTTP/1.1',
+      std_level: '/api/v1/name/stdlevelname/std/',
+      stream: '/api/v1/name/streamname/ietf/',
+    });
+    globalThis.fetch = spy;
+
+    const [a, b] = await Promise.all([fetchRFCMetadata(9112), fetchRFCMetadata(9112)]);
+    expect(a.category).toBe('std');
+    expect(b).toBe(a);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('fetchRFCXML: a failed fetch is not shared with later calls', async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn().mockImplementation(() => {
+      calls++;
+      if (calls <= 2) return Promise.resolve({ ok: false, status: 503 } as Response);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<?xml version="1.0"?><rfc number="9112"></rfc>'),
+      } as Response);
+    });
+
+    await expect(fetchRFCXML(9112)).rejects.toThrow();
+    await expect(fetchRFCXML(9112)).resolves.toContain('<rfc');
+  });
+});
+
+describe('RFCXMLNotAvailableError.notFound (Issue #20)', () => {
+  it('is true only when every source returned 404', () => {
+    expect(
+      new RFCXMLNotAvailableError(9112, [
+        'All sources failed: [rfcEditor] HTTP 404; [datatracker] HTTP 404',
+      ]).notFound
+    ).toBe(true);
+    expect(
+      new RFCXMLNotAvailableError(9112, [
+        'All sources failed: [rfcEditor] HTTP 503; [datatracker] HTTP 404',
+      ]).notFound
+    ).toBe(false);
+    expect(
+      new RFCXMLNotAvailableError(9112, ['All sources failed: [rfcEditor] fetch failed']).notFound
+    ).toBe(false);
+    expect(new RFCXMLNotAvailableError(9112).notFound).toBe(false);
   });
 });

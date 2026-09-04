@@ -146,6 +146,31 @@ describe('handleGetRFCStructure', () => {
     expect(result.metadata.authors).toBeUndefined();
   });
 
+  it('omits category / stream and notes it when Datatracker is unreachable (Issue #14)', async () => {
+    clearParseCache();
+    clearCache();
+    globalThis.fetch = vi.fn().mockImplementation((url: string | URL) => {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('datatracker.ietf.org/api/')) {
+        return Promise.reject(new Error('fetch failed'));
+      }
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(mockRFCXML),
+      });
+    });
+
+    const result = await handleGetRFCStructure({ rfc: 9999 });
+
+    expect(result._source).toBe('xml');
+    expect(result.metadata.title).toBe('Test RFC for Handlers');
+    expect('category' in result.metadata).toBe(false);
+    expect('stream' in result.metadata).toBe(false);
+    expect(result.metadata.abstract).toBeUndefined();
+    expect(result._sourceNote).toContain('Datatracker');
+    expect(result._sourceNote).toContain('fetch failed');
+  });
+
   it('resolves authors when includeAuthors=true (Phase 2)', async () => {
     clearParseCache();
     clearCache();
@@ -518,7 +543,6 @@ describe('handleGetRelatedSections', () => {
   it('should find section by number', async () => {
     const result = await handleGetRelatedSections({ rfc: 9999, section: '1' });
 
-    expect(result.error).toBeUndefined();
     expect(result.section).toBe('1');
     expect(result.title).toBe('Introduction');
   });
@@ -526,15 +550,18 @@ describe('handleGetRelatedSections', () => {
   it('should find section by anchor format', async () => {
     const result = await handleGetRelatedSections({ rfc: 9999, section: 'section-1' });
 
-    expect(result.error).toBeUndefined();
     expect(result.title).toBe('Introduction');
   });
 
-  it('should return error for non-existent section', async () => {
-    const result = await handleGetRelatedSections({ rfc: 9999, section: '999' });
+  it('should throw for non-existent section (Issue #16)', async () => {
+    // server.ts の catch で isError: true になる。`{ error }` の正常応答にはしない。
+    await expect(handleGetRelatedSections({ rfc: 9999, section: '999' })).rejects.toThrow(
+      'Section 999 not found'
+    );
+  });
 
-    expect(result.error).toBeDefined();
-    expect(result.error).toContain('not found');
+  it('should reject an empty section instead of matching an unnumbered one (Issue #16)', async () => {
+    await expect(handleGetRelatedSections({ rfc: 9999, section: '' })).rejects.toThrow('not found');
   });
 
   it('should extract related sections from cross-references', async () => {
@@ -627,6 +654,33 @@ describe('handleValidateStatement', () => {
     const result = await handleValidateStatement({ rfc: 9999, statement: 'The client' });
 
     expect(result.isValid).toBeNull();
+  });
+
+  it('矛盾の相手との一致が閾値に届けば、最上位が弱くても false（Issue #6-4）', async () => {
+    // RFC 6455 §5.1 の形。段落 2 は "it MAY use the status code 1002" で、
+    // 段落の語（client / send / frames / server）が段落内の一致だけで最上位に
+    // 来る。最上位だけで判定していたため、R-5.1-1 との矛盾が `conflicts` に
+    // 並びながら `isValid: null`、注記は「一致が無い」と読めた。
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rfc number="9999"><front><title>Masking</title><date month="12" year="2011"/></front><middle>
+<section anchor="section-5.1" pn="section-5.1"><name>Overview</name>
+<t>A client MUST mask all frames that it sends to the server.</t>
+<t>A client MUST close a connection if it detects that the server sends masked frames. In this case, it MAY use the status code 1002 as the client closes and the server sends the frames.</t>
+</section></middle><back/></rfc>`;
+    clearParseCache();
+    clearCache();
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve(xml) });
+
+    const result = await handleValidateStatement({
+      rfc: 9999,
+      statement: 'A client MAY send unmasked frames to the server.',
+    });
+
+    expect(result.conflicts.map((c) => c.requirement.id)).toContain('R-5.1-1');
+    expect(result.isValid).toBe(false);
+    expect(result._verdictNote).toBeUndefined();
+    clearParseCache();
+    clearCache();
   });
 
   it('should return isValid=null when the only matches are weak', async () => {

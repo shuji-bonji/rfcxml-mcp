@@ -8,7 +8,12 @@ import {
   generateChecklistMarkdown,
   getChecklistStats,
 } from '../services/checklist-generator.js';
-import { getParsedRFC, clearParseCache, getSourceNoteIfText } from '../services/rfc-service.js';
+import {
+  getParsedRFC,
+  clearParseCache,
+  getSourceNoteIfText,
+  getXMLFetchFailureNote,
+} from '../services/rfc-service.js';
 import { fetchRFCMetadata, fetchReferencedBy, fetchReferences } from '../services/rfc-fetcher.js';
 import { validateRFCNumber } from '../utils/validation.js';
 import { findSection, collectCrossReferences, normalizeSectionNumber } from '../utils/section.js';
@@ -31,6 +36,7 @@ import {
   findUndecidablePassiveProhibition,
   findQualifierOnlyViolation,
   MATCHING_LIMITS,
+  type MatchResult,
 } from '../utils/statement-matcher.js';
 import { clipAtWord } from '../utils/text.js';
 
@@ -111,7 +117,7 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
     // shape inside fetchRFCMetadata, so this never rejects.
     fetchRFCMetadata(args.rfc, { includeAuthors: args.includeAuthors === true }),
   ]);
-  const { data: parsed, source } = parsedResult;
+  const { data: parsed, source, xmlFetchError } = parsedResult;
 
   // Simplify section structure
   function simplifySection(section: Section, includeContent: boolean): SimplifiedSection {
@@ -139,13 +145,16 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
   // RFC body), fold in API-derived fields. Authors only included when
   // includeAuthors=true (otherwise the API fetch returned [] anyway).
   // `authorOrder` は並べ替えの手掛かりであって、返す値ではない。
+  // `category` / `stream` は Datatracker に届いたときだけ付く。届かなかった
+  // ときと、対応表に無い値（RFC 1 の `unkn` / `legacy`）のときは省く。
+  // 既定値で埋めると、取れなかったことが応答のどこにも出ない。
   const { authorOrder, ...bodyMetadata } = parsed.metadata;
   const mergedMetadata: Record<string, unknown> = {
     ...bodyMetadata,
     number: parsed.metadata.number ?? args.rfc,
     title: parsed.metadata.title || apiMetadata.title,
-    category: apiMetadata.category,
-    stream: apiMetadata.stream,
+    ...(apiMetadata.category ? { category: apiMetadata.category } : {}),
+    ...(apiMetadata.stream ? { stream: apiMetadata.stream } : {}),
     // 公開日は本文（RFCXML の front/date、テキストではヘッダ行）から取る。
     // Datatracker の document.time はレコードの更新時刻であって公開日ではない。
     date: parsed.metadata.date,
@@ -163,8 +172,22 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
       informative: parsed.references.informative.length,
     },
     _source: source,
-    _sourceNote: getSourceNoteIfText(source, 'structure'),
+    _sourceNote: joinNotes(
+      getSourceNoteIfText(source, 'structure', xmlFetchError),
+      apiMetadata.datatrackerError
+        ? `IETF Datatracker API was not reachable (${apiMetadata.datatrackerError}); category, stream and abstract are omitted.`
+        : undefined
+    ),
   };
+}
+
+/**
+ * 複数の注記を 1 つの `_sourceNote` にまとめる。どれも無ければ `undefined`
+ * （JSON には出ない）。
+ */
+function joinNotes(...notes: Array<string | undefined>): string | undefined {
+  const present = notes.filter((note): note is string => Boolean(note));
+  return present.length > 0 ? present.join(' ') : undefined;
 }
 
 /**
@@ -172,7 +195,7 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
  */
 export async function handleGetRequirements(args: GetRequirementsArgs) {
   validateRFCNumber(args.rfc);
-  const { data: parsed, source } = await getParsedRFC(args.rfc);
+  const { data: parsed, source, xmlFetchError } = await getParsedRFC(args.rfc);
 
   const requirements = extractRequirements(parsed.sections, {
     section: args.section,
@@ -198,7 +221,7 @@ export async function handleGetRequirements(args: GetRequirementsArgs) {
     stats,
     requirements,
     _source: source,
-    _sourceNote: getSourceNoteIfText(source, 'requirements'),
+    _sourceNote: getSourceNoteIfText(source, 'requirements', xmlFetchError),
   };
 }
 
@@ -207,7 +230,7 @@ export async function handleGetRequirements(args: GetRequirementsArgs) {
  */
 export async function handleGetDefinitions(args: GetDefinitionsArgs) {
   validateRFCNumber(args.rfc);
-  const { data: parsed, source } = await getParsedRFC(args.rfc);
+  const { data: parsed, source, xmlFetchError } = await getParsedRFC(args.rfc);
 
   let definitions = parsed.definitions;
 
@@ -226,7 +249,7 @@ export async function handleGetDefinitions(args: GetDefinitionsArgs) {
     count: definitions.length,
     definitions,
     _source: source,
-    _sourceNote: getSourceNoteIfText(source, 'definitions'),
+    _sourceNote: getSourceNoteIfText(source, 'definitions', xmlFetchError),
   };
 }
 
@@ -279,7 +302,7 @@ interface DependencyResult {
  */
 export async function handleGetDependencies(args: GetDependenciesArgs): Promise<DependencyResult> {
   validateRFCNumber(args.rfc);
-  const { data: parsed, source } = await getParsedRFC(args.rfc);
+  const { data: parsed, source, xmlFetchError } = await getParsedRFC(args.rfc);
 
   const bodyNormative = parsed.references.normative.map((ref) => ({
     rfcNumber: ref.rfcNumber,
@@ -339,7 +362,11 @@ export async function handleGetDependencies(args: GetDependenciesArgs): Promise<
     _source: source,
     _referencesSource: referencesSource,
   };
-  if (sourceNote) result._sourceNote = sourceNote;
+  const note = joinNotes(
+    sourceNote,
+    xmlFetchError ? getXMLFetchFailureNote(xmlFetchError) : undefined
+  );
+  if (note) result._sourceNote = note;
 
   // Fetch RFCs that reference this RFC from IETF Datatracker API.
   if (args.includeReferencedBy) {
@@ -354,13 +381,13 @@ export async function handleGetDependencies(args: GetDependenciesArgs): Promise<
  */
 export async function handleGetRelatedSections(args: { rfc: number; section: string }) {
   validateRFCNumber(args.rfc);
-  const { data: parsed, source } = await getParsedRFC(args.rfc);
+  const { data: parsed, source, xmlFetchError } = await getParsedRFC(args.rfc);
 
+  // 無い節は throw して `isError: true` にそろえる。v0.6.52 までは
+  // `{ error }` を正常応答として返しており、`rfc: 0` や 404 と形が違っていた。
   const targetSection = findSection(parsed.sections, args.section);
   if (!targetSection) {
-    return {
-      error: `Section ${args.section} not found`,
-    };
+    throw new Error(`Section ${args.section} not found`);
   }
 
   // Collect cross-references using utility
@@ -388,7 +415,7 @@ export async function handleGetRelatedSections(args: { rfc: number; section: str
         title: entry.section?.title || 'Unknown',
       })),
     _source: source,
-    _sourceNote: getSourceNoteIfText(source, 'sections'),
+    _sourceNote: getSourceNoteIfText(source, 'sections', xmlFetchError),
   };
 }
 
@@ -397,7 +424,7 @@ export async function handleGetRelatedSections(args: { rfc: number; section: str
  */
 export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
   validateRFCNumber(args.rfc);
-  const { data: parsed, source } = await getParsedRFC(args.rfc);
+  const { data: parsed, source, xmlFetchError } = await getParsedRFC(args.rfc);
   const requirements = extractRequirements(parsed.sections, {
     sections: args.sections,
     includeSubsections: args.includeSubsections !== false, // デフォルト true
@@ -421,7 +448,7 @@ export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
     stats,
     markdown,
     _source: source,
-    _sourceNote: getSourceNoteIfText(source, 'checklist'),
+    _sourceNote: getSourceNoteIfText(source, 'checklist', xmlFetchError),
   };
 }
 
@@ -436,9 +463,15 @@ export async function handleGenerateChecklist(args: GenerateChecklistArgs) {
 function verdictNote(
   isValid: boolean | null,
   undecidable: Requirement | null,
-  qualifierOnly: { requirement: Requirement; qualifier: string } | null = null
+  qualifierOnly: { requirement: Requirement; qualifier: string } | null = null,
+  weakConflicts: Requirement[] = []
 ): string | undefined {
   if (isValid !== null) return undefined;
+  if (weakConflicts.length > 0) {
+    // 矛盾はあるが、その相手との一致が判定の閾値に届かない。「一致が無い」と
+    // 読める文言を出すと、`conflicts` に相手が並んでいるのと食い違う。
+    return `isValid is null: conflicts were found (${weakConflicts.map((r) => r.id).join(', ')}) but the match with those requirements is below the threshold for a verdict. Read those requirements and decide. This is not a statement of compliance.`;
+  }
   if (qualifierOnly) {
     return `isValid is null: requirement ${qualifierOnly.requirement.id} turns on "${qualifierOnly.qualifier}", a word the statement does not use, so whether they describe the same case cannot be decided. This is not a statement of compliance.`;
   }
@@ -454,7 +487,7 @@ function verdictNote(
  */
 export async function handleValidateStatement(args: ValidateStatementArgs) {
   validateRFCNumber(args.rfc);
-  const { data: parsed, source } = await getParsedRFC(args.rfc);
+  const { data: parsed, source, xmlFetchError } = await getParsedRFC(args.rfc);
   const requirements = extractRequirements(parsed.sections);
 
   // Use weighted matching
@@ -473,6 +506,26 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
   const hasVerdictEvidence =
     topScore >= MATCHING_LIMITS.MIN_SCORE_FOR_VERDICT &&
     contentKeywords.length >= MATCHING_LIMITS.MIN_CONTENT_KEYWORDS_FOR_VERDICT;
+
+  // 矛盾の相手との一致が閾値に届いていれば、最上位の一致が弱くても `false` を
+  // 返す。最上位だけを見ていたため、RFC 6455 の "A client MAY send unmasked
+  // frames to the server." は R-5.1-1（MUST mask）との矛盾を `conflicts` に
+  // 並べながら `isValid: null` になり、注記は「一致が無い」と読めた。
+  // 矛盾は要件文そのものとの突き合わせなので、`true` を準拠の証明にしない
+  // 方針とは別で、根拠のある `false` である。閾値に届かない矛盾は `null` の
+  // まま、注記だけを「矛盾はあるが判定の閾値に届かない」に変える。
+  const strongEnough = (m: MatchResult): boolean =>
+    m.score >= MATCHING_LIMITS.MIN_SCORE_FOR_VERDICT &&
+    m.matchedKeywords.filter((k) => !isSubjectTerm(k)).length >=
+      MATCHING_LIMITS.MIN_CONTENT_KEYWORDS_FOR_VERDICT;
+  const conflictMatches = conflicts.map((c) =>
+    matches.find((m) => m.requirement.id === c.requirement.id)
+  );
+  const hasConflictEvidence = conflictMatches.some((m) => m !== undefined && strongEnough(m));
+  const weakConflicts =
+    conflicts.length > 0 && !hasVerdictEvidence && !hasConflictEvidence
+      ? conflicts.map((c) => c.requirement)
+      : [];
   // 受動態で書かれた禁止（"MUST NOT be used"）は、矛盾検出が行為の実行者を
   // 見つけられない。conflicts が空のまま true を返すと、違反している文に
   // 「矛盾なし」と答えることになる。該当したら判断を取り下げる。
@@ -489,8 +542,11 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
       ? findQualifierOnlyViolation(args.statement, matches)
       : null;
 
-  const isValid: boolean | null =
-    hasVerdictEvidence && !undecidable && !qualifierOnly ? conflicts.length === 0 : null;
+  const isValid: boolean | null = hasConflictEvidence
+    ? false
+    : hasVerdictEvidence && !undecidable && !qualifierOnly
+      ? conflicts.length === 0
+      : null;
 
   // Build suggestions
   const suggestions: string[] = [];
@@ -498,7 +554,7 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
     suggestions.push(
       "No matching requirements found. Matching is English keyword based; try the RFC's own wording."
     );
-  } else if (!hasVerdictEvidence) {
+  } else if (!hasVerdictEvidence && !hasConflictEvidence) {
     suggestions.push(
       'Matches are too weak to judge. Name the subject (e.g., "client", "server") and what it does, using the RFC\'s own nouns and verbs.'
     );
@@ -532,7 +588,7 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
       detectedSubject: statementSubject,
     },
     isValid,
-    _verdictNote: verdictNote(isValid, undecidable, qualifierOnly),
+    _verdictNote: verdictNote(isValid, undecidable, qualifierOnly, weakConflicts),
     matchingRequirements: matches.map((m) => ({
       ...m.requirement,
       _matchScore: m.score,
@@ -547,7 +603,7 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
     })),
     suggestions: suggestions.length > 0 ? suggestions : undefined,
     _source: source,
-    _sourceNote: getSourceNoteIfText(source, 'validation'),
+    _sourceNote: getSourceNoteIfText(source, 'validation', xmlFetchError),
   };
 }
 

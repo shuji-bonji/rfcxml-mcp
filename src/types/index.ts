@@ -56,8 +56,20 @@ export interface RFCMetadata {
    * 公開日は本文（RFCXML の `front/date` / テキストのヘッダ）から取る。
    */
   datatrackerUpdated: string;
-  category: 'std' | 'bcp' | 'info' | 'exp' | 'historic';
-  stream: 'IETF' | 'IAB' | 'IRTF' | 'independent' | 'editorial';
+  /**
+   * Datatracker の `std_level` / `stream` から引いた値。
+   * **API に届かなかったとき、または対応表に無い値のときは付けない。**
+   * v0.6.52 までは `'info'` / `'IETF'` を既定値にしていたため、RFC 1
+   * （Datatracker は `unkn` / `legacy`）が info / IETF として返っていた。
+   */
+  category?: 'std' | 'bcp' | 'info' | 'exp' | 'historic';
+  stream?: 'IETF' | 'IAB' | 'IRTF' | 'independent' | 'editorial';
+  /**
+   * Datatracker の document API に届かなかったときの理由（`HTTP 500` など）。
+   * 付いているときは `category` / `stream` / `abstract` が無い。
+   * `get_rfc_structure` はこれを `_sourceNote` に書く。
+   */
+  datatrackerError?: string;
   abstract?: string;
   keywords?: string[];
   obsoletes?: number[];

@@ -1,6 +1,12 @@
 # 監査（`npm run audit`）
 
-実物の RFC 64 本に不変条件 37 種を当てる。
+実物の RFC に不変条件を当てる。対象の RFC は `tests/audit/corpus.mjs`、
+不変条件は `tests/audit/invariants.mjs` を見る（本数と種類はそこが正である。
+ここに数字を書くと、増やすたびに古くなる）。
+
+CI では回さない。`.github/workflows/audit.yml` が週次（月曜 00:00 UTC）と
+`workflow_dispatch` で `audit` → `crosscheck` → `snapshot` を回し、
+`tests/audit/.cache` を `actions/cache` に載せる。
 
 ```sh
 npm run build && npm run audit
@@ -36,9 +42,11 @@ npm run audit -- --update            # 基準値を書き換える
 | ---- | ---------------------------- | ---------------------------------------------------------------------------------------------- |
 | D1   | 1866                         | 原文が「section 7.6.1」と書くが、§7.6 までしか無い                                             |
 | D1   | 2616                         | 原文が「(section 3.6.2)」と書くが、§3.6.1 までしか無い                                         |
+| D1   | 3411                         | 原文が「Sections 6, 7, 8, 9, 10 and 11」と書くが、§11 は無い（Editors' Addresses は番号なし）  |
+| A7   | 706                          | 見出しが 1 つも無い（1975 年、本文 5 段落だけ）。以前の 1 節は折り返した本文 `A Host might …` だった  |
 | A6   | 1157                         | 目次は §8 §9 と番号を振るが、本文の見出しは `Security Considerations` と番号なしで書かれている |
 | B11  | 4271                         | 原文が「the route MAY NOT serve as an input」と書く。`MAY NOT` は BCP 14 に無い                |
-| E5   | 6455, 7540, 8878, 8949, 9204 | 原文の題名が目印と同じ（`<title>MessagePack</title>` と `anchor="MessagePack"`）               |
+| E5   | 6455, 7049, 7540, 8878, 8949, 9204 | 原文の題名が目印と同じ（`<title>MessagePack</title>` と `anchor="MessagePack"`）         |
 | E4   | 7159                         | 原文が `Errata ID 3607, RFC 3607` と、引用の中に番号を書く。引用と題名が分かれていない         |
 
 D1 の 2 件は原文の誤りで、パーサ側で直せるものではない。
