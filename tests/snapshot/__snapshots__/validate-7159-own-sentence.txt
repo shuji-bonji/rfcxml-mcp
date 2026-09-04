@@ -53,17 +53,19 @@ args: {"rfc":7159,"statement":"In the interests of interoperability, implementat
       "action": "add a byte order mark to the beginning of a JSON text",
       "_matchScore": 20,
       "_matchedKeywords": [
-        "interests",
-        "interoperability",
         "implementations",
-        "parse",
         "json",
         "texts",
-        "ignore",
-        "presence",
         "byte",
         "order",
-        "mark",
+        "mark"
+      ],
+      "_contextKeywords": [
+        "interests",
+        "interoperability",
+        "parse",
+        "ignore",
+        "presence",
         "rather",
         "treating",
         "error"
@@ -83,7 +85,9 @@ args: {"rfc":7159,"statement":"In the interests of interoperability, implementat
       "_matchScore": 6,
       "_matchedKeywords": [
         "parse",
-        "json",
+        "json"
+      ],
+      "_contextKeywords": [
         "texts"
       ],
       "_subjectMatch": false,
@@ -100,9 +104,11 @@ args: {"rfc":7159,"statement":"In the interests of interoperability, implementat
       "action": "be encoded in UTF-8, UTF-16, or UTF-32",
       "_matchScore": 3,
       "_matchedKeywords": [
-        "implementations",
         "json",
         "texts"
+      ],
+      "_contextKeywords": [
+        "implementations"
       ],
       "_subjectMatch": false,
       "_levelMatch": false

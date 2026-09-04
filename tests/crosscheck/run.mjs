@@ -51,6 +51,18 @@ const walk = (sections, fn) => {
   }
 };
 
+/** 語がその文にあるか。`statement-matcher` の `keywordVariants` と同じ規則。 */
+const hasWord = (text, keyword) => {
+  const lower = (text ?? '').toLowerCase();
+  const word = keyword.toLowerCase();
+  for (const suffix of ['ing', 'ed', 'es', 's']) {
+    if (word.endsWith(suffix) && word.length - suffix.length >= 4) {
+      return lower.includes(word) || lower.includes(word.slice(0, -suffix.length));
+    }
+  }
+  return lower.includes(word);
+};
+
 const fold = (value) => (value ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
 
 /**
@@ -181,6 +193,18 @@ async function compareCallShapes(rfc, requirements, numbers) {
         broken.push(`X11 ${requirement.id}: 矛盾の相手 ${conflict.requirement.id} が一致の一覧に無い`);
       }
     }
+
+    // X12: `_matchedKeywords` の語が、その要件文そのものにある
+    //
+    // 当たりは段落まで見るが、返す語を分けていなかったので、要件文が持たない語が
+    // 「一致した語」として並んでいた。段落にだけある語は `_contextKeywords` に出る。
+    for (const match of verdict.matchingRequirements ?? []) {
+      for (const keyword of match._matchedKeywords ?? []) {
+        if (!hasWord(match.text, keyword)) {
+          broken.push(`X12 ${match.id}: 一致した語 "${keyword}" が要件文に無い`);
+        }
+      }
+    }
   }
 
   // X10: get_related_sections が返す節が構造にある
@@ -246,11 +270,11 @@ async function main() {
     }
 
     const shapes = await compareCallShapes(rfc, requirements, numbers);
-    checked += 5;
+    checked += 6;
     if (shapes.length > 0) {
       failures.push({
         rfc,
-        id: 'X7-X11',
+        id: 'X7-X12',
         description: '同じものを違う呼び方で取る',
         found: shapes,
       });

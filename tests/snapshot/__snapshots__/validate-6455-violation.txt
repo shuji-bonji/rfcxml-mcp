@@ -45,8 +45,10 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_matchScore": 13,
       "_matchedKeywords": [
         "client",
+        "frames"
+      ],
+      "_contextKeywords": [
         "sends",
-        "frames",
         "server"
       ],
       "_subjectMatch": true,
@@ -62,7 +64,8 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "subject": "client",
       "action": "use the status code 1002 (protocol error) as defined in Section 7.4.1",
       "_matchScore": 13,
-      "_matchedKeywords": [
+      "_matchedKeywords": [],
+      "_contextKeywords": [
         "client",
         "sends",
         "frames",
@@ -83,9 +86,11 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_matchScore": 13,
       "_matchedKeywords": [
         "client",
-        "sends",
-        "frames",
         "server"
+      ],
+      "_contextKeywords": [
+        "sends",
+        "frames"
       ],
       "_subjectMatch": true,
       "_levelMatch": false
@@ -121,7 +126,9 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_matchScore": 12,
       "_matchedKeywords": [
         "client",
-        "sends",
+        "sends"
+      ],
+      "_contextKeywords": [
         "server"
       ],
       "_subjectMatch": true,
@@ -140,8 +147,10 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_matchScore": 12,
       "_matchedKeywords": [
         "client",
-        "sends",
         "server"
+      ],
+      "_contextKeywords": [
+        "sends"
       ],
       "_subjectMatch": true,
       "_levelMatch": false
@@ -194,8 +203,10 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "_matchScore": 12,
       "_matchedKeywords": [
         "client",
-        "sends",
         "server"
+      ],
+      "_contextKeywords": [
+        "sends"
       ],
       "_subjectMatch": true,
       "_levelMatch": false

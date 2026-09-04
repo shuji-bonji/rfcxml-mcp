@@ -27,7 +27,9 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_matchedKeywords": [
         "client",
         "mask",
-        "frames",
+        "frames"
+      ],
+      "_contextKeywords": [
         "sent",
         "server"
       ],
@@ -67,7 +69,9 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_matchedKeywords": [
         "client",
         "mask",
-        "frames",
+        "frames"
+      ],
+      "_contextKeywords": [
         "server"
       ],
       "_subjectMatch": true,
@@ -85,9 +89,11 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_matchScore": 16,
       "_matchedKeywords": [
         "client",
-        "frames",
-        "sent",
         "server"
+      ],
+      "_contextKeywords": [
+        "frames",
+        "sent"
       ],
       "_subjectMatch": true,
       "_levelMatch": true
@@ -104,8 +110,10 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_matchScore": 15,
       "_matchedKeywords": [
         "client",
-        "sent",
         "server"
+      ],
+      "_contextKeywords": [
+        "sent"
       ],
       "_subjectMatch": true,
       "_levelMatch": true
@@ -140,8 +148,10 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
       "_matchScore": 15,
       "_matchedKeywords": [
         "client",
-        "sent",
         "server"
+      ],
+      "_contextKeywords": [
+        "sent"
       ],
       "_subjectMatch": true,
       "_levelMatch": true

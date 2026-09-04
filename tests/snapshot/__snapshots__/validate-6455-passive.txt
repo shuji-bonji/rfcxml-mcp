@@ -45,7 +45,9 @@ args: {"rfc":6455,"statement":"The fragments of one message are interleaved betw
       "action": "also be the final fragment",
       "_matchScore": 6,
       "_matchedKeywords": [
-        "fragments",
+        "fragments"
+      ],
+      "_contextKeywords": [
         "message"
       ],
       "_subjectMatch": false,
@@ -78,7 +80,9 @@ args: {"rfc":6455,"statement":"The fragments of one message are interleaved betw
       "action": "be fragmented",
       "_matchScore": 6,
       "_matchedKeywords": [
-        "fragments",
+        "fragments"
+      ],
+      "_contextKeywords": [
         "message"
       ],
       "_subjectMatch": false,

@@ -482,6 +482,7 @@ export async function handleValidateStatement(args: ValidateStatementArgs) {
       ...m.requirement,
       _matchScore: m.score,
       _matchedKeywords: m.matchedKeywords,
+      _contextKeywords: m.contextKeywords.length > 0 ? m.contextKeywords : undefined,
       _subjectMatch: m.subjectMatch,
       _levelMatch: m.levelMatch,
     })),

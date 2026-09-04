@@ -1135,3 +1135,61 @@ describe('レベルの対だけで矛盾を出さないこと', () => {
     expect(detectConflicts(statement, [req])).toHaveLength(1);
   });
 });
+
+describe('一致した語を、要件文と段落で分けること', () => {
+  // RFC 7159 §8.1。同じ段落の次の文の語まで「一致した語」として並べていた。
+  const requirement: Requirement = {
+    id: 'R-8.1-2',
+    level: 'MUST NOT',
+    text: 'Implementations MUST NOT add a byte order mark to the beginning of a JSON text.',
+    section: '8.1',
+    sectionTitle: 'Character Encoding',
+    fullContext:
+      'Implementations MUST NOT add a byte order mark to the beginning of a JSON text. In the interests of interoperability, implementations that parse JSON texts MAY ignore the presence of a byte order mark rather than treating it as an error.',
+    subject: 'implementations',
+    action: 'add a byte order mark to the beginning of a JSON text',
+  };
+
+  const statement =
+    'Implementations that parse JSON texts MAY ignore the presence of a byte order mark.';
+
+  it('要件文に無い語は matchedKeywords に入れない', () => {
+    const match = scoreRequirementMatch(
+      requirement,
+      extractKeywords(statement),
+      extractSubject(statement),
+      extractRequirementLevel(statement)
+    );
+
+    expect(match.matchedKeywords).not.toContain('ignore');
+    expect(match.matchedKeywords).toContain('byte');
+  });
+
+  it('段落にだけある語は contextKeywords に入れる', () => {
+    const match = scoreRequirementMatch(
+      requirement,
+      extractKeywords(statement),
+      extractSubject(statement),
+      extractRequirementLevel(statement)
+    );
+
+    expect(match.contextKeywords).toContain('ignore');
+  });
+
+  it('点数は分ける前と同じ（どちらで当たっても数える）', () => {
+    const withContext = scoreRequirementMatch(
+      requirement,
+      extractKeywords(statement),
+      extractSubject(statement),
+      extractRequirementLevel(statement)
+    );
+    const withoutContext = scoreRequirementMatch(
+      { ...requirement, fullContext: requirement.text },
+      extractKeywords(statement),
+      extractSubject(statement),
+      extractRequirementLevel(statement)
+    );
+
+    expect(withContext.score).toBeGreaterThan(withoutContext.score);
+  });
+});

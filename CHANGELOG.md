@@ -2,6 +2,53 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.43] - 2026-09-04
+
+**`_matchedKeywords` が、その要件文が持たない語を並べていた。** v0.6.42 の確認で
+RFC 7159 の出力を読んでいて気づいた。
+
+### Fixed
+
+- **当たった語を、要件文と段落で分けていなかった**:
+  - 当たりの判定は `requirement.text + fullContext` を相手にする。段落まで見ること
+    自体は要る（条件が前の文にあることがある）。返す語を分けていなかったため、
+    **要件文が書いていない語が「一致した語」として並んでいた。**
+  - RFC 7159 §8.1 の `Implementations MUST NOT add a byte order mark to the
+    beginning of a JSON text.` は、`_matchedKeywords` に `ignore` `presence`
+    `rather` `treating` `error` が入っていた。どれも同じ段落の**次の文**の語で、
+    この要件は `ignore` とは書いていない。
+  - 要件文にある語は `_matchedKeywords`、段落にだけある語は `_contextKeywords`
+    に分ける。点数の計算は変えない（どちらで当たっても数える）。
+  - 実測（RFC 67 本・一致の行 1,710 件）: 要件文に無い語を含む行が
+    **1,092 件（63.9%）**、最上位の一致に限ると 176 件中 **28 件（15.9%）**。
+
+- **判定の根拠が、段落の語で水増しされていた**:
+  - `isValid` を下すかどうかは、最上位の一致の `matchedKeywords` から主語語を
+    除いた数で決める（`MIN_CONTENT_KEYWORDS_FOR_VERDICT`）。段落の語が入って
+    いたため、要件文と 1 語も共有しない当たりでも判定を下していた。
+  - 実測（`MUST NOT` から機械で作った違反文 157 件）:
+    `true`（見落とし）が **38 件 → 31 件**、`null`（判断せず）が 61 → 72 件、
+    `false`（検出）が 58 → 54 件。判定を下せる根拠が無いときに
+    「矛盾なし」と答えることが減った。
+  - RFC 自身の要件文 300 件では `isValid: false` が 10 件 → **8 件**。
+
+### Added
+
+- **突き合わせに `X12` を足した**（737 → 804）:
+  `_matchedKeywords` の語がその要件文にある
+- **テストを 3 つ足した**（492 → 495）
+
+### Changed
+
+- `validate_statement` の一致に `_contextKeywords` が増えた（段落にだけある語が
+  あるときだけ出る）。`_matchScore` と一致の並び順は変えていない。
+
+### Checked
+
+- `filterByRole` を測った。主語がサーバ語なのに `role: "client"` に残るもの、
+  その逆はいずれも **0 件**（要件 9,862 件）。役割語をどこにも持たない要件は
+  7,299 件（74.0%）で、どちらの役割にも残る。仕様どおり。
+
 ## [0.6.42] - 2026-09-04
 
 **`validate_statement` に RFC 自身の文をそのまま渡すと、6 件に 1 件が

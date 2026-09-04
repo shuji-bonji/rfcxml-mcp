@@ -68,7 +68,10 @@ export const MATCHING_LIMITS = {
 export interface MatchResult {
   requirement: Requirement;
   score: number;
+  /** 要件文そのものにある語。 */
   matchedKeywords: string[];
+  /** 要件文には無く、同じ段落（`fullContext`）にだけある語。 */
+  contextKeywords: string[];
   subjectMatch: boolean;
   levelMatch: boolean;
 }
@@ -462,14 +465,27 @@ export function scoreRequirementMatch(
   statementSubject: string | null,
   statementLevel: RequirementLevel | null
 ): MatchResult {
-  const reqText = (requirement.text + ' ' + (requirement.fullContext || '')).toLowerCase();
+  // 当たりは段落まで見る。要件文だけでは条件が拾えないことがある。
+  // ただし **どこで当たったかを分けて返す**。分けずに返していたため、
+  // `_matchedKeywords` に要件文が持たない語が並んでいた。RFC 7159 §8.1 の
+  // `Implementations MUST NOT add a byte order mark …` は、同じ段落にある
+  // 次の文の語（`ignore` `presence` `rather` `treating` `error`）まで
+  // 「一致した語」として並べていた。**その要件は ignore とは書いていない。**
+  // 実測（RFC 67 本・一致の行 1,710 件）: 要件文に無い語を含む行が 1,092 件
+  // （63.9%）、最上位の一致に限ると 176 件中 28 件（15.9%）。
+  const ownText = requirement.text.toLowerCase();
+  const contextText = (requirement.fullContext || '').toLowerCase();
   const matchedKeywords: string[] = [];
+  const contextKeywords: string[] = [];
   let score = 0;
 
   // Score based on keyword matches
   for (const [keyword, weight] of statementKeywords) {
-    if (requirementTextHasKeyword(reqText, keyword)) {
+    if (requirementTextHasKeyword(ownText, keyword)) {
       matchedKeywords.push(keyword);
+      score += weight;
+    } else if (requirementTextHasKeyword(contextText, keyword)) {
+      contextKeywords.push(keyword);
       score += weight;
     }
   }
@@ -491,6 +507,7 @@ export function scoreRequirementMatch(
     requirement,
     score,
     matchedKeywords,
+    contextKeywords,
     subjectMatch,
     levelMatch,
   };
