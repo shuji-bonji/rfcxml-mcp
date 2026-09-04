@@ -169,6 +169,20 @@ async function compareCallShapes(rfc, requirements, numbers) {
     }
   }
 
+  // X11: validate_statement が示す矛盾の相手が、一致の一覧に入っている
+  //
+  // 矛盾は RFC 全体を相手に取っていたので、`matchingRequirements` に出てこない
+  // 要件が `conflicts` に入っていた。利用者は示された相手を一覧から探せない。
+  for (const requirement of requirements.filter((r) => r.text.length < 300).slice(0, 2)) {
+    const verdict = await toolHandlers.validate_statement({ rfc, statement: requirement.text });
+    const matched = new Set((verdict.matchingRequirements ?? []).map((m) => m.id));
+    for (const conflict of verdict.conflicts ?? []) {
+      if (!matched.has(conflict.requirement.id)) {
+        broken.push(`X11 ${requirement.id}: 矛盾の相手 ${conflict.requirement.id} が一致の一覧に無い`);
+      }
+    }
+  }
+
   // X10: get_related_sections が返す節が構造にある
   const sample = [...numbers].filter((n) => /^\d+(\.\d+)?$/.test(n)).slice(0, 4);
   for (const section of sample) {
@@ -232,11 +246,11 @@ async function main() {
     }
 
     const shapes = await compareCallShapes(rfc, requirements, numbers);
-    checked += 4;
+    checked += 5;
     if (shapes.length > 0) {
       failures.push({
         rfc,
-        id: 'X7-X10',
+        id: 'X7-X11',
         description: '同じものを違う呼び方で取る',
         found: shapes,
       });

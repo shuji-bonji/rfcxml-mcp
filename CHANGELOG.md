@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.42] - 2026-09-04
+
+**`validate_statement` に RFC 自身の文をそのまま渡すと、6 件に 1 件が
+「矛盾あり」になっていた。** 67 本から要件文 300 件を取り、それをそのまま
+主張として渡した。矛盾のしようがない入力である。
+
+### Fixed
+
+- **矛盾の相手を RFC 全体から探していた**:
+  - `matchStatement` は一致した要件を上位 10 件返す一方、矛盾は RFC の全要件を
+    相手に取っていた。`matchingRequirements` に出てこない要件が `conflicts` に
+    入り、利用者は示された相手を一覧から探せなかった。
+  - 一致した要件だけを相手にする。
+  - 実測: `isValid: false` が **55 件 → 34 件**（300 件中）。作った違反文
+    157 件の検出は 59 件のまま。
+
+- **レベルの対だけで矛盾を出していた**:
+  - 「MAY と MUST NOT」のようなレベルの対と、キーワードの重なり 2 語以上で
+    矛盾としていた。重なりは文全体を数えるので主語と共通の名詞で埋まる。
+    **動詞が違っても当たる。**
+  - RFC 7159 §8.1 の
+    `implementations that parse JSON texts MAY ignore the presence of a byte
+    order mark` は、`Implementations MUST NOT add a byte order mark to the
+    beginning of a JSON text.` と `byte order mark` で重なり、矛盾になっていた。
+    無視することと足すことは別の行為である。
+  - BCP 14 のキーワードより後ろ（行為の部分）の**主動詞**が一致することを求める。
+    受動態は `be` を飛ばして次の語を採る。`VERB_SYNONYMS` の言い換えは同じ動詞
+    として扱う。
+  - 実測: `isValid: false` が **34 件 → 10 件**。検出は 59 → **58 件**。
+
+- **測って採らなかった案**: 動詞に加えて目的語の一致（`sharesContentWord` と
+  `describesSameAct`）も求める。誤検出は 10 → 7 件に減るが、検出が 58 → 53 件に
+  落ちる。3 件のために 5 件を落とすので採らない。
+
+### Added
+
+- **突き合わせに `X11` を足した**（670 → 737）:
+  矛盾の相手が `matchingRequirements` に入っている
+- **見本を 1 つ足した**（35 → 36）: `validate-7159-own-sentence`
+  （RFC 自身の文で `isValid` が `true`）
+- **テストを 3 つ足した**（489 → 492）
+
+### Changed
+
+- 見本 `validate-6455-violation` から、上位 10 件の一致に入らない要件
+  `R-6.1-8` の矛盾が消えた。`isValid` は `false` のままで、§5.1 の
+  `MUST mask` との矛盾は残る。
+
 ## [0.6.41] - 2026-09-04
 
 **要件文の頭に、例示・図・16 進ダンプ・数式が付いていた。索引の節から要件が

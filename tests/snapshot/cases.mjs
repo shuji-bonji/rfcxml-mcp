@@ -248,6 +248,17 @@ export const CASES = [
     },
   },
   {
+    // RFC 自身の文をそのまま渡す。動詞が違うだけの要件と「MAY と MUST NOT」で
+    // 矛盾になり、`isValid` が false になっていた（無視する / 足す）。
+    name: 'validate-7159-own-sentence',
+    tool: 'validate_statement',
+    args: {
+      rfc: 7159,
+      statement:
+        'In the interests of interoperability, implementations that parse JSON texts MAY ignore the presence of a byte order mark rather than treating it as an error.',
+    },
+  },
+  {
     // 限定語 `without` を言い換えた主張。isValid は true ではなく null になること。
     name: 'validate-9110-qualifier',
     tool: 'validate_statement',

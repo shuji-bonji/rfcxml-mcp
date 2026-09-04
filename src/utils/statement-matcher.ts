@@ -1312,6 +1312,100 @@ export function findUndecidablePassiveProhibition(
 }
 
 /**
+ * 主張と要件が、同じ動詞について述べているか。
+ *
+ * レベルの対（`MAY` と `MUST NOT` など）だけで矛盾を出していた。重なりの条件は
+ * 文全体のキーワードを数えるので、主語と共通の名詞で埋まる。**動詞が違っても
+ * 当たる。**
+ *
+ * RFC 7159 §8.1 の
+ * `implementations that parse JSON texts MAY **ignore** the presence of a byte
+ * order mark` を主張として渡すと、`Implementations MUST NOT **add** a byte
+ * order mark to the beginning of a JSON text.` と `byte order mark` で重なり、
+ * 「MAY と MUST NOT」で矛盾になっていた。無視することと足すことは別の行為である。
+ * **RFC 自身の文をそのまま渡して「矛盾あり」と答えることになる。**
+ *
+ * 実測（RFC 67 本から要件文 300 件をそのまま主張として渡す）:
+ * `isValid: false` が 34 件 → 10 件。作った違反文 157 件の検出は 59 → 58 件。
+ *
+ * 目的語まで一致を求める案（`sharesContentWord` と `describesSameAct` を足す）も
+ * 測った。誤検出は 10 → 7 件に減るが、検出が 58 → 53 件に落ちる。3 件のために
+ * 5 件を落とすので採らない。
+ */
+function sameActVerb(statement: string, requirement: Requirement): boolean {
+  const statementAct = actAfterKeyword(statement);
+  const requirementAct = requiredActionOf(requirement) ?? actAfterKeyword(requirement.text);
+  if (!statementAct || !requirementAct) return true;
+
+  const a = actVerb(statementAct);
+  const b = actVerb(requirementAct);
+  if (!a || !b || a === b) return true;
+
+  return VERB_SYNONYMS.some((group) => {
+    const stems = group.map(stemVerb);
+    return stems.includes(a) && stems.includes(b);
+  });
+}
+
+/** BCP 14 のキーワードより後ろ。行為にあたる部分。 */
+function actAfterKeyword(text: string): string | null {
+  const match =
+    /\b(?:MUST NOT|SHALL NOT|SHOULD NOT|NOT RECOMMENDED|MUST|SHALL|SHOULD|MAY|REQUIRED|RECOMMENDED|OPTIONAL)\b/.exec(
+      text
+    );
+  if (!match) return null;
+
+  const act = text.slice(match.index + match[0].length).trim();
+  return act.length > 0 ? act : null;
+}
+
+/**
+ * 行為の主動詞。副詞・助動詞・指示語を飛ばして最初の語を採る。
+ *
+ * 受動態（`be set as a status code`）では `be` を飛ばして `set` を採る。
+ */
+const ACT_LEAD_WORDS = new Set([
+  'be',
+  'been',
+  'being',
+  'not',
+  'only',
+  'also',
+  'always',
+  'never',
+  'immediately',
+  'then',
+  'either',
+  'both',
+  'still',
+  'otherwise',
+  'therefore',
+  'thus',
+  'further',
+  'again',
+  'that',
+  'this',
+  'it',
+  'they',
+  'to',
+]);
+
+/** 語尾を落として比べる。`sending` と `sends` と `send` を同じにする。 */
+function stemVerb(word: string): string {
+  return word.replace(/(?:ing|ed|es|s)$/, '');
+}
+
+function actVerb(act: string): string | null {
+  for (const raw of act.toLowerCase().split(/[^a-z]+/)) {
+    if (!raw) continue;
+    if (ACT_LEAD_WORDS.has(raw)) continue;
+    return stemVerb(raw);
+  }
+
+  return null;
+}
+
+/**
  * Detect conflicts between statement and requirements
  */
 export function detectConflicts(
@@ -1362,10 +1456,11 @@ export function detectConflicts(
           if (requirementTextHasKeyword(reqText, keyword)) overlap++;
         }
 
-        if (
+        const enough =
           overlap >= MATCHING_LIMITS.MIN_OVERLAP_FOR_CONFLICT ||
-          statementKeywords.size <= MATCHING_LIMITS.SHORT_STATEMENT_THRESHOLD
-        ) {
+          statementKeywords.size <= MATCHING_LIMITS.SHORT_STATEMENT_THRESHOLD;
+
+        if (enough && sameActVerb(statement, req)) {
           conflicts.push({
             requirement: req,
             reason: `Statement uses "${statementLevel}" but requirement uses "${req.level}"`,
@@ -1497,7 +1592,15 @@ export function matchStatement(
     .slice(0, maxResults);
 
   // Detect conflicts
-  const conflicts = detectConflicts(statement, requirements);
+  // 突き合わせる相手は、一致した要件だけにする。RFC 全体を相手にしていたため、
+  // `matchingRequirements` に出てこない要件が `conflicts` に入っていた。
+  // 利用者は、示された矛盾の相手を一致の一覧から探せない。
+  // 実測（RFC 67 本から要件文 300 件をそのまま主張として渡す）:
+  // `isValid: false` が 55 件 → 34 件。作った違反文 157 件の検出は 59 件のまま。
+  const conflicts = detectConflicts(
+    statement,
+    matches.map((match) => match.requirement)
+  );
 
   return {
     matches,

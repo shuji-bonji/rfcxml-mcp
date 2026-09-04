@@ -1,0 +1,165 @@
+# validate-7159-own-sentence
+
+tool: validate_statement
+args: {"rfc":7159,"statement":"In the interests of interoperability, implementations that parse JSON texts MAY ignore the presence of a byte order mark rather than treating it as an error."}
+
+--- json ---
+{
+  "rfc": 7159,
+  "statement": "In the interests of interoperability, implementations that parse JSON texts MAY ignore the presence of a byte order mark rather than treating it as an error.",
+  "analysis": {
+    "detectedLevel": "MAY",
+    "detectedSubject": "implementation"
+  },
+  "isValid": true,
+  "matchingRequirements": [
+    {
+      "id": "R-8.1-3",
+      "level": "MAY",
+      "text": "In the interests of interoperability, implementations that parse JSON texts MAY ignore the presence of a byte order mark rather than treating it as an error.",
+      "section": "8.1",
+      "sectionTitle": "Character Encoding",
+      "fullContext": "Implementations MUST NOT add a byte order mark to the beginning of a JSON text. In the interests of interoperability, implementations that parse JSON texts MAY ignore the presence of a byte order mark rather than treating it as an error.",
+      "subject": "json texts",
+      "action": "ignore the presence of a byte order mark rather than treating it as an error",
+      "_matchScore": 23,
+      "_matchedKeywords": [
+        "interests",
+        "interoperability",
+        "implementations",
+        "parse",
+        "json",
+        "texts",
+        "ignore",
+        "presence",
+        "byte",
+        "order",
+        "mark",
+        "rather",
+        "treating",
+        "error"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": true
+    },
+    {
+      "id": "R-8.1-2",
+      "level": "MUST NOT",
+      "text": "Implementations MUST NOT add a byte order mark to the beginning of a JSON text.",
+      "section": "8.1",
+      "sectionTitle": "Character Encoding",
+      "fullContext": "Implementations MUST NOT add a byte order mark to the beginning of a JSON text. In the interests of interoperability, implementations that parse JSON texts MAY ignore the presence of a byte order mark rather than treating it as an error.",
+      "subject": "implementations",
+      "action": "add a byte order mark to the beginning of a JSON text",
+      "_matchScore": 20,
+      "_matchedKeywords": [
+        "interests",
+        "interoperability",
+        "implementations",
+        "parse",
+        "json",
+        "texts",
+        "ignore",
+        "presence",
+        "byte",
+        "order",
+        "mark",
+        "rather",
+        "treating",
+        "error"
+      ],
+      "_subjectMatch": true,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-9-2",
+      "level": "MAY",
+      "text": "A JSON parser MAY accept non-JSON forms or extensions.",
+      "section": "9",
+      "sectionTitle": "Parsers",
+      "fullContext": "A JSON parser transforms a JSON text into another representation. A JSON parser MUST accept all texts that conform to the JSON grammar. A JSON parser MAY accept non-JSON forms or extensions.",
+      "subject": "json parser",
+      "action": "accept non-JSON forms or extensions",
+      "_matchScore": 6,
+      "_matchedKeywords": [
+        "parse",
+        "json",
+        "texts"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": true
+    },
+    {
+      "id": "R-8.1-1",
+      "level": "SHALL",
+      "text": "JSON text SHALL be encoded in UTF-8, UTF-16, or UTF-32.",
+      "section": "8.1",
+      "sectionTitle": "Character Encoding",
+      "fullContext": "JSON text SHALL be encoded in UTF-8, UTF-16, or UTF-32. The default encoding is UTF-8, and JSON texts that are encoded in UTF-8 are interoperable in the sense that they will be read successfully by the maximum number of implementations; there are many implementations that cannot successfully read texts in other encodings (such as UTF-16 and UTF-32).",
+      "subject": "json text",
+      "action": "be encoded in UTF-8, UTF-16, or UTF-32",
+      "_matchScore": 3,
+      "_matchedKeywords": [
+        "implementations",
+        "json",
+        "texts"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-9-1",
+      "level": "MUST",
+      "text": "A JSON parser MUST accept all texts that conform to the JSON grammar.",
+      "section": "9",
+      "sectionTitle": "Parsers",
+      "fullContext": "A JSON parser transforms a JSON text into another representation. A JSON parser MUST accept all texts that conform to the JSON grammar. A JSON parser MAY accept non-JSON forms or extensions.",
+      "subject": "json parser",
+      "action": "accept all texts that conform to the JSON grammar",
+      "_matchScore": 3,
+      "_matchedKeywords": [
+        "parse",
+        "json",
+        "texts"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-10-1",
+      "level": "MUST",
+      "text": "The resulting text MUST strictly conform to the JSON grammar.",
+      "section": "10",
+      "sectionTitle": "Generators",
+      "fullContext": "A JSON generator produces JSON text. The resulting text MUST strictly conform to the JSON grammar.",
+      "subject": "resulting text",
+      "action": "strictly conform to the JSON grammar",
+      "_matchScore": 2,
+      "_matchedKeywords": [
+        "json",
+        "texts"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    },
+    {
+      "id": "R-3-1",
+      "level": "MUST",
+      "text": "A JSON value MUST be an object, array, number, or string, or one of the following three literal names:",
+      "section": "3",
+      "sectionTitle": "Values",
+      "fullContext": "A JSON value MUST be an object, array, number, or string, or one of the following three literal names:",
+      "subject": "json value",
+      "action": "be an object",
+      "_matchScore": 1,
+      "_matchedKeywords": [
+        "json"
+      ],
+      "_subjectMatch": false,
+      "_levelMatch": false
+    }
+  ],
+  "conflicts": [],
+  "_source": "text",
+  "_sourceNote": "Warning: Parsed from text format. Validation accuracy may be limited."
+}

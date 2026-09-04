@@ -214,19 +214,6 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
         "action": "mask all frames that it sends to the server (see Section 5.3 for further details)"
       },
       "reason": "Statement says \"unmask\" while the \"MUST\" requirement requires \"mask\": \"mask all frames that it sends to the server (see Section 5.3 for further details)\""
-    },
-    {
-      "requirement": {
-        "id": "R-6.1-8",
-        "level": "MUST",
-        "text": "If the data is being sent by the client, the frame(s) MUST be masked as defined in Section 5.3.",
-        "section": "6.1",
-        "sectionTitle": "Sending Data",
-        "fullContext": "If the data is being sent by the client, the frame(s) MUST be masked as defined in Section 5.3.",
-        "condition": "the data is being sent by the client",
-        "action": "be masked as defined in Section 5.3"
-      },
-      "reason": "Statement says \"unmask\" while the \"MUST\" requirement requires \"mask\": \"be masked as defined in Section 5.3\""
     }
   ],
   "suggestions": [

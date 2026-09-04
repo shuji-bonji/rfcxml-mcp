@@ -1095,3 +1095,43 @@ describe('限定語 without の言い換え', () => {
     expect(violationOf(statement)).toBeNull();
   });
 });
+
+describe('レベルの対だけで矛盾を出さないこと', () => {
+  const requirement = (over: Partial<Requirement>): Requirement => ({
+    id: 'R-8.1-2',
+    level: 'MUST NOT',
+    text: 'Implementations MUST NOT add a byte order mark to the beginning of a JSON text.',
+    section: '8.1',
+    sectionTitle: 'Character Encoding',
+    subject: 'implementations',
+    action: 'add a byte order mark to the beginning of a JSON text',
+    ...over,
+  });
+
+  it('動詞が違えば矛盾にしない', () => {
+    // RFC 7159 §8.1。「無視する」ことと「足す」ことは別の行為である。
+    const statement =
+      'Implementations that parse JSON texts MAY ignore the presence of a byte order mark.';
+
+    expect(detectConflicts(statement, [requirement({})])).toEqual([]);
+  });
+
+  it('同じ動詞なら矛盾にする', () => {
+    const statement = 'Implementations MAY add a byte order mark to the beginning of a JSON text.';
+
+    expect(detectConflicts(statement, [requirement({})])).toHaveLength(1);
+  });
+
+  it('言い換えの動詞も同じ動詞として扱う', () => {
+    // VERB_SYNONYMS の ['send', 'sent', 'transmit', 'emit', 'forward']
+    const statement = 'A server MAY transmit a partial response to a client.';
+    const req = requirement({
+      id: 'R-3.3-6',
+      text: 'A server MUST NOT send a partial response to a client.',
+      subject: 'server',
+      action: 'send a partial response to a client',
+    });
+
+    expect(detectConflicts(statement, [req])).toHaveLength(1);
+  });
+});
