@@ -44,6 +44,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 9421, note: 'HTTP メッセージ署名。sourcecode の例が多い' },
     { rfc: 9250, note: 'DNS over QUIC' },
     { rfc: 9700, note: 'OAuth 2.0 のセキュリティ BCP。要件が箇条書きで並ぶ' },
+    { rfc: 9651, note: '構造化フィールド値。ABNF と擬似コードが多い' },
+    { rfc: 9530, note: 'Digest フィールド' },
   ].map((entry) => ({ ...entry, kind: 'xml' })),
 
   '2010s-text': [
@@ -69,6 +71,11 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 5545, note: 'iCalendar。2445 の後継。表と定義が多い' },
     { rfc: 8017, note: 'PKCS #1。数式が多い' },
     { rfc: 5905, note: 'NTPv4。C のコードを本文に載せる' },
+    { rfc: 8441, note: 'HTTP/2 上の WebSocket。短い' },
+    { rfc: 7541, note: 'HPACK。ハフマン表が長い' },
+    { rfc: 7636, note: 'PKCE。短く要件が密' },
+    { rfc: 6698, note: 'DANE' },
+    { rfc: 8032, note: 'EdDSA。数式とテストベクタ' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '2000s-text': [
@@ -91,6 +98,11 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 4880, note: 'OpenPGP。パケット形式の表が多い' },
     { rfc: 4287, note: 'Atom。RELAX NG のスキーマを本文に載せる' },
     { rfc: 3164, note: 'syslog。BSD 実装の記述' },
+    { rfc: 5661, note: 'NFSv4.1。600 ページ超' },
+    { rfc: 2865, note: 'RADIUS。属性の表が多い' },
+    { rfc: 6960, note: 'OCSP。ASN.1' },
+    { rfc: 5730, note: 'EPP。XML スキーマを本文に載せる' },
+    { rfc: 4291, note: 'IPv6 アドレス体系' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-late-text': [
@@ -104,6 +116,7 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 1939, note: 'POP3。応答例が多い' },
     { rfc: 1812, note: 'ルータ要件。要件だけで構成された長大な文書' },
     { rfc: 2578, note: 'SMIv2。ASN.1 マクロが多い' },
+    { rfc: 2328, note: 'OSPFv2。状態遷移と付録のデータ構造' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-early-text': [
@@ -117,6 +130,7 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 1521 },
     { rfc: 1738 },
     { rfc: 1866, note: 'SGML の DTD の中に要件がある' },
+    { rfc: 1350, note: 'TFTP' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1960s-70s-text': [
@@ -133,6 +147,7 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 894, note: '節に番号が無い。見出しは Title Case' },
     { rfc: 862, note: '節が 2 つしかない' },
     { rfc: 855, note: '上位の見出しを字下げし、途中から 1 桁目に戻る' },
+    { rfc: 826, note: 'ARP。擬似コードが本文の中心' },
     { rfc: 896, note: '見出しが 1 つも無い。本文の折り返しを節にしていた' },
     { rfc: 959, note: 'FTP。長く、見出しの体裁が場所で変わる' },
     { rfc: 821, note: 'SMTP。状態遷移図が多い' },

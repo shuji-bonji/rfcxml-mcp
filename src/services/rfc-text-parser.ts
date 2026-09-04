@@ -186,8 +186,21 @@ const REFERENCE_HEADING_PATTERN =
  *
  * 見出しの角括弧は 4 桁目から始まり、続きの行はさらに深く字下げされる。
  */
-/** 付録の始まり。参考文献の欄はここで終わる。 */
-const APPENDIX_START_PATTERN = /^Appendix\s+[A-Z]\b/;
+/**
+ * 付録の始まり。参考文献の欄はここで終わる。
+ *
+ * `Appendix A` と書く RFC のほか、大文字 1 文字だけで始める RFC がある。
+ * RFC 2328 は `A. OSPF data formats` と書く。この形を見ていなかったため
+ * 参考文献の欄が閉じず、**付録の本文が最後の参照項目に丸ごと入り**、
+ * 付録の見出し 22 節も構造から落ちていた。
+ *
+ * 参照の続きの行と区別するため、**読点を含まない短い題名**であることを求める。
+ * `B. Braden, R., "Requirements for Internet Hosts", …` のように著者の頭文字が
+ * 1 桁目に来る RFC があり（RFC 1812）、これを付録と読むと参考文献の欄が
+ * そこで閉じて参照が 0 件になる。
+ */
+const APPENDIX_START_PATTERN =
+  /^(?:APPENDIX\s+[A-Z]\b|Appendix\s+[A-Z]\b|[A-Z][.:]\s{1,3}[A-Z][^,]{0,58}$)/;
 
 /**
  * 参考文献の 1 項目の始まり。
@@ -205,7 +218,8 @@ const APPENDIX_START_PATTERN = /^Appendix\s+[A-Z]\b/;
  * 番号の形は、後ろに空白 2 個以上と大文字を求める（本文の折り返しや
  * 箇条書きの `1. ` を拾わないため）。
  */
-const REFERENCE_ENTRY_PATTERN = /^ {0,6}(?:\[([^\]\s][^\]]*)\]|(\d{1,3})\s{2,}(?=[A-Z"]))/;
+const REFERENCE_ENTRY_PATTERN =
+  /^ {0,6}(?:\[([^\]\s][^\]]*)\]|(\d{1,3})\s{2,}(?=[A-Z"])|([A-Z][A-Z0-9]*:\d+)\.\s*$)/;
 
 /**
  * 参考文献の欄（"14.1 Normative References" / "14.2 Informative References"）から
@@ -261,7 +275,7 @@ function extractTextReferences(lines: string[], currentRfcNumber: number): Parse
     const entryStart = bucket ? line.match(REFERENCE_ENTRY_PATTERN) : null;
     if (entryStart) {
       flush();
-      anchor = (entryStart[1] ?? entryStart[2]).trim();
+      anchor = (entryStart[1] ?? entryStart[2] ?? entryStart[3]).trim();
       buffer = [line];
       continue;
     }
@@ -853,9 +867,12 @@ function appendixHeader(
   line: string,
   previousLetter: string | null
 ): { number: string; title: string } | null {
-  // 下位の付録はわずかに字下げすることがある（RFC 1521 の "   E.1  …"）。
+  // 下位の付録は段の深さに応じて字下げすることがある（RFC 1521 の "   E.1  …"、
+  // RFC 2328 の "    C.1 Global parameters" と "        D.4.1 Generating …"）。
+  // 深さで割り切れて 1 段 2〜4 桁なら認める。字下げなしも認める（RFC 2328 の
+  // `A.1` は 1 桁目から始まる）。
   const indent = line.length - line.trimStart().length;
-  if (indent > APPENDIX_MAX_INDENT) return null;
+  if (indent > APPENDIX_MAX_INDENT && !indentMatchesDepth(indent, line)) return null;
 
   const match = APPENDIX_HEADER_PATTERN.exec(line.trim());
   if (!match) return null;
@@ -913,17 +930,31 @@ function appendixHeader(
 const APPENDIX_HEADER_PATTERN =
   /^(APPENDIX\s+|Appendix\s+)?([A-Z])((?:\.\d+)*)[.:]?(?:\s*[-–]+\s*|\s{1,3})(\S.*)$/;
 
+/**
+ * 字下げが段の深さに合っているか。`D.4.1` は深さ 3 なので 1 段 4 桁なら 8 桁。
+ */
+function indentMatchesDepth(indent: number, line: string): boolean {
+  const match = /^([A-Z])((?:\.\d+)+)/.exec(line.trim());
+  if (!match) return false;
+
+  const depth = match[2].split('.').length;
+  if (depth < 2 || indent % (depth - 1) !== 0) return false;
+
+  const step = indent / (depth - 1);
+  return step >= INDENTED_HEADER_MIN_STEP && step <= INDENTED_HEADER_MAX_STEP;
+}
+
 /** 下位の付録に許す字下げ。 */
-const APPENDIX_MAX_INDENT = 3;
+const APPENDIX_MAX_INDENT = 4;
 
 /** 1 段目の節番号に許す飛び。RFC には欠番がある。 */
 const MAX_SECTION_NUMBER_GAP = 5;
 
 /** 字下げした見出しの、1 段あたりの字下げ幅。 */
-const INDENTED_HEADER_STEP = 3;
+const INDENTED_HEADER_MIN_STEP = 2;
 
-/** 字下げ幅の許容差。 */
-const INDENTED_HEADER_TOLERANCE = 2;
+/** 1 段あたりの字下げ幅の上限。 */
+const INDENTED_HEADER_MAX_STEP = 4;
 
 /**
  * 節番号が、直前の節の次に来る番号か。
@@ -1001,8 +1032,15 @@ function indentedSectionHeader(
   const number = match[1].replace(/\.$/, '');
   const depth = number.split('.').length;
   if (depth < 2) return null;
-  if (Math.abs(indent - (depth - 1) * INDENTED_HEADER_STEP) > INDENTED_HEADER_TOLERANCE)
-    return null;
+  // 1 段あたりの字下げ幅は RFC ごとに違う。RFC 1122 は 3 桁、RFC 2328 は
+  // 4 桁で刻む。3 桁を基準に前後 2 桁で見ていたため、RFC 2328 の深い節
+  // （`            12.4.1.1.  Describing point-to-point interfaces` は 12 桁、
+  // 3 桁基準なら 9 桁）が落ち、31 節が構造から消えていた。
+  //
+  // 「段の数で割り切れて、1 段あたりが 2〜4 桁」であることを求める。
+  if (indent % (depth - 1) !== 0) return null;
+  const step = indent / (depth - 1);
+  if (step < INDENTED_HEADER_MIN_STEP || step > INDENTED_HEADER_MAX_STEP) return null;
 
   let title = match[2].trim();
 

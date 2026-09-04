@@ -11,9 +11,9 @@ args: {"rfc":1123,"section":"3.2"}
     "level": "all"
   },
   "stats": {
-    "total": 25,
+    "total": 26,
     "byLevel": {
-      "MUST": 14,
+      "MUST": 15,
       "SHOULD": 5,
       "MAY": 3,
       "SHOULD NOT": 1,
@@ -267,13 +267,23 @@ args: {"rfc":1123,"section":"3.2"}
     {
       "id": "R-3.2.8-1",
       "level": "MUST",
-      "text": "The Terminal-Type option MUST use the terminal type names officially defined in the Assigned Numbers RFC [INTRO:5], when they are available for the particular terminal. However, the receiver of a Terminal-Type option MUST accept any name.",
+      "text": "The Terminal-Type option MUST use the terminal type names officially defined in the Assigned Numbers RFC [INTRO:5], when they are available for the particular terminal.",
       "section": "3.2.8",
       "sectionTitle": "Telnet Terminal-Type Option: RFC-1091",
       "fullContext": "The Terminal-Type option MUST use the terminal type names officially defined in the Assigned Numbers RFC [INTRO:5], when they are available for the particular terminal. However, the receiver of a Terminal-Type option MUST accept any name.",
       "subject": "terminal-type option",
-      "condition": "they are available for the particular terminal. However",
+      "condition": "they are available for the particular terminal",
       "action": "use the terminal type names officially defined in the Assigned Numbers RFC [INTRO:5]"
+    },
+    {
+      "id": "R-3.2.8-2",
+      "level": "MUST",
+      "text": "However, the receiver of a Terminal-Type option MUST accept any name.",
+      "section": "3.2.8",
+      "sectionTitle": "Telnet Terminal-Type Option: RFC-1091",
+      "fullContext": "The Terminal-Type option MUST use the terminal type names officially defined in the Assigned Numbers RFC [INTRO:5], when they are available for the particular terminal. However, the receiver of a Terminal-Type option MUST accept any name.",
+      "subject": "terminal-type option",
+      "action": "accept any name"
     }
   ],
   "_source": "text",

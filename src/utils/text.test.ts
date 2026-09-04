@@ -547,3 +547,33 @@ describe('ABNF の注釈からの切り出し', () => {
     );
   });
 });
+
+describe('略語の判定', () => {
+  it('語尾が al. でも略語にしない', () => {
+    // `al.` は "et al." のためのもの。語尾だけを見ていたため `general.`
+    // `optional.` `normal.` `final.` がすべて略語と読まれ、文が切れなかった。
+    const text =
+      "(See Section 8.2.3 for a description of 'special' stateids in general.) Regardless of whether a stateid is used, the server MUST refuse service.";
+
+    expect(extractSentence(text, text.indexOf('MUST'))).toBe(
+      'Regardless of whether a stateid is used, the server MUST refuse service.'
+    );
+  });
+
+  it('et al. は略語として扱う', () => {
+    const text = 'This was shown by Smith et al. The client MUST retry.';
+
+    expect(isSentenceEnd(text, text.indexOf('al.') + 2)).toBe(false);
+  });
+});
+
+describe('別文書の節を「その文書の」と書く形', () => {
+  it('この RFC の節として拾わない', () => {
+    // RFC 8441 §4。RFC 8441 に §8.3 は無い。
+    const refs = extractCrossReferences(
+      'interpreted according to Section 8.1.2.3 of [RFC7540] instead of Section 8.3 of that document.'
+    );
+
+    expect(refs.some((r) => r.type === 'section' && r.section === '8.3')).toBe(false);
+  });
+});

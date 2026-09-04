@@ -53,8 +53,17 @@ export function isSentenceEnd(text: string, index: number): boolean {
   // これを文末から外すと、次の文が丸ごとつながる。
   if (text[index - 1] === '.' && text[index - 2] === '.') return false;
 
+  // 略語は**語の頭から**始まっていること。`al.` は "et al." のためのものだが、
+  // 語尾だけを見ていたため `general.` `normal.` `optional.` `final.` などが
+  // すべて略語と読まれ、文がそこで切れなかった。RFC 5661 §9.1.2 の
+  // `(See Section 8.2.3 for a description of 'special' stateids in general.)
+  // Regardless of whether …` は、要件文が**注記の括弧から始まって**いた。
   const tail = text.slice(Math.max(0, index - 4), index + 1).toLowerCase();
-  return !ABBREVIATIONS.some((abbreviation) => tail.endsWith(abbreviation));
+  return !ABBREVIATIONS.some((abbreviation) => {
+    if (!tail.endsWith(abbreviation)) return false;
+    const before = text[index + 1 - abbreviation.length - 1];
+    return before === undefined || !/[a-z]/i.test(before);
+  });
 }
 
 /**
@@ -211,6 +220,12 @@ export function extractCrossReferences(text: string): CrossReference[] {
     });
   }
 
+  // 「その文書の第 N 節」は別文書の節である。どの文書かは直前の文にあり、
+  // ここでは決められないので、参照として記録せずに落とす。RFC 8441 §4 の
+  // `Section 8.1.2.3 of [RFC7540] instead of Section 8.3 of that document.` は
+  // §8.3 をこの RFC の節として返しており、RFC 8441 に §8.3 は無い。
+  localText = localText.replace(OTHER_DOCUMENT_SECTION, ' [external] ');
+
   // 残った節参照はこの RFC の節
   const sectionPattern = createSectionReferenceRegex();
   while ((match = sectionPattern.exec(localText)) !== null) {
@@ -222,6 +237,10 @@ export function extractCrossReferences(text: string): CrossReference[] {
 
   return refs;
 }
+
+/** `Section 8.3 of that document` / `of the same document`。 */
+const OTHER_DOCUMENT_SECTION =
+  /[Ss]ections?\s+\d+(?:\.\d+)*\s+of\s+(?:that|the\s+same)\s+document/g;
 
 /**
  * 配列に正規化
