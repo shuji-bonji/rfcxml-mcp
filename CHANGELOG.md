@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.45] - 2026-09-04
+
+**著者の並びが、RFC が印字している順と違っていた。** `get_rfc_structure` の
+メタデータ（Datatracker から補う題名・日付・分類・要旨・著者）を当たった。
+不具合はここ 1 件だけだった。
+
+### Fixed
+
+- **`includeAuthors` の並びが Datatracker の `order` のままだった**:
+  - Datatracker の `documentauthor.order` は、古い RFC では本文の並びと
+    食い違う。RFC 6455 の本文は
+    `I. Fette` / `Google, Inc.` / `A. Melnikov` / `Isode Ltd.` の順に印字するが、
+    API の `order` は 0=Melnikov、1=Fette である。
+  - 本文のヘッダ塊の著者欄（40 桁目から右）から姓を印字順に取り、
+    **顔ぶれが一致するときだけ** API の並びをそれにそろえる。
+  - 著者を足したり落としたりはしない。著者欄から姓を拾う規則は所属を名前と
+    読み違えることがある（RFC 6265 の `U.C. Berkeley`）。顔ぶれが違えば
+    API の並びをそのまま返す。
+  - 実測（本文の著者欄が読めたテキスト経路の RFC 25 本）: 本文の並びと
+    一致するものが **12 本 → 19 本**。
+
+    | RFC | 本文 | 直す前の API |
+    |---|---|---|
+    | 6455 | Fette / Melnikov | Melnikov / Fette |
+    | 5246 | Dierks / Rescorla | Rescorla / Dierks |
+    | 4253 | Ylonen / Lonvick | Lonvick / Ylonen |
+    | 2445 | Dawson / Stenerson | Stenerson / Dawson |
+    | 4271 | Rekhter / Li / Hares | Rekhter / Hares / Li |
+    | 1157 | Case / Fedor / Schoffstall / Davin | Fedor / Schoffstall / Davin / Case |
+    | 5280 | Cooper / Santesson / Farrell / Boeyen / Housley / Polk | Boeyen / Santesson / Polk / Housley / Farrell / Cooper |
+
+  - 残る 6 本は直せない。RFC 2616 / 2068 は本文が `H. Frystyk`、Datatracker が
+    `Henrik Frystyk Nielsen` で姓が一致しない。RFC 3261 は本文から 7 人、API が
+    8 人。RFC 854 / 855 は Datatracker に著者の記録が無く、`authors` が出ない。
+    いずれも顔ぶれが違うので、並べ替えずに API の値を返す。
+
+### Added
+
+- **テストを 6 つ足した**（498 → 504）: 著者欄からの姓の取り出し（2 文字の姓
+  `T. Li` を含む）と、顔ぶれが一致するとき／しないときの並べ替え。
+
+### Checked
+
+- メタデータを RFC 67 本ぶん測った。題名が空・日付が空・分類が空・stream が空・
+  番号不一致・日付の形が不正は、いずれも **0 件**。
+- 本文の題名と `metadata.title` の食い違い **0 件**、本文の年月と `metadata.date`
+  の食い違い **0 件**。
+- 要旨が空なのは RFC 768 / 791 / 792 / 793 の 4 本。いずれも 1980〜1981 年の
+  RFC で、本文に Abstract の節が無い。
+
 ## [0.6.44] - 2026-09-04
 
 **用語の説明が、節の導入や `Argument syntax:` になっていた。** 定義 1,769 件を

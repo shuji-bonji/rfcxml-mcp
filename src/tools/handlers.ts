@@ -23,6 +23,7 @@ import type {
   RequirementLevel,
   ContentBlock,
   ReferencedByEntry,
+  Author,
 } from '../types/index.js';
 import {
   matchStatement,
@@ -59,6 +60,48 @@ interface SimplifiedSection {
  * most one round-trip of latency over the previous behavior, and is free on
  * cache hits.
  */
+/**
+ * Datatracker が返した著者を、本文が印字している順に並べ替える。
+ *
+ * `documentauthor.order` は古い RFC では本文の並びと食い違う。実測（本文の
+ * 著者欄が読めたテキスト経路の RFC 25 本）で、並びが一致したのは 12 本だった。
+ *
+ * | RFC | 本文 | API の order |
+ * |---|---|---|
+ * | 6455 | Fette / Melnikov | Melnikov / Fette |
+ * | 5246 | Dierks / Rescorla | Rescorla / Dierks |
+ * | 4253 | Ylonen / Lonvick | Lonvick / Ylonen |
+ * | 2445 | Dawson / Stenerson | Stenerson / Dawson |
+ * | 4271 | Rekhter / Li / Hares | Rekhter / Hares / Li |
+ * | 1157 | Case / Fedor / Schoffstall / Davin | Fedor / Schoffstall / Davin / Case |
+ *
+ * **顔ぶれが一致するときだけ並べ替える。** 本文の著者欄から姓を拾う規則は
+ * 所属を名前と読み違えることがある（RFC 6265 の `U.C. Berkeley`）ので、
+ * 著者を足したり落としたりはしない。顔ぶれが違えば API の並びをそのまま返す。
+ */
+export function orderByDocument(authors: Author[], order: string[] | undefined): Author[] {
+  if (!order || order.length !== authors.length) return authors;
+
+  const surnameOf = (author: Author): string =>
+    (author.fullname || '').trim().split(/\s+/).pop()?.toLowerCase() ?? '';
+
+  const remaining = new Map<string, Author[]>();
+  for (const author of authors) {
+    const key = surnameOf(author);
+    if (!remaining.has(key)) remaining.set(key, []);
+    remaining.get(key)!.push(author);
+  }
+
+  const ordered: Author[] = [];
+  for (const surname of order) {
+    const bucket = remaining.get(surname);
+    if (!bucket || bucket.length === 0) return authors;
+    ordered.push(bucket.shift()!);
+  }
+
+  return ordered;
+}
+
 export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
   validateRFCNumber(args.rfc);
 
@@ -95,8 +138,10 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
   // Merge: prefer XML body for title/docName/number (authoritative for the
   // RFC body), fold in API-derived fields. Authors only included when
   // includeAuthors=true (otherwise the API fetch returned [] anyway).
+  // `authorOrder` は並べ替えの手掛かりであって、返す値ではない。
+  const { authorOrder, ...bodyMetadata } = parsed.metadata;
   const mergedMetadata: Record<string, unknown> = {
-    ...parsed.metadata,
+    ...bodyMetadata,
     number: parsed.metadata.number ?? args.rfc,
     title: parsed.metadata.title || apiMetadata.title,
     category: apiMetadata.category,
@@ -107,7 +152,7 @@ export async function handleGetRFCStructure(args: GetRFCStructureArgs) {
     abstract: apiMetadata.abstract,
   };
   if (apiMetadata.authors.length > 0) {
-    mergedMetadata.authors = apiMetadata.authors;
+    mergedMetadata.authors = orderByDocument(apiMetadata.authors, authorOrder);
   }
 
   return {

@@ -2119,3 +2119,35 @@ describe('コロンで終わる要件文と、続く箇条書き', () => {
     );
   });
 });
+
+describe('ヘッダ塊から著者の姓を印字順に取ること', () => {
+  it('著者と所属が交互に並ぶ欄から、姓だけを順に取る', () => {
+    // RFC 6455。Datatracker の documentauthor.order は 0=Melnikov、1=Fette。
+    const text = [
+      'Internet Engineering Task Force (IETF)                          I. Fette',
+      'Request for Comments: 6455                                  Google, Inc.',
+      'Category: Standards Track                                    A. Melnikov',
+      'ISSN: 2070-1721                                               Isode Ltd.',
+      '                                                           December 2011',
+      '',
+      '',
+      '                    The WebSocket Protocol',
+      '',
+    ].join('\n');
+
+    expect(parseRFCText(text, 6455).metadata.authorOrder).toEqual(['fette', 'melnikov']);
+  });
+
+  it('姓が 2 文字でも取る', () => {
+    // RFC 4271 の `T. Li`。3 文字以上を求めていたときは落ちていた。
+    const text = [
+      'Network Working Group                                         Y. Rekhter',
+      'Request for Comments: 4271                                          T. Li',
+      'Obsoletes: 1771                                                  S. Hares',
+      'Category: Standards Track                                    January 2006',
+      '',
+    ].join('\n');
+
+    expect(parseRFCText(text, 4271).metadata.authorOrder).toEqual(['rekhter', 'li', 'hares']);
+  });
+});

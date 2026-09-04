@@ -25,6 +25,14 @@ export interface ParsedRFC {
      * Datatracker の `document.time` はレコードの更新時刻であって公開日ではない。
      */
     date?: string;
+    /**
+     * 本文の著者欄に並ぶ姓を、印字されている順で並べたもの。
+     *
+     * Datatracker の `documentauthor.order` は、古い RFC では本文の並びと
+     * 食い違う。RFC 6455 の本文は `I. Fette` / `A. Melnikov` の順に印字するが、
+     * API の `order` は 0=Melnikov、1=Fette である。並べ替えにだけ使う。
+     */
+    authorOrder?: string[];
   };
   sections: Section[];
   references: {

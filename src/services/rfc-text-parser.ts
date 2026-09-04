@@ -501,7 +501,49 @@ function extractTextMetadata(lines: string[], rfcNumber: number): ParsedRFC['met
     title: extractTextTitle(lines),
     number: rfcNumber,
     date: extractTextPublicationDate(lines),
+    authorOrder: extractTextAuthorSurnames(lines),
   };
+}
+
+/** 著者欄が始まる桁。ここから右が著者と所属の欄になる。 */
+const AUTHOR_COLUMN = 40;
+
+/** 著者欄を探す行数。ヘッダ塊はこの範囲に収まる。 */
+const AUTHOR_HEADER_LINES = 20;
+
+/**
+ * 著者名の形。`I. Fette` `M. St. Laurent` `R. Fielding, Ed.`。
+ *
+ * 姓だけを返す。所属（`Google, Inc.` `Isode Ltd.`）は頭文字の点を持たないか、
+ * `Inc.` `Ltd.` などで終わるので当たらない。ただし `U.C. Berkeley` のように
+ * 所属が名前と同じ形に見えることがある。**そのため、この一覧は名前の代わりには
+ * 使わない。並べ替えの手掛かりにだけ使う。**
+ */
+const AUTHOR_NAME_PATTERN = /^(?:[A-Z][a-z]?\.\s*)+([A-Z][A-Za-z'\u2019-]+)(?:,\s*Ed\.)?$/;
+
+/**
+ * テキスト版 RFC のヘッダ塊から、著者の姓を印字順に取り出す。
+ *
+ * ```
+ * Internet Engineering Task Force (IETF)                          I. Fette
+ * Request for Comments: 6455                                  Google, Inc.
+ * Category: Standards Track                                    A. Melnikov
+ * ISSN: 2070-1721                                               Isode Ltd.
+ * ```
+ *
+ * Datatracker の `documentauthor.order` は本文の並びと食い違うことがある。
+ * この RFC では API が 0=Melnikov、1=Fette を返す。
+ */
+function extractTextAuthorSurnames(lines: string[]): string[] {
+  const surnames: string[] = [];
+
+  for (const line of lines.slice(0, AUTHOR_HEADER_LINES)) {
+    const right = line.slice(AUTHOR_COLUMN).trim();
+    const match = AUTHOR_NAME_PATTERN.exec(right);
+    if (match) surnames.push(match[1].toLowerCase());
+  }
+
+  return surnames;
 }
 
 /** 題名の位置に来ることがある見出し。当たったら題名は取れていない。 */

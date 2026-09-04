@@ -13,8 +13,10 @@ import {
   handleGenerateChecklist,
   handleValidateStatement,
   clearParseCache,
+  orderByDocument,
 } from './handlers.js';
 import { clearCache } from '../services/rfc-fetcher.js';
+import type { Author } from '../types/index.js';
 import { MATCHING_LIMITS } from '../utils/statement-matcher.js';
 
 // モック用のサンプル XML
@@ -710,5 +712,42 @@ describe('RFC caching', () => {
 
     // 2回目の呼び出し後、fetch回数が増えていないことを確認
     expect(globalThis.fetch).toHaveBeenCalledTimes(fetchCountAfterFirst);
+  });
+});
+
+describe('著者を本文の並びにそろえること', () => {
+  const author = (fullname: string): Author => ({ fullname });
+
+  it('顔ぶれが同じなら本文の順に並べ替える', () => {
+    const api = [author('Alexey Melnikov'), author('Ian Fette')];
+
+    expect(orderByDocument(api, ['fette', 'melnikov']).map((a) => a.fullname)).toEqual([
+      'Ian Fette',
+      'Alexey Melnikov',
+    ]);
+  });
+
+  it('顔ぶれが違えば API の並びをそのまま返す', () => {
+    // RFC 2616 は本文が `H. Frystyk`、Datatracker が `Henrik Frystyk Nielsen`。
+    const api = [author('Henrik Frystyk Nielsen'), author('Roy T. Fielding')];
+
+    expect(orderByDocument(api, ['fielding', 'frystyk']).map((a) => a.fullname)).toEqual([
+      'Henrik Frystyk Nielsen',
+      'Roy T. Fielding',
+    ]);
+  });
+
+  it('件数が違えば並べ替えない', () => {
+    const api = [author('Adam Barth')];
+
+    expect(orderByDocument(api, ['barth', 'berkeley']).map((a) => a.fullname)).toEqual([
+      'Adam Barth',
+    ]);
+  });
+
+  it('本文の並びが取れなければ並べ替えない', () => {
+    const api = [author('B'), author('A')];
+
+    expect(orderByDocument(api, undefined).map((a) => a.fullname)).toEqual(['B', 'A']);
   });
 });
