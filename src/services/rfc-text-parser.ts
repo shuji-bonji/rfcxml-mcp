@@ -114,8 +114,7 @@ function dedent(lines: string[]): string[] {
  * （`     Standard for ARPA Internet Text Messages`）が本文に残り、
  * **それが節として 40 件立っていた**（RFC 822 の節 104 件のうち）。
  */
-const PAGE_FOOTER =
-  /\[Page\s+\d+\]\s*$|^\s*\[Page\s+\d+\]|(?:^|\s)-\s*\d{1,4}\s*-(?:\s|$)/;
+const PAGE_FOOTER = /\[Page\s+\d+\]\s*$|^\s*\[Page\s+\d+\]|(?:^|\s)-\s*\d{1,4}\s*-(?:\s|$)/;
 
 /** ページ先頭の行。1 桁目から始まり、末尾が発行年月。 */
 const PAGE_HEADER = /^\S.*\b(19|20)\d{2}\s*$/;
@@ -162,14 +161,25 @@ export function stripPageFurniture(text: string): string {
     i++;
 
     // 改ページ（\f）とその前後の空行
+    //
+    // 改ページと柱を同じ行に書く RFC がある。RFC 1661 は
+    // `\fRFC 1661                Point-to-Point Protocol                July 1994`
+    // と書く。この行はここで落ちるので、**柱はもう消えている**。
+    // 気づかずに次の行も落としていたため、`1.2.  Terminology` `2.  PPP
+    // Encapsulation` のような、ページの先頭に来る見出しが消えていた
+    // （RFC 1661 の目次にある 20 節が構造に無かった）。
     let sawFormFeed = false;
+    let headerConsumed = false;
     while (i < lines.length && (lines[i].trim() === '' || lines[i].includes('\f'))) {
-      if (lines[i].includes('\f')) sawFormFeed = true;
+      if (lines[i].includes('\f')) {
+        sawFormFeed = true;
+        if (lines[i].replace(/\f/g, '').trim() !== '') headerConsumed = true;
+      }
       i++;
     }
 
     // ページ先頭の見出し行。改ページがあったか、行の形が見出しらしいときだけ落とす。
-    if (i < lines.length && (sawFormFeed || PAGE_HEADER.test(lines[i]))) {
+    if (i < lines.length && !headerConsumed && (sawFormFeed || PAGE_HEADER.test(lines[i]))) {
       i++;
       while (i < lines.length && lines[i].trim() === '') i++;
     }
@@ -573,6 +583,16 @@ function titleWithoutQuotes(entry: string): string | undefined {
   //  Information technology - Abstract Syntax Notation One (ASN.1)…`
   // は句点で割れない。目印を外した本文をそのまま題名にする。
   // 落とすと、題名が目印（`X680`）のままになる。
+  //
+  // 出典（`, RFC 2401, November 1998.`）は題名ではないので落とす。RFC 3168 の
+  // `[RFC2401] Kent, S. and R. Atkinson, Security Architecture for the
+  //  Internet Protocol, RFC 2401, November 1998.` は句点が末尾にしか無く、
+  // 上の「最長の部分」の規則に入らないため、題名に RFC 番号が残っていた。
+  const withoutSeries = body.replace(/,\s*(?:RFC|STD|BCP|FYI)[\s-]*\d+.*$/i, '').trim();
+  if (withoutSeries.length >= 12) {
+    return clipAtWord(withoutSeries, UNQUOTED_TITLE_MAX_LENGTH);
+  }
+
   if (body.length >= 12) {
     return clipAtWord(body, UNQUOTED_TITLE_MAX_LENGTH);
   }
@@ -669,8 +689,7 @@ const FRONT_MATTER_HEADINGS = new Set([
  * @returns 題名。判別できなければ `undefined`（呼び出し側が API の題名へ落とす）
  */
 /** 題名が前置詞・接続詞で終わっている（文として途中である）。 */
-const TITLE_ENDS_INCOMPLETE =
-  /\b(?:of|for|and|or|to|in|on|with|by|from|the|a|an)\s*$/i;
+const TITLE_ENDS_INCOMPLETE = /\b(?:of|for|and|or|to|in|on|with|by|from|the|a|an)\s*$/i;
 
 /** 題名を割る空行の数の上限。 */
 const TITLE_GAP_MAX_LINES = 2;
@@ -737,18 +756,18 @@ function extractTextTitle(lines: string[]): string | undefined {
 
 /** ヘッダ行に現れる月名 → 月番号 */
 const TEXT_MONTHS: Record<string, string> = {
-  january: '01',
-  february: '02',
-  march: '03',
-  april: '04',
+  jan: '01',
+  feb: '02',
+  mar: '03',
+  apr: '04',
   may: '05',
-  june: '06',
-  july: '07',
-  august: '08',
-  september: '09',
-  october: '10',
-  november: '11',
-  december: '12',
+  jun: '06',
+  jul: '07',
+  aug: '08',
+  sep: '09',
+  oct: '10',
+  nov: '11',
+  dec: '12',
 };
 
 /**
@@ -776,13 +795,14 @@ const DATE_MAX_LINES_TO_SCAN = 60;
 function extractTextPublicationDate(lines: string[]): string | undefined {
   // 日付まで書く RFC がある。RFC 20 は `October 16, 1969` と書き、
   // 月と年だけを見る規則では当たらず `metadata.date` が空だった。
+  // 月を 3 文字に略す RFC もある（RFC 706 の `Nov 1975`）。
   const pattern =
-    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(?:\d{1,2},\s*)?(\d{4})\b/i;
+    /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(?:\d{1,2},\s*)?(\d{4})\b/i;
 
   for (let i = 0; i < Math.min(DATE_MAX_LINES_TO_SCAN, lines.length); i++) {
     const match = pattern.exec(lines[i]);
     if (match) {
-      return `${match[2]}-${TEXT_MONTHS[match[1].toLowerCase()]}`;
+      return `${match[2]}-${TEXT_MONTHS[match[1].slice(0, 3).toLowerCase()]}`;
     }
   }
 

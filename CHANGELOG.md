@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.52] - 2026-09-04
+
+**corpus を 156 本から 170 本に広げ、3 件直した。** 本体の不具合は RFC 1661
+（PPP）が出した 1 件で、20 節が構造から落ちていた。
+
+### Fixed
+
+- **改ページと柱を同じ行に書く RFC で、ページ先頭の見出しを消していた**:
+  - `stripPageFurniture` は、フッタのあと改ページ文字の行を落とし、**さらに
+    次の 1 行**を柱として落とす。RFC 1661 は
+    `\fRFC 1661                Point-to-Point Protocol                July 1994`
+    と改ページ文字と柱を 1 行に書くので、柱はもう落ちている。次の行まで
+    落としていたため、**ページの先頭に来る見出しが消えていた**。
+  - 実測: RFC 1661 の節が **15 → 36**。目次にある `1.2 Terminology`
+    `2 PPP Encapsulation` `3 PPP Link Operation` など 20 節が構造に無かった。
+
+- **月を 3 文字に略すヘッダから公開年月を取れていなかった**:
+  - RFC 706 は `Nov 1975` と書く。実測（RFC 170 本）: `metadata.date` が空の
+    RFC は 0 本になった。
+
+- **引用符を使わない参照の題名に出典が残っていた**:
+  - RFC 3168 の
+    `[RFC2401] Kent, S. and R. Atkinson, Security Architecture for the Internet
+    Protocol, RFC 2401, November 1998.` は句点が末尾にしか無く、「最長の部分を
+    採る」規則に入らないため、題名に `RFC 2401, November 1998` が残っていた
+    （`E4` が見つけた）。`, RFC N` 以降を落とす。
+  - 実測: 題名が直った参照 **14 件**。正誤表の題名も
+    `RFC Errata, Erratum ID 2541, RFC 2460.` から
+    `RFC Errata, Erratum ID 2541` になり、RFCXML 経路の形に近づいた。
+
+### Added
+
+- **corpus を 156 本 → 170 本にした**。足したのは 9260 / 9535（2020 年代 XML）、
+  3168 / 3022 / 3376 / 3810（2000 年代）、2205 / 2401（1990 年代後半）、
+  1994 / 1661 / 1771（1990 年代前半）、856（1980 年代）、706 / 675（1970 年代）。
+- **テストを 3 つ足した**（531 → 534）
+
+### Known
+
+- `D1` に RFC 3022 を記録した。RFC 3022 は最上位の節を `6.0. NAT limitations`
+  と書くが、本文は `section 6 of this document` と引く。構造にあるのは `6.0`
+  であって `6` ではない。
+
 ## [0.6.51] - 2026-09-04
 
 **corpus を 142 本から 156 本に広げ、4 件直した。** 1980 年代の RFC を厚くした

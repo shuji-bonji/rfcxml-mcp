@@ -115,91 +115,92 @@ export function extractRequirementsFromSections(
     return false;
   }
 
-/**
- * その位置のキーワードが、**行為を求めているのではなく語として名指されて**
- * いるか。
- *
- * BCP 14 のキーワードは名詞にもなる。RFC 2119 §7 は
- *
- * > The effects on security of not implementing **a MUST or SHOULD**, or doing
- * > something the specification says MUST NOT or SHOULD NOT be done, are very
- * > subtle.
- *
- * と書く。この 1 文から MUST / SHOULD / MUST NOT / SHOULD NOT の 4 件が立って
- * いた。RFC 9051 の付録 E は `(Changed from a SHOULD to a MUST.)`、RFC 5246 §1.2 は
- * `Support for the SSLv2 backward-compatible hello is now a MAY, not a SHOULD,
- * with sending it a SHOULD NOT.` である。
- *
- * 形容詞として名詞に付く `an OPTIONAL feature` `the RECOMMENDED default values`
- * も同じで、その節の実装が何かをすることを求めていない。
- *
- * **冠詞が直前に来ることだけ**を見る。引用符付き（`"MUST"`）は `B10` が、
- * BCP 14 の定型文は `B9` が既に落としている。
- *
- * 実測（RFC 82 本）: 48 件。うち 9 件は 1 つの文から複数のレベルが立っていた
- * もので、名指しでないほうのキーワードは残る（RFC 9051 §6.2.2 の
- * `It MAY also negotiate an OPTIONAL security layer` は MAY が残り
- * OPTIONAL が落ちる）。
- */
-const ARTICLE_BEFORE_KEYWORD = /\b(?:an?|the)\s+$/i;
+  /**
+   * その位置のキーワードが、**行為を求めているのではなく語として名指されて**
+   * いるか。
+   *
+   * BCP 14 のキーワードは名詞にもなる。RFC 2119 §7 は
+   *
+   * > The effects on security of not implementing **a MUST or SHOULD**, or doing
+   * > something the specification says MUST NOT or SHOULD NOT be done, are very
+   * > subtle.
+   *
+   * と書く。この 1 文から MUST / SHOULD / MUST NOT / SHOULD NOT の 4 件が立って
+   * いた。RFC 9051 の付録 E は `(Changed from a SHOULD to a MUST.)`、RFC 5246 §1.2 は
+   * `Support for the SSLv2 backward-compatible hello is now a MAY, not a SHOULD,
+   * with sending it a SHOULD NOT.` である。
+   *
+   * 形容詞として名詞に付く `an OPTIONAL feature` `the RECOMMENDED default values`
+   * も同じで、その節の実装が何かをすることを求めていない。
+   *
+   * **冠詞が直前に来ることだけ**を見る。引用符付き（`"MUST"`）は `B10` が、
+   * BCP 14 の定型文は `B9` が既に落としている。
+   *
+   * 実測（RFC 82 本）: 48 件。うち 9 件は 1 つの文から複数のレベルが立っていた
+   * もので、名指しでないほうのキーワードは残る（RFC 9051 §6.2.2 の
+   * `It MAY also negotiate an OPTIONAL security layer` は MAY が残り
+   * OPTIONAL が落ちる）。
+   */
+  const ARTICLE_BEFORE_KEYWORD = /\b(?:an?|the)\s+$/i;
 
-/** BCP 14 のキーワード。名指しかどうかを見るために、位置から読み直す。 */
-const KEYWORD_AT_POSITION =
-  /^(?:MUST NOT|SHALL NOT|SHOULD NOT|NOT RECOMMENDED|MUST|SHALL|SHOULD|MAY|REQUIRED|RECOMMENDED|OPTIONAL)/;
+  /** BCP 14 のキーワード。名指しかどうかを見るために、位置から読み直す。 */
+  const KEYWORD_AT_POSITION =
+    /^(?:MUST NOT|SHALL NOT|SHOULD NOT|NOT RECOMMENDED|MUST|SHALL|SHOULD|MAY|REQUIRED|RECOMMENDED|OPTIONAL)/;
 
-/**
- * 名詞として置かれたキーワードの後ろに来るもの。
- *
- * 冠詞だけを見ると、**形容詞として名詞に付く**書き方まで落ちる。
- * `an OPTIONAL feature of HTTP`（RFC 9110 §14）、
- * `the RECOMMENDED default values for these two parameters are 3.5 seconds …`
- * （RFC 3550 §6.2）、`A RECOMMENDED mechanism to achieve this is …`
- * （RFC 3261 §16.7）は、その節が何を選ぶべきかを述べており要件である。
- *
- * 名指しのときはキーワードの後ろに名詞が来ない。
- * `a MUST or SHOULD` / `a MAY, not a SHOULD` / `a SHOULD to a MUST.`
- */
-const KEYWORD_AS_BARE_NOUN =
-  /^\s*(?:[,.;:)"'\u201d]|$|(?:or|and|to|not|nor|than|instead|rather|level|keyword|in|of|for|by|with|from|at|on|into)\b)/i;
+  /**
+   * 名詞として置かれたキーワードの後ろに来るもの。
+   *
+   * 冠詞だけを見ると、**形容詞として名詞に付く**書き方まで落ちる。
+   * `an OPTIONAL feature of HTTP`（RFC 9110 §14）、
+   * `the RECOMMENDED default values for these two parameters are 3.5 seconds …`
+   * （RFC 3550 §6.2）、`A RECOMMENDED mechanism to achieve this is …`
+   * （RFC 3261 §16.7）は、その節が何を選ぶべきかを述べており要件である。
+   *
+   * 名指しのときはキーワードの後ろに名詞が来ない。
+   * `a MUST or SHOULD` / `a MAY, not a SHOULD` / `a SHOULD to a MUST.`
+   */
+  const KEYWORD_AS_BARE_NOUN =
+    /^\s*(?:[,.;:)"'\u201d]|$|(?:or|and|to|not|nor|than|instead|rather|level|keyword|in|of|for|by|with|from|at|on|into)\b)/i;
 
-function namesTheKeyword(text: string, position: number): boolean {
-  if (!ARTICLE_BEFORE_KEYWORD.test(text.slice(Math.max(0, position - 12), position))) return false;
+  function namesTheKeyword(text: string, position: number): boolean {
+    if (!ARTICLE_BEFORE_KEYWORD.test(text.slice(Math.max(0, position - 12), position)))
+      return false;
 
-  const keyword = KEYWORD_AT_POSITION.exec(text.slice(position));
-  if (!keyword) return false;
+    const keyword = KEYWORD_AT_POSITION.exec(text.slice(position));
+    if (!keyword) return false;
 
-  return KEYWORD_AS_BARE_NOUN.test(text.slice(position + keyword[0].length));
-}
+    return KEYWORD_AS_BARE_NOUN.test(text.slice(position + keyword[0].length));
+  }
 
-/**
- * 語を並べただけで、文になっていないか。
- *
- * RFC 2578 §3.7 は ASN.1 の予約語 96 個を字下げして並べる。
- *
- * ```
- *         ABSENT ACCESS AGENT-CAPABILITIES ANY APPLICATION AUGMENTS BEGIN
- *         BIT BITS BOOLEAN BY CHOICE COMPONENT COMPONENTS CONTACT-INFO
- *         …
- *         OPTIONAL ORGANIZATION Opaque PLUS-INFINITY PRESENT PRIVATE
- * ```
- *
- * この中の `OPTIONAL` から要件が 1 件立ち、チェックリストの 1 項目が
- * **903 文字の語の並び**になっていた。
- *
- * 小文字だけの語が 1 つも無いことで見分ける。地の文は `the` `of` `to` `is` の
- * ような語を必ず含む。予約語の一覧は `BY` `FROM` `OF` `WITH` のように大文字で
- * 書かれるので、これらは小文字の語として数えない。
- *
- * 実測（RFC 97 本）: 1 件。
- */
-const LOWERCASE_WORD = /(?:^|\s)[a-z][a-z']*(?:\s|$)/;
+  /**
+   * 語を並べただけで、文になっていないか。
+   *
+   * RFC 2578 §3.7 は ASN.1 の予約語 96 個を字下げして並べる。
+   *
+   * ```
+   *         ABSENT ACCESS AGENT-CAPABILITIES ANY APPLICATION AUGMENTS BEGIN
+   *         BIT BITS BOOLEAN BY CHOICE COMPONENT COMPONENTS CONTACT-INFO
+   *         …
+   *         OPTIONAL ORGANIZATION Opaque PLUS-INFINITY PRESENT PRIVATE
+   * ```
+   *
+   * この中の `OPTIONAL` から要件が 1 件立ち、チェックリストの 1 項目が
+   * **903 文字の語の並び**になっていた。
+   *
+   * 小文字だけの語が 1 つも無いことで見分ける。地の文は `the` `of` `to` `is` の
+   * ような語を必ず含む。予約語の一覧は `BY` `FROM` `OF` `WITH` のように大文字で
+   * 書かれるので、これらは小文字の語として数えない。
+   *
+   * 実測（RFC 97 本）: 1 件。
+   */
+  const LOWERCASE_WORD = /(?:^|\s)[a-z][a-z']*(?:\s|$)/;
 
-function looksLikeWordList(sentence: string): boolean {
-  const words = sentence.trim().split(/\s+/).filter(Boolean);
-  if (words.length < 4) return false;
+  function looksLikeWordList(sentence: string): boolean {
+    const words = sentence.trim().split(/\s+/).filter(Boolean);
+    if (words.length < 4) return false;
 
-  return !LOWERCASE_WORD.test(` ${sentence} `);
-}
+    return !LOWERCASE_WORD.test(` ${sentence} `);
+  }
 
   function processSection(section: Section, path: string) {
     // 内部の識別子（RFCXML の `pn`）はそのままでは外に出せない。出力する

@@ -2482,3 +2482,65 @@ describe('番号を持たない見出しに振る番号', () => {
     expect(new Set(numbers).size).toBe(numbers.length);
   });
 });
+
+describe('改ページと柱を同じ行に書く RFC', () => {
+  it('ページ先頭の見出しを消さない', () => {
+    // RFC 1661 は改ページ文字と柱を 1 行に書く。柱はその行と一緒に落ちるのに、
+    // さらに次の行も落としていたため、ページ先頭に来る見出しが消えていた。
+    const formFeed = String.fromCharCode(12);
+    const text = [
+      '1.1.  Specification of Requirements',
+      '',
+      '   Text.',
+      '',
+      'Simpson                                                         [Page 2]',
+      `${formFeed}RFC 1661                Point-to-Point Protocol                July 1994`,
+      '',
+      '',
+      '1.2.  Terminology',
+      '',
+      '   This document frequently uses the following terms:',
+      '',
+    ].join('\n');
+
+    const numbers = parseRFCText(text, 1661).sections.flatMap((s) => [
+      s.number,
+      ...s.subsections.map((x) => x.number),
+    ]);
+
+    expect(numbers).toContain('1.2');
+  });
+});
+
+describe('月を 3 文字に略すヘッダ', () => {
+  it('Nov 1975 から年月を取る', () => {
+    const text = [
+      'Network Working Group                                     Jon Postel  (SRI-ARC)',
+      'Request for Comments: 706                                              Nov 1975',
+      'NIC #33861',
+      '',
+      '                    On the Junk Mail Problem',
+      '',
+    ].join('\n');
+
+    expect(parseRFCText(text, 706).metadata.date).toBe('1975-11');
+  });
+});
+
+describe('引用符を使わない参照の題名', () => {
+  it('出典の部分を落とす', () => {
+    // RFC 3168 の [RFC2401]。句点が末尾にしか無く、題名に RFC 番号が残っていた。
+    const text = [
+      '10.  References',
+      '',
+      '   [RFC2401]    Kent, S. and R. Atkinson, Security Architecture for the',
+      '                Internet Protocol, RFC 2401, November 1998.',
+      '',
+    ].join('\n');
+
+    const reference = parseRFCText(text, 3168).references.informative[0];
+
+    expect(reference.title).not.toMatch(/RFC\s*2401/);
+    expect(reference.title).toContain('Security Architecture for the Internet Protocol');
+  });
+});
