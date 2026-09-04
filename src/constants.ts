@@ -129,6 +129,16 @@ export function createExternalSectionRegexes(): Array<{
   documentGroup: number;
 }> {
   return [
+    // 文書名を二重引用符で書く形。1980〜90 年代の RFC は角括弧の目印を使わず、
+    // 題名をそのまま引く。RFC 1191 §3.1 は
+    //   `Section 4.2.2.6 of "Requirements for Internet Hosts -- Communication
+    //    Layers"`
+    // と書く。RFC 1191 に §4.2.2.6 は無い。
+    {
+      pattern: /[Ss]ections?\s+(\d+(?:\.\d+)*)\.?\s+of\s+"([^"]{4,120})"/g,
+      sectionGroup: 1,
+      documentGroup: 2,
+    },
     // 番号のあとに句点が入ることがある。RFC 8628 §3.1 は
     // `as described in Section 3.2.1. of [RFC6749].` と書く。句点を認めて
     // いなかったため、RFC 8628 に無い §3.2.1 をこの RFC の節として返していた。

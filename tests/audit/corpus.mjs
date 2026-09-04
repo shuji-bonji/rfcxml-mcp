@@ -49,6 +49,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 9298, note: 'HTTP 上の UDP プロキシ' },
     { rfc: 9369, note: 'QUIC v2' },
     { rfc: 9460, note: 'SVCB / HTTPS レコード' },
+    { rfc: 9449, note: 'DPoP' },
+    { rfc: 9420, note: 'MLS。非常に長い' },
   ].map((entry) => ({ ...entry, kind: 'xml' })),
 
   '2010s-text': [
@@ -126,6 +128,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 5755, note: '属性証明書。ASN.1' },
     { rfc: 3412, note: 'SNMP のメッセージ処理' },
     { rfc: 4648, note: 'Base16 / 32 / 64。表が中心' },
+    { rfc: 3492, note: 'Punycode。C のコードが本文の大半' },
+    { rfc: 4193, note: 'ユニークローカルアドレス' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-late-text': [
@@ -136,6 +140,7 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 2822, note: '参考文献の欄の見出しが Bibliography' },
     { rfc: 1918, note: 'プライベートアドレス。短い BCP' },
     { rfc: 2046, note: 'MIME Part Two' },
+    { rfc: 1889, note: 'RTP の初版。1996 年' },
     { rfc: 2445, note: '題名が小文字で始まる節 (iCalendar Object Specification)' },
     { rfc: 2119, note: 'BCP 14 の定義そのもの。本文がキーワードの話' },
     { rfc: 1939, note: 'POP3。応答例が多い' },
@@ -155,6 +160,9 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 1521 },
     { rfc: 1738 },
     { rfc: 1866, note: 'SGML の DTD の中に要件がある' },
+    { rfc: 1191, note: 'Path MTU Discovery' },
+    { rfc: 1323, note: 'TCP の高速通信向け拡張' },
+    { rfc: 1583, note: 'OSPFv2 の初版。2328 の前身' },
     { rfc: 1350, note: 'TFTP' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
@@ -162,6 +170,7 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 20, note: 'ASCII。1969 年。表が中心' },
     { rfc: 1, note: '最初の RFC。1969 年。手書き風の体裁' },
     { rfc: 733, note: 'メールの書式。1977 年' },
+    { rfc: 741, note: 'NVP。1977 年' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1980s-text': [
@@ -176,6 +185,11 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 862, note: '節が 2 つしかない' },
     { rfc: 822, note: 'メールの書式。1982 年。ABNF の原型' },
     { rfc: 1057, note: 'RPC。1988 年。XDR の定義が多い' },
+    { rfc: 1011, note: '公式プロトコル一覧。1987 年。表が中心' },
+    { rfc: 1042, note: 'IEEE 802 上の IP。1988 年' },
+    { rfc: 950, note: 'サブネット。1985 年' },
+    { rfc: 917, note: 'サブネットの考え方。1984 年' },
+    { rfc: 765, note: 'FTP。1980 年' },
     { rfc: 855, note: '上位の見出しを字下げし、途中から 1 桁目に戻る' },
     { rfc: 826, note: 'ARP。擬似コードが本文の中心' },
     { rfc: 896, note: '見出しが 1 つも無い。本文の折り返しを節にしていた' },

@@ -615,3 +615,15 @@ describe('番号のあとに句点が入る別文書参照', () => {
     expect(refs.some((r) => r.type === 'section')).toBe(false);
   });
 });
+
+describe('文書名を二重引用符で書く別文書参照', () => {
+  it('この RFC の節として拾わない', () => {
+    // RFC 1191 §3.1。1980〜90 年代の RFC は角括弧の目印を使わず題名を引く。
+    const refs = extractCrossReferences(
+      'Section 4.2.2.6 of "Requirements for Internet Hosts -- Communication Layers" says so.'
+    );
+
+    expect(refs.some((r) => r.type === 'external' && r.section === '4.2.2.6')).toBe(true);
+    expect(refs.some((r) => r.type === 'section')).toBe(false);
+  });
+});

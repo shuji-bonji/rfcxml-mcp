@@ -1540,6 +1540,7 @@ function extractUnnumberedSections(lines: string[]): Section[] {
   // なり、親のない `1.1` から始まってしまう。
   const seen: number[] = [];
   const counters: number[] = [];
+  const used = new Set<string>();
 
   const numberFor = (indent: number): string => {
     if (!seen.includes(indent)) {
@@ -1550,7 +1551,20 @@ function extractUnnumberedSections(lines: string[]): Section[] {
     while (counters.length <= depth) counters.push(0);
     counters.length = depth + 1;
     counters[depth] += 1;
-    return counters.map((n) => Math.max(n, 1)).join('.');
+
+    // 番号が重ならないようにする。段の深さに上限があるため、上限より深い
+    // 見出しが 2 つの塊に分かれて現れると、同じ番号が 2 度出る。RFC 765 は
+    // 転送形式の一覧（`ASCII Format` …）とページ構造の一覧（`Header Length` …）が
+    // どちらも 4 段目に来て、**`3.1.1.1` から `3.1.1.5` が 2 度**立っていた。
+    // 番号が重なると `findSection` がどちらを引くか定まらない。
+    let number = counters.map((n) => Math.max(n, 1)).join('.');
+    while (used.has(number)) {
+      counters[depth] += 1;
+      number = counters.map((n) => Math.max(n, 1)).join('.');
+    }
+    used.add(number);
+
+    return number;
   };
 
   const flat: Section[] = [];

@@ -2436,3 +2436,49 @@ describe('付録の題名が小文字の引用で始まる形', () => {
     expect(parseRFCText(text, 7515).sections.map((s) => s.number)).toEqual(['A', 'B', 'C']);
   });
 });
+
+describe('番号を持たない見出しに振る番号', () => {
+  it('同じ番号を 2 度使わない', () => {
+    // RFC 765 は 4 段目の見出しが 2 つの塊に分かれて現れ、`3.1.1.1` から
+    // `3.1.1.5` が 2 度立っていた。番号が重なると findSection が定まらない。
+    const text = [
+      'A Overview',
+      '',
+      '   Text.',
+      '',
+      '  B Data Types',
+      '',
+      '     Text.',
+      '',
+      '    ASCII Format',
+      '',
+      '       Text.',
+      '',
+      '    EBCDIC Format',
+      '',
+      '       Text.',
+      '',
+      '  C Page Structure',
+      '',
+      '     Text.',
+      '',
+      '    Header Length',
+      '',
+      '       Text.',
+      '',
+      '    Page Index',
+      '',
+      '       Text.',
+      '',
+    ].join('\n');
+
+    const walk = (list: { number: string; subsections?: unknown[] }[]): string[] =>
+      list.flatMap((s) => [
+        s.number,
+        ...walk((s.subsections ?? []) as { number: string; subsections?: unknown[] }[]),
+      ]);
+    const numbers = walk(parseRFCText(text, 765).sections as never);
+
+    expect(new Set(numbers).size).toBe(numbers.length);
+  });
+});

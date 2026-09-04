@@ -376,13 +376,17 @@ export async function handleGetRelatedSections(args: { rfc: number; section: str
     rfc: args.rfc,
     section: args.section,
     title: targetSection.title,
-    relatedSections: Array.from(relatedSections).map((secNum) => {
-      const sec = findSection(parsed.sections, secNum);
-      return {
-        number: secNum,
-        title: sec?.title || 'Unknown',
-      };
-    }),
+    // 実在する節だけを返す。原文が実在しない節を指していることがある
+    // （RFC 1323 §1.2 の `as explained in Section 5.3 and Appendix B` は
+    // §5.3 を指すが、RFC 1323 に §5.3 は無い）。番号だけ返しても引けないので、
+    // 題名を `Unknown` にして返していた。
+    relatedSections: Array.from(relatedSections)
+      .map((secNum) => ({ number: secNum, section: findSection(parsed.sections, secNum) }))
+      .filter((entry) => entry.section !== undefined && entry.section !== null)
+      .map((entry) => ({
+        number: entry.number,
+        title: entry.section?.title || 'Unknown',
+      })),
     _source: source,
     _sourceNote: getSourceNoteIfText(source, 'sections'),
   };
