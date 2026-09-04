@@ -129,8 +129,11 @@ export function createExternalSectionRegexes(): Array<{
   documentGroup: number;
 }> {
   return [
+    // 番号のあとに句点が入ることがある。RFC 8628 §3.1 は
+    // `as described in Section 3.2.1. of [RFC6749].` と書く。句点を認めて
+    // いなかったため、RFC 8628 に無い §3.2.1 をこの RFC の節として返していた。
     {
-      pattern: /[Ss]ections?\s+(\d+(?:\.\d+)*)\s+of\s+\[([^\]]+)\]/g,
+      pattern: /[Ss]ections?\s+(\d+(?:\.\d+)*)\.?\s+of\s+\[([^\]]+)\]/g,
       sectionGroup: 1,
       documentGroup: 2,
     },
@@ -138,7 +141,7 @@ export function createExternalSectionRegexes(): Array<{
     //   "GET_MAXSIZES in Section 3.4 of RFC 1122."
     //   "as explained in RFC 6691, Section 3.1."
     {
-      pattern: /[Ss]ections?\s+(\d+(?:\.\d+)*)\s+of\s+(RFC\s*\d+)/gi,
+      pattern: /[Ss]ections?\s+(\d+(?:\.\d+)*)\.?\s+of\s+(RFC\s*\d+)/gi,
       sectionGroup: 1,
       documentGroup: 2,
     },
@@ -164,7 +167,7 @@ export function createExternalSectionRegexes(): Array<{
     //   `- Message Digest (section (Section 11.2 in [CMS])`
     // と書く。`of` だけを見ていたため、RFC 5751 に無い §11.2 を返していた。
     {
-      pattern: /[Ss]ections?\s+(\d+(?:\.\d+)*)\s+in\s+\[([^\]]+)\]/g,
+      pattern: /[Ss]ections?\s+(\d+(?:\.\d+)*)\.?\s+in\s+\[([^\]]+)\]/g,
       sectionGroup: 1,
       documentGroup: 2,
     },

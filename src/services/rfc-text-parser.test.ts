@@ -2364,3 +2364,75 @@ describe('番号にピリオドを置く参考文献', () => {
     expect(anchors).not.toContain('16');
   });
 });
+
+describe('中央に `- N -` と書くページフッタ', () => {
+  it('フッタと次ページの柱を落とす', () => {
+    // RFC 822 は `     August 13, 1982   - 1 -   RFC #822` と書き、次のページの
+    // 先頭に柱（`Standard for ARPA Internet Text Messages`）を置く。フッタと
+    // 分からないため、柱が節として 40 件立っていた。
+    const text = [
+      '1.  INTRODUCTION',
+      '',
+      '   Text.',
+      '',
+      '     August 13, 1982               - 1 -                      RFC #822',
+      '\f',
+      '',
+      '     Standard for ARPA Internet Text Messages',
+      '',
+      '2.  NOTATIONAL CONVENTIONS',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+
+    expect(parseRFCText(text, 822).sections.map((s) => s.title)).toEqual([
+      'INTRODUCTION',
+      'NOTATIONAL CONVENTIONS',
+    ]);
+  });
+});
+
+describe('文書全体が字下げされている RFC', () => {
+  it('字下げを外してから節を取る', () => {
+    // RFC 822 は本文も見出しも 5 桁目から組む。
+    const text = [
+      '     1.  INTRODUCTION',
+      '',
+      '          Text here.',
+      '',
+      '     1.1.  SCOPE',
+      '',
+      '          More text.',
+      '',
+    ].join('\n');
+
+    const sections = parseRFCText(text, 822).sections;
+
+    expect(sections.map((s) => s.number)).toEqual(['1']);
+    expect(sections[0].subsections.map((s) => s.number)).toEqual(['1.1']);
+  });
+});
+
+describe('付録の題名が小文字の引用で始まる形', () => {
+  it('Appendix と書いてあれば題名の先頭を問わない', () => {
+    // RFC 7515 の `Appendix B.  "x5c" (X.509 Certificate Chain) Example`。
+    // 落とすと「A の次は B」の順番が合わず、続く C〜F も落ちる。
+    const text = [
+      'Appendix A.  JWS Examples',
+      '',
+      '   Text.',
+      '',
+      'Appendix B.  "x5c" (X.509 Certificate Chain) Example',
+      '',
+      '   Text.',
+      '',
+      'Appendix C.  Notes',
+      '',
+      '   Text.',
+      '',
+    ].join('\n');
+
+    expect(parseRFCText(text, 7515).sections.map((s) => s.number)).toEqual(['A', 'B', 'C']);
+  });
+});

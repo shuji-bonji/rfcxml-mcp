@@ -67,7 +67,7 @@ const DEFINITION_EXTRACTION = {
  * RFC テキストをパースして構造化データに変換（中精度）
  */
 export function parseRFCText(text: string, rfcNumber: number): ParsedRFC {
-  const lines = stripPageFurniture(text).split('\n');
+  const lines = dedent(stripPageFurniture(text).split('\n'));
 
   return {
     metadata: extractTextMetadata(lines, rfcNumber),
@@ -78,14 +78,44 @@ export function parseRFCText(text: string, rfcNumber: number): ParsedRFC {
 }
 
 /**
+ * 文書全体が字下げされているとき、その分を外す。
+ *
+ * RFC 822 は本文も見出しも 5 桁目から組む。節見出しは 1 桁目から始まる前提で
+ * 見ているため、**節が 1 つも取れていなかった**（取れていた 104 件はページの
+ * 柱と本文の折り返しだった）。
+ *
+ * 実測（RFC 142 本）: 最小の字下げが 1 桁以上あるのは RFC 822 だけで、
+ * ほかはすべて 0 桁である。外して困る RFC は無い。
+ */
+function dedent(lines: string[]): string[] {
+  let margin = Number.POSITIVE_INFINITY;
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    margin = Math.min(margin, line.length - line.trimStart().length);
+    if (margin === 0) return lines;
+  }
+
+  if (!Number.isFinite(margin) || margin === 0) return lines;
+
+  return lines.map((line) => (line.trim() ? line.slice(margin) : line));
+}
+
+/**
  * ページ末尾の行。"Fielding & Reschke   Standards Track   [Page 29]"
  *
  * 1 桁目に `[Page N]` を置く RFC がある。RFC 821 は
  * `[Page 68]                                                         Postel`
  * と書く。行末だけを見ていたため、この形のフッタが本文として残り、
  * `[Page 68]` が参考文献の項目として拾われ、節と相互参照も狂っていた。
+ *
+ * `[Page N]` を使わず、中央に `- N -` と書く RFC がある。RFC 822 は
+ * `     August 13, 1982               - 1 -                      RFC #822`
+ * と書く。フッタと分からないため、次のページの先頭にある柱
+ * （`     Standard for ARPA Internet Text Messages`）が本文に残り、
+ * **それが節として 40 件立っていた**（RFC 822 の節 104 件のうち）。
  */
-const PAGE_FOOTER = /\[Page\s+\d+\]\s*$|^\s*\[Page\s+\d+\]/;
+const PAGE_FOOTER =
+  /\[Page\s+\d+\]\s*$|^\s*\[Page\s+\d+\]|(?:^|\s)-\s*\d{1,4}\s*-(?:\s|$)/;
 
 /** ページ先頭の行。1 桁目から始まり、末尾が発行年月。 */
 const PAGE_HEADER = /^\S.*\b(19|20)\d{2}\s*$/;
@@ -638,6 +668,13 @@ const FRONT_MATTER_HEADINGS = new Set([
  *
  * @returns 題名。判別できなければ `undefined`（呼び出し側が API の題名へ落とす）
  */
+/** 題名が前置詞・接続詞で終わっている（文として途中である）。 */
+const TITLE_ENDS_INCOMPLETE =
+  /\b(?:of|for|and|or|to|in|on|with|by|from|the|a|an)\s*$/i;
+
+/** 題名を割る空行の数の上限。 */
+const TITLE_GAP_MAX_LINES = 2;
+
 function extractTextTitle(lines: string[]): string | undefined {
   const limit = Math.min(METADATA_EXTRACTION.MAX_LINES_TO_SCAN, lines.length);
 
@@ -669,6 +706,25 @@ function extractTextTitle(lines: string[]): string | undefined {
   while (index < limit && lines[index].trim() !== '' && parts.length < 3) {
     parts.push(lines[index].trim());
     index++;
+  }
+
+  // 題名を空行で割る RFC がある。RFC 822 と RFC 733 は
+  //
+  //     STANDARD FOR THE FORMAT OF
+  //
+  //     ARPA INTERNET TEXT MESSAGES
+  //
+  // と書く。最初の空行で切ると `STANDARD FOR THE FORMAT OF` で終わり、
+  // `A5`（メタデータに題名がある）が破れていた。
+  //
+  // **前置詞・接続詞で終わっているときだけ**続きを取る。文として途中だからで、
+  // 完結している題名のあとに続く行（著者名や日付）は取らない。
+  if (parts.length > 0 && TITLE_ENDS_INCOMPLETE.test(parts[parts.length - 1])) {
+    let next = index;
+    while (next < limit && lines[next].trim() === '') next++;
+    if (next < limit && next - index <= TITLE_GAP_MAX_LINES && /^\s/.test(lines[next])) {
+      parts.push(lines[next].trim());
+    }
   }
 
   const title = parts.join(' ');
@@ -910,7 +966,13 @@ function appendixHeader(
 
   // 1 段目は字下げしない
   if (indent > 0) return null;
-  if (!/^["'([]?[A-Z0-9]/.test(trimmed)) return null;
+
+  // 題名が大文字か数字で始まること。**`Appendix` と書いていないときだけ**課す。
+  // 本文の `B. Smith` のような行を拾わないための規則であり、`Appendix` の語が
+  // あるならその心配は無い。課していたため、RFC 7515 の
+  // `Appendix B.  "x5c" (X.509 Certificate Chain) Example` が落ち、
+  // **そのあとの付録 C〜F も「A の次は B」の順番が合わずに落ちていた**（4 節）。
+  if (!explicit && !/^["'([]?[A-Z0-9]/.test(trimmed)) return null;
 
   // 1 段目は A から始まり、1 つずつ進む
   const expected = previousLetter ? String.fromCharCode(previousLetter.charCodeAt(0) + 1) : 'A';

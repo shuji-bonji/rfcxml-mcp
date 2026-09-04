@@ -605,3 +605,13 @@ describe('前置詞が in の別文書参照', () => {
     expect(refs.some((r) => r.type === 'section' && r.section === '11.2')).toBe(false);
   });
 });
+
+describe('番号のあとに句点が入る別文書参照', () => {
+  it('この RFC の節として拾わない', () => {
+    // RFC 8628 §3.1 の `as described in Section 3.2.1. of [RFC6749].`
+    const refs = extractCrossReferences('as described in Section 3.2.1. of [RFC6749].');
+
+    expect(refs.some((r) => r.type === 'external' && r.section === '3.2.1')).toBe(true);
+    expect(refs.some((r) => r.type === 'section')).toBe(false);
+  });
+});

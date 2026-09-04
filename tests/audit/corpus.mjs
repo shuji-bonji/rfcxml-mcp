@@ -47,6 +47,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 9651, note: '構造化フィールド値。ABNF と擬似コードが多い' },
     { rfc: 9530, note: 'Digest フィールド' },
     { rfc: 9298, note: 'HTTP 上の UDP プロキシ' },
+    { rfc: 9369, note: 'QUIC v2' },
+    { rfc: 9460, note: 'SVCB / HTTPS レコード' },
   ].map((entry) => ({ ...entry, kind: 'xml' })),
 
   '2010s-text': [
@@ -79,6 +81,11 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 8032, note: 'EdDSA。数式とテストベクタ' },
     { rfc: 6570, note: 'URI テンプレート。例の表が非常に多い' },
     { rfc: 6347, note: 'DTLS 1.2' },
+    { rfc: 8415, note: 'DHCPv6。3315 の後継で長い' },
+    { rfc: 8628, note: 'OAuth デバイスフロー。短い' },
+    { rfc: 7515, note: 'JWS。JOSE 系の中核' },
+    { rfc: 7517, note: 'JWK' },
+    { rfc: 6298, note: 'TCP の再送タイマ。数式が中心' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '2000s-text': [
@@ -115,6 +122,10 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 5751, note: 'S/MIME 3.2' },
     { rfc: 3411, note: 'SNMP のアーキテクチャ。MIB を本文に載せる' },
     { rfc: 2474, note: 'DiffServ' },
+    { rfc: 4585, note: 'RTP/AVPF' },
+    { rfc: 5755, note: '属性証明書。ASN.1' },
+    { rfc: 3412, note: 'SNMP のメッセージ処理' },
+    { rfc: 4648, note: 'Base16 / 32 / 64。表が中心' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-late-text': [
@@ -123,6 +134,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 2616, note: '参考文献の欄が 1 つしかない' },
     { rfc: 2068, note: '警告コードの表に "99 Miscellaneous warning" がある' },
     { rfc: 2822, note: '参考文献の欄の見出しが Bibliography' },
+    { rfc: 1918, note: 'プライベートアドレス。短い BCP' },
+    { rfc: 2046, note: 'MIME Part Two' },
     { rfc: 2445, note: '題名が小文字で始まる節 (iCalendar Object Specification)' },
     { rfc: 2119, note: 'BCP 14 の定義そのもの。本文がキーワードの話' },
     { rfc: 1939, note: 'POP3。応答例が多い' },
@@ -161,6 +174,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 951, note: 'BOOTP。1985 年' },
     { rfc: 903, note: 'RARP。1984 年。短い' },
     { rfc: 862, note: '節が 2 つしかない' },
+    { rfc: 822, note: 'メールの書式。1982 年。ABNF の原型' },
+    { rfc: 1057, note: 'RPC。1988 年。XDR の定義が多い' },
     { rfc: 855, note: '上位の見出しを字下げし、途中から 1 桁目に戻る' },
     { rfc: 826, note: 'ARP。擬似コードが本文の中心' },
     { rfc: 896, note: '見出しが 1 つも無い。本文の折り返しを節にしていた' },
