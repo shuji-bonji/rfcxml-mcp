@@ -2317,3 +2317,50 @@ describe('日付まで書くヘッダ', () => {
     expect(parseRFCText(text, 20).metadata.date).toBe('1969-10');
   });
 });
+
+describe('番号にピリオドを置く参考文献', () => {
+  it('字下げされた `1.  Author` を項目として拾う', () => {
+    // RFC 951 は `   1.  Ross Finlayson, …` と書く。
+    const text = [
+      'REFERENCES',
+      '',
+      '   1.  Ross Finlayson, Timothy Mann.  A Reverse Address Resolution',
+      '       Protocol.  RFC 903, NIC, June, 1984.',
+      '',
+      '   2.  Mark Lottor.  Simple File Transfer Protocol.  RFC 913, NIC,',
+      '       September, 1984.',
+      '',
+    ].join('\n');
+
+    expect(parseRFCText(text, 951).references.informative.map((r) => r.rfcNumber)).toEqual([
+      903, 913,
+    ]);
+  });
+
+  it('字下げのない節見出しは項目にしない', () => {
+    // RFC 3629 は参考文献のあとに `14.  Informative References`
+    // `16.  Intellectual Property Statement` と続ける。
+    const text = [
+      '13.  Normative References',
+      '',
+      '   [RFC2119]  Bradner, S., "Key words", BCP 14, RFC 2119, March 1997.',
+      '',
+      '14.  Informative References',
+      '',
+      '   [RFC2045]  Freed, N., "MIME Part One", RFC 2045, November 1996.',
+      '',
+      '16.  Intellectual Property Statement',
+      '',
+      '   The IETF takes no position.',
+      '',
+    ].join('\n');
+
+    const anchors = [
+      ...parseRFCText(text, 3629).references.normative,
+      ...parseRFCText(text, 3629).references.informative,
+    ].map((r) => r.anchor);
+
+    expect(anchors).not.toContain('14');
+    expect(anchors).not.toContain('16');
+  });
+});

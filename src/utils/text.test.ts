@@ -577,3 +577,31 @@ describe('別文書の節を「その文書の」と書く形', () => {
     expect(refs.some((r) => r.type === 'section' && r.section === '8.3')).toBe(false);
   });
 });
+
+describe('法令の条番号を節参照にしないこと', () => {
+  it('3 桁以上の番号は節ではない', () => {
+    // RFC 4949 は米国法を `Section 111(d)` `Title 40 U.S.C. Section 1552` と
+    // 引く。3 桁以上の節を持つ RFC は 1 本も無い。
+    const refs = extractCrossReferences(
+      'issued by NIST under the provisions of Section 111(d) and Section 1552.'
+    );
+
+    expect(refs.filter((r) => r.type === 'section')).toEqual([]);
+  });
+
+  it('2 桁までの番号は節として拾う', () => {
+    const refs = extractCrossReferences('as described in Section 11.2 and Section 5.');
+
+    expect(refs.filter((r) => r.type === 'section').map((r) => r.section)).toEqual(['11.2', '5']);
+  });
+});
+
+describe('前置詞が in の別文書参照', () => {
+  it('この RFC の節として拾わない', () => {
+    // RFC 5751 §2.5 の `- Message Digest (section (Section 11.2 in [CMS])`
+    const refs = extractCrossReferences('- Message Digest (section (Section 11.2 in [CMS])');
+
+    expect(refs.some((r) => r.type === 'external' && r.section === '11.2')).toBe(true);
+    expect(refs.some((r) => r.type === 'section' && r.section === '11.2')).toBe(false);
+  });
+});

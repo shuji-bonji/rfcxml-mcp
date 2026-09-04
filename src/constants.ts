@@ -102,7 +102,12 @@ export function createRFCReferenceRegex(): RegExp {
  * Section reference pattern (e.g., "Section 1.2", "section 3.4.5")
  */
 export function createSectionReferenceRegex(): RegExp {
-  return /[Ss]ection\s+([\d.]+)/g;
+  // 最上位の番号は 2 桁まで。RFC 4949 は米国法を
+  // `Section 111(d)` `Section 552 (FOIA)` `Title 40 U.S.C. Section 1552` と
+  // 引くので、3 桁以上の番号を節として拾っていた（実測: RFC 127 本で 5 件、
+  // 3 桁以上の節を持つ RFC は 1 本も無い）。
+  // 後ろに数字が続かないことを求める。求めないと `111` の頭 2 桁を採る。
+  return /[Ss]ection\s+(\d{1,2}(?:\.\d+)*)(?!\d)/g;
 }
 
 /**
@@ -154,6 +159,14 @@ export function createExternalSectionRegexes(): Array<{
       pattern: /\[([^\]]+)\],?\s+[Ss]ections?\s+(\d+(?:\.\d+)*)(?=[\s,.;:)]|$)/g,
       sectionGroup: 2,
       documentGroup: 1,
+    },
+    // 前置詞が `in` の形。RFC 5751 §2.5 は
+    //   `- Message Digest (section (Section 11.2 in [CMS])`
+    // と書く。`of` だけを見ていたため、RFC 5751 に無い §11.2 を返していた。
+    {
+      pattern: /[Ss]ections?\s+(\d+(?:\.\d+)*)\s+in\s+\[([^\]]+)\]/g,
+      sectionGroup: 1,
+      documentGroup: 2,
     },
     {
       pattern: /\[([^\]]+)\]\s+\([Ss]ections?\s+(\d+(?:\.\d+)*)\)/g,

@@ -46,6 +46,7 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 9700, note: 'OAuth 2.0 のセキュリティ BCP。要件が箇条書きで並ぶ' },
     { rfc: 9651, note: '構造化フィールド値。ABNF と擬似コードが多い' },
     { rfc: 9530, note: 'Digest フィールド' },
+    { rfc: 9298, note: 'HTTP 上の UDP プロキシ' },
   ].map((entry) => ({ ...entry, kind: 'xml' })),
 
   '2010s-text': [
@@ -76,6 +77,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 7636, note: 'PKCE。短く要件が密' },
     { rfc: 6698, note: 'DANE' },
     { rfc: 8032, note: 'EdDSA。数式とテストベクタ' },
+    { rfc: 6570, note: 'URI テンプレート。例の表が非常に多い' },
+    { rfc: 6347, note: 'DTLS 1.2' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '2000s-text': [
@@ -103,6 +106,15 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 6960, note: 'OCSP。ASN.1' },
     { rfc: 5730, note: 'EPP。XML スキーマを本文に載せる' },
     { rfc: 4291, note: 'IPv6 アドレス体系' },
+    { rfc: 4949, note: 'セキュリティ用語集。定義だけで数千件' },
+    { rfc: 4566, note: 'SDP。ABNF が中心' },
+    { rfc: 3315, note: 'DHCPv6。長い' },
+    { rfc: 5681, note: 'TCP 輻輳制御。数式が多い' },
+    { rfc: 4034, note: 'DNSSEC のレコード。ワイヤ形式の図' },
+    { rfc: 3711, note: 'SRTP' },
+    { rfc: 5751, note: 'S/MIME 3.2' },
+    { rfc: 3411, note: 'SNMP のアーキテクチャ。MIB を本文に載せる' },
+    { rfc: 2474, note: 'DiffServ' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1990s-late-text': [
@@ -136,6 +148,7 @@ export const CORPUS_BY_GENERATION = {
   '1960s-70s-text': [
     { rfc: 20, note: 'ASCII。1969 年。表が中心' },
     { rfc: 1, note: '最初の RFC。1969 年。手書き風の体裁' },
+    { rfc: 733, note: 'メールの書式。1977 年' },
   ].map((entry) => ({ ...entry, kind: 'text' })),
 
   '1980s-text': [
@@ -145,6 +158,8 @@ export const CORPUS_BY_GENERATION = {
     { rfc: 792, note: '節に番号が無い。ページ見出しが "RFC 792" の 1 行' },
     { rfc: 854, note: '節に番号が無い。見出しは全部大文字' },
     { rfc: 894, note: '節に番号が無い。見出しは Title Case' },
+    { rfc: 951, note: 'BOOTP。1985 年' },
+    { rfc: 903, note: 'RARP。1984 年。短い' },
     { rfc: 862, note: '節が 2 つしかない' },
     { rfc: 855, note: '上位の見出しを字下げし、途中から 1 桁目に戻る' },
     { rfc: 826, note: 'ARP。擬似コードが本文の中心' },
