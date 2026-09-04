@@ -2,6 +2,58 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.44] - 2026-09-04
+
+**用語の説明が、節の導入や `Argument syntax:` になっていた。** 定義 1,769 件を
+「説明が短すぎる」「別の用語と同じ説明」「記号で始まる／終わる」で並べて読んだ。
+
+### Fixed
+
+- **`<iref>` の直後の段落を採ると、節の導入が説明になっていた**:
+  - RFC 9110 §3.3 は `client` `server` `connection` の 3 つに `<iref>` を置き、
+    導入の段落
+    `HTTP is a client/server protocol that operates over a reliable transport-
+    or session-layer "connection".` を挟んでから定義を書く。導入は 3 つの用語
+    すべてを含むので「用語を含む段落」の規則で拾われ、**3 つの説明が同じ 1 文**に
+    なっていた。
+  - 同じ節の中で、用語を **引用符付きで** 定義している段落
+    （`"client" is` `referred to as "…"` など）を先に探す。
+  - **引用符を求めるのが要点。** 引用符なしで `<用語> is|are|refers to` を探すと
+    定義ではない文が当たる。測り直したところ、RFC 9110 §9.3.8 の
+    `TRACE method` は `Responses to the TRACE method are not cacheable.` に、
+    §6.2 の `control data` は `control data is sent as the first line of a
+    message` に移り、変わった 8 件のうち **6 件が悪化**した。引用符を求める形に
+    変えたら、変わるのは RFC 9110 §3.3 の 2 件だけになった。
+  - 引用符と動詞の間は 3 語まで許す。RFC 9112 §9.6 は
+    `The "close" connection option is defined as …` と書く。
+
+- **索引の項目に付いた分類の括弧を外していなかった**:
+  - `<iref item="max-age (cache directive)">` の `max-age (cache directive)` は
+    本文のどの段落にも出てこない。用語を含む段落が見つからず、起点の段落
+    **`Argument syntax:`** をそのまま説明として返していた。
+  - 括弧を外した形（`max-age`）でも探す。
+  - 実測（RFC 67 本）: 説明が直ったもの **6 件**（RFC 9111 §5.2 の
+    `max-age` `max-stale` `min-fresh` `private` `s-maxage`、RFC 9110 §10.1.1 の
+    `100-continue`）。
+
+### Added
+
+- **突き合わせに `X13` を足した**（804 → 871）:
+  `get_related_sections` が、その節の本文の相互参照と一致する（取りこぼしと、
+  本文に無い節を返すことの両方を見る。`X10` は実在するかしか見ていなかった）
+- **見本を 2 つ足した**（36 → 38）: `definitions-9111-cache-directive`、
+  `definitions-9110-client`
+- **テストを 3 つ足した**（495 → 498）
+
+### Checked
+
+- `get_related_sections` を測った。呼び出し 767 件で、自分自身を返す 0 件・
+  重複 0 件・題名なし 0 件・題名不一致 0 件。相互参照を持つ節 157 件では
+  取りこぼし **0 件**、本文に無い節を返したもの **0 件**。
+- 定義のうち「別の用語と同じ説明」は 67 → 66 件になった。残りは RFC が
+  1 つの段落で複数の用語を定義しているもの（RFC 9110 §3.7 の
+  `upstream` / `downstream` / `inbound` / `outbound` など）で、誤りではない。
+
 ## [0.6.43] - 2026-09-04
 
 **`_matchedKeywords` が、その要件文が持たない語を並べていた。** v0.6.42 の確認で

@@ -121,6 +121,21 @@ export const CASES = [
     args: { rfc: 9110, term: 'cache' },
   },
   {
+    // `<iref>` の直後の段落が節の導入だったり、括弧付きの索引項目が本文の
+    // どの段落にも当たらなかったりする形。RFC 9111 §5.2 のキャッシュ指示子は
+    // 説明が `Argument syntax:` になっていた。
+    name: 'definitions-9111-cache-directive',
+    tool: 'get_definitions',
+    args: { rfc: 9111, term: 'max-age' },
+  },
+  {
+    // 1 つの段落が複数の用語を含むとき、定義している段落を採ること。
+    // RFC 9110 §3.3 の client / server / connection は説明が同じ 1 文だった。
+    name: 'definitions-9110-client',
+    tool: 'get_definitions',
+    args: { rfc: 9110, term: 'client' },
+  },
+  {
     // `<dl>` から取る。
     name: 'definitions-9114',
     tool: 'get_definitions',

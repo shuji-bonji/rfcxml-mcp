@@ -1092,3 +1092,73 @@ describe('索引の節', () => {
     ]);
   });
 });
+
+describe('iref から定義を取るとき、定義している段落を採ること', () => {
+  it('節の導入ではなく、用語を引用符付きで定義する段落を採る', () => {
+    // RFC 9110 §3.3。導入の段落が 3 つの用語すべてを含むため、client /
+    // server / connection の説明が同じ 1 文になっていた。
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rfc number="9110">
+  <front><title>Test</title></front>
+  <middle>
+    <section anchor="connections" pn="section-3.3">
+      <name>Connections, Clients, and Servers</name>
+      <iref primary="true" item="client" pn="iref-client-17"/>
+      <iref primary="true" item="server" pn="iref-server-18"/>
+      <t pn="section-3.3-1">HTTP is a client/server protocol that operates over a reliable transport- or session-layer "connection".</t>
+      <t pn="section-3.3-2">An HTTP "client" is a program that establishes a connection to a server. An HTTP "server" is a program that accepts connections.</t>
+    </section>
+  </middle>
+</rfc>`;
+
+    const byTerm = new Map(parseRFCXML(xml).definitions.map((d) => [d.term, d.definition]));
+
+    expect(byTerm.get('client')).toContain('is a program that establishes a connection');
+    expect(byTerm.get('client')).not.toContain('HTTP is a client/server protocol');
+  });
+
+  it('索引の項目に付いた分類の括弧を外して探す', () => {
+    // RFC 9111 §5.2.1.1。`max-age (cache directive)` は本文のどの段落にも
+    // 当たらず、起点の段落 `Argument syntax:` を説明として返していた。
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rfc number="9111">
+  <front><title>Test</title></front>
+  <middle>
+    <section anchor="max-age" pn="section-5.2.1.1">
+      <name>max-age</name>
+      <iref item="max-age (cache directive)" primary="true" pn="iref-max-age-28"/>
+      <t pn="section-5.2.1.1-1">Argument syntax:</t>
+      <t pn="section-5.2.1.1-3">The max-age request directive indicates that the client prefers a response whose age is less than or equal to the specified number of seconds.</t>
+    </section>
+  </middle>
+</rfc>`;
+
+    const definition = parseRFCXML(xml).definitions.find(
+      (d) => d.term === 'max-age (cache directive)'
+    );
+
+    expect(definition?.definition).toContain('indicates that the client prefers');
+  });
+
+  it('用語を定義する段落が無ければ、これまでどおり用語を含む段落を採る', () => {
+    // 定義の形（引用符 + is/are/refers to）を探すだけにすると、定義ではない文が
+    // 当たる。RFC 9110 §9.3.8 は `Responses to the TRACE method are not
+    // cacheable.` に移っていた。
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rfc number="9110">
+  <front><title>Test</title></front>
+  <middle>
+    <section anchor="trace" pn="section-9.3.8">
+      <name>TRACE</name>
+      <iref primary="true" item="TRACE method" pn="iref-trace-1"/>
+      <t pn="section-9.3.8-1">The TRACE method requests a remote, application-level loop-back of the request message.</t>
+      <t pn="section-9.3.8-2">Responses to the TRACE method are not cacheable.</t>
+    </section>
+  </middle>
+</rfc>`;
+
+    const definition = parseRFCXML(xml).definitions.find((d) => d.term === 'TRACE method');
+
+    expect(definition?.definition).toContain('requests a remote, application-level loop-back');
+  });
+});

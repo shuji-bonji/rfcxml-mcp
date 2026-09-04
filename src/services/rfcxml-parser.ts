@@ -1092,18 +1092,79 @@ function definingParagraph(
   const first = take(start);
   if (!first) return undefined;
 
-  const needle = term.toLowerCase();
-  if (extractProse(stripTags(first.body)).toLowerCase().includes(needle)) return first;
+  const proseOf = (candidate: { body: string }): string =>
+    extractProse(stripTags(candidate.body)).toLowerCase();
+  // 索引の項目は分類を括弧で足すことがある（`max-age (cache directive)`）。
+  // 本文はその括弧を書かないので、括弧を外した形でも探す。外さずに探していたため、
+  // RFC 9111 §5.2.1.1 の `max-age (cache directive)` は本文のどの段落にも当たらず、
+  // 起点の段落 **`Argument syntax:`** をそのまま説明として返していた。§5.2 の
+  // キャッシュ指示子 21 件がこの形である。
+  const needles = [term.toLowerCase(), term.toLowerCase().replace(/\s*\([^)]*\)\s*$/, '')];
+  const defines = quotedDefinitionPattern(term);
 
-  // 起点に用語が出てこない。同じ節の中を数段落先まで見る。
+  // 同じ節の中の、起点から数段落ぶん。
+  const scope: Array<{ body: string; section: string }> = [first];
   for (let i = start + 1; i < Math.min(start + 1 + DEFINITION_LOOKAHEAD, paragraphs.length); i++) {
     const candidate = take(i);
     if (!candidate) break;
     if (candidate.section !== first.section) break;
-    if (extractProse(stripTags(candidate.body)).toLowerCase().includes(needle)) return candidate;
+    scope.push(candidate);
+  }
+
+  // 1. 起点がその用語を **引用符付きで** 定義しているなら、それを採る。
+  // 2. 無ければ、同じ節の中で引用符付きで定義している段落を探す。
+  const defining = scope.find((candidate) => defines.test(proseOf(candidate)));
+  if (defining) return defining;
+
+  // 3. 用語が出てくる段落。起点を先に見るので、これまでの動きと変わらない。
+  for (const needle of needles) {
+    const mentioning = scope.find((candidate) => proseOf(candidate).includes(needle));
+    if (mentioning) return mentioning;
   }
 
   return first;
+}
+
+/**
+ * その用語を **引用符付きで** 定義している文の形。
+ *
+ * `<iref>` の直後の段落を採ると、節の導入が定義として返る。RFC 9110 §3.3 は
+ *
+ * ```xml
+ * <iref primary="true" item="client"/><iref primary="true" item="server"/>
+ * <iref primary="true" item="connection"/>
+ * <t>HTTP is a client/server protocol that operates over a reliable
+ *    transport- or session-layer "connection".</t>
+ * <t>An HTTP "client" is a program that establishes a connection to a server …
+ *    An HTTP "server" is a program that accepts connections …</t>
+ * ```
+ *
+ * と書く。導入の段落は 3 つの用語すべてを含むので「用語を含む段落」の規則で
+ * 拾われ、**`client` と `server` と `connection` の説明が同じ 1 文**になっていた。
+ * 定義は次の段落にある。
+ *
+ * **引用符が付いているものだけ**を定義とみなす。引用符を求めずに
+ * `<用語> is|are|refers to` を探すと、定義ではない文が当たる。実測で
+ * RFC 9110 §9.3.8 の `TRACE method` は `Responses to the TRACE method are not
+ * cacheable.` に、§6.2 の `control data` は `control data is sent as the first
+ * line of a message` に移り、どちらも定義の文から離れた（8 件中 6 件が悪化した）。
+ *
+ * 引用符と動詞の間は 3 語まで許す。RFC 9112 §9.6 は
+ * `The "close" connection option is defined as a signal that …` と書く。
+ *
+ * 実測（RFC 67 本・定義 1,769 件）: 説明が変わったもの 2 件
+ * （RFC 9110 §3.3 の `client` と `server`）。
+ */
+function quotedDefinitionPattern(term: string): RegExp {
+  const escaped = term.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const quote = '["\u201c\u201d]';
+  const gap = '(?:\\s+\\S+){0,3}\\s+';
+
+  return new RegExp(
+    `${quote}${escaped}${quote}${gap}(?:is|are|refers?\\s+to|means|denotes?)\\b` +
+      `|\\b(?:called|known\\s+as|referred\\s+to\\s+as|termed|defined\\s+as)\\s+(?:an?\\s+|the\\s+)?${quote}${escaped}${quote}`,
+    'i'
+  );
 }
 
 /**

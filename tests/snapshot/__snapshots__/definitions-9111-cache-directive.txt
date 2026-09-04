@@ -1,0 +1,24 @@
+# definitions-9111-cache-directive
+
+tool: get_definitions
+args: {"rfc":9111,"term":"max-age"}
+
+--- json ---
+{
+  "rfc": 9111,
+  "searchTerm": "max-age",
+  "count": 2,
+  "definitions": [
+    {
+      "term": "max-age (cache directive)",
+      "definition": "The max-age request directive indicates that the client prefers a response whose age is less than or equal to the specified number of seconds. Unless the max-stale request directive is also present, the client does not wish to receive a stale response.",
+      "section": "5.2.1.1"
+    },
+    {
+      "term": "s-maxage (cache directive)",
+      "definition": "The s-maxage response directive indicates that, for a shared cache, the maximum age specified by this directive overrides the maximum age specified by either the max-age directive or the Expires header field.",
+      "section": "5.2.2.10"
+    }
+  ],
+  "_source": "xml"
+}

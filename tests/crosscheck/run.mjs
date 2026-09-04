@@ -138,7 +138,7 @@ const CHECKS = [
 ];
 
 /** 呼び方を変えても答えが揃うか。RFC ごとに数回だけ呼ぶ。 */
-async function compareCallShapes(rfc, requirements, numbers) {
+async function compareCallShapes(rfc, requirements, numbers, allSections) {
   const broken = [];
 
   const bySection = new Map();
@@ -216,6 +216,32 @@ async function compareCallShapes(rfc, requirements, numbers) {
     }
   }
 
+  // X13: get_related_sections が、その節の本文の相互参照と一致する
+  //
+  // X10 は「返した節が実在するか」しか見ていない。取りこぼしと、本文に無い節を
+  // 返すことは見ていなかった。
+  for (const section of allSections.slice(0, 4)) {
+    const want = new Set();
+    for (const block of section.content ?? []) {
+      for (const reference of block.crossReferences ?? []) {
+        if (reference.type !== 'section') continue;
+        if (!reference.section || !numbers.has(reference.section)) continue;
+        if (reference.section === section.number) continue;
+        want.add(reference.section);
+      }
+    }
+    if (want.size === 0) continue;
+
+    const related = await toolHandlers.get_related_sections({ rfc, section: section.number });
+    const got = new Set((related.relatedSections ?? []).map((item) => item.number));
+    for (const number of want) {
+      if (!got.has(number)) broken.push(`X13 §${section.number}: §${number} を返していない`);
+    }
+    for (const number of got) {
+      if (!want.has(number)) broken.push(`X13 §${section.number}: §${number} は本文の参照に無い`);
+    }
+  }
+
   return broken;
 }
 
@@ -247,12 +273,14 @@ async function main() {
 
   for (const entry of corpus) {
     const rfc = entry.rfc;
-    const structure = await toolHandlers.get_rfc_structure({ rfc });
+    const structure = await toolHandlers.get_rfc_structure({ rfc, includeContent: true });
     const titles = new Map();
     const numbers = new Set();
+    const withContent = [];
     walk(structure.sections, (section) => {
       titles.set(section.number, section.title);
       numbers.add(section.number);
+      withContent.push(section);
     });
 
     const requirements = (await toolHandlers.get_requirements({ rfc })).requirements;
@@ -269,12 +297,12 @@ async function main() {
       }
     }
 
-    const shapes = await compareCallShapes(rfc, requirements, numbers);
-    checked += 6;
+    const shapes = await compareCallShapes(rfc, requirements, numbers, withContent);
+    checked += 7;
     if (shapes.length > 0) {
       failures.push({
         rfc,
-        id: 'X7-X12',
+        id: 'X7-X13',
         description: '同じものを違う呼び方で取る',
         found: shapes,
       });

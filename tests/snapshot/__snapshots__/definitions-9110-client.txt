@@ -1,0 +1,234 @@
+# definitions-9110-client
+
+tool: get_definitions
+args: {"rfc":9110,"term":"client"}
+
+--- json ---
+{
+  "rfc": 9110,
+  "searchTerm": "client",
+  "count": 44,
+  "definitions": [
+    {
+      "term": "client",
+      "definition": "An HTTP \"client\" is a program that establishes a connection to a server for the purpose of sending one or more HTTP requests. An HTTP \"server\" is a program that accepts connections in order to service HTTP requests by sending HTTP responses.",
+      "section": "3.3"
+    },
+    {
+      "term": "server",
+      "definition": "An HTTP \"client\" is a program that establishes a connection to a server for the purpose of sending one or more HTTP requests. An HTTP \"server\" is a program that accepts connections in order to service HTTP requests by sending HTTP responses.",
+      "section": "3.3"
+    },
+    {
+      "term": "connection",
+      "definition": "HTTP is a client/server protocol that operates over a reliable transport- or session-layer \"connection\".",
+      "section": "3.3"
+    },
+    {
+      "term": "user agent",
+      "definition": "The term \"user agent\" refers to any of the various client programs that initiate a request.",
+      "section": "3.5"
+    },
+    {
+      "term": "proxy",
+      "definition": "A \"proxy\" is a message-forwarding agent that is chosen by the client, usually via local configuration rules, to receive requests for some type(s) of absolute URI and attempt to satisfy those requests via translation through the HTTP interface. Some translations are minimal, such as for proxy requests for \"http\" URIs, whereas other requests might require translation to and from entirely different application-level protocols. Proxies are often used to group an organization's HTTP requests through a common intermediary for the sake of security services, annotation services, or shared caching. Some proxies are designed to apply transformations to selected messages or content while they are being forwarded, as described in Section 7.7.",
+      "section": "3.7"
+    },
+    {
+      "term": "interception proxy",
+      "definition": "For example, an \"interception proxy\" [RFC3040] (also commonly known as a \"transparent proxy\" [RFC1919]) differs from an HTTP proxy because it is not chosen by the client. Instead, an interception proxy filters or redirects outgoing TCP port 80 packets (and occasionally other common port traffic). Interception proxies are commonly found on public network access points, as a means of enforcing account subscription prior to allowing use of non-local Internet services, and within corporate firewalls to enforce network usage policies.",
+      "section": "3.7"
+    },
+    {
+      "term": "transparent proxy",
+      "definition": "For example, an \"interception proxy\" [RFC3040] (also commonly known as a \"transparent proxy\" [RFC1919]) differs from an HTTP proxy because it is not chosen by the client. Instead, an interception proxy filters or redirects outgoing TCP port 80 packets (and occasionally other common port traffic). Interception proxies are commonly found on public network access points, as a means of enforcing account subscription prior to allowing use of non-local Internet services, and within corporate firewalls to enforce network usage policies.",
+      "section": "3.7"
+    },
+    {
+      "term": "cache",
+      "definition": "A \"cache\" is a local store of previous response messages and the subsystem that controls its message storage, retrieval, and deletion. A cache stores cacheable responses in order to reduce the response time and network bandwidth consumption on future, equivalent requests. Any client or server MAY employ a cache, though a cache cannot be used while acting as a tunnel.",
+      "section": "3.8"
+    },
+    {
+      "term": "cacheable",
+      "definition": "A response is \"cacheable\" if a cache is allowed to store a copy of the response message for use in answering subsequent requests. Even when a response is cacheable, there might be additional constraints placed by the client or by the origin server on when that cached response can be used for a particular request. HTTP requirements for cache behavior and cacheable responses are defined in [CACHING].",
+      "section": "3.8"
+    },
+    {
+      "term": "https URI scheme",
+      "definition": "The \"https\" URI scheme is hereby defined for minting identifiers within the hierarchical namespace governed by a potential origin server listening for TCP connections on a given port and capable of establishing a TLS ([TLS13]) connection that has been secured for HTTP communication. In this context, \"secured\" specifically means that the server has been authenticated as acting on behalf of the identified authority and all HTTP communication with that server has confidentiality and integrity protection that is acceptable to both client and server.",
+      "section": "4.2.2"
+    },
+    {
+      "term": "secured",
+      "definition": "The \"https\" URI scheme is hereby defined for minting identifiers within the hierarchical namespace governed by a potential origin server listening for TCP connections on a given port and capable of establishing a TLS ([TLS13]) connection that has been secured for HTTP communication. In this context, \"secured\" specifically means that the server has been authenticated as acting on behalf of the identified authority and all HTTP communication with that server has confidentiality and integrity protection that is acceptable to both client and server.",
+      "section": "4.2.2"
+    },
+    {
+      "term": "self-descriptive",
+      "definition": "Messages are intended to be \"self-descriptive\": everything a recipient needs to know about the message can be determined by looking at the message itself, after decoding or reconstituting parts that have been compressed or elided in transit, without requiring an understanding of the sender's current application state (established via prior messages). However, a client MUST retain knowledge of the request when parsing, interpreting, or caching a corresponding response. For example, responses to the HEAD method look just like the beginning of a response to GET but cannot be parsed in the same manner.",
+      "section": "6"
+    },
+    {
+      "term": "target resource",
+      "definition": "To perform an action on a \"target resource\", the client sends a request message containing enough components of its parsed target URI to enable recipients to identify that same resource. For historical reasons, the parsed target URI components, collectively referred to as the \"request target\", are sent within the message control data and the Host header field (Section 7.2).",
+      "section": "7.1"
+    },
+    {
+      "term": "target URI",
+      "definition": "A URI reference is resolved to its absolute form in order to obtain the \"target URI\". The target URI excludes the reference's fragment component, if any, since fragment identifiers are reserved for client-side processing ([URI], Section 3.5).",
+      "section": "7.1"
+    },
+    {
+      "term": "request target",
+      "definition": "To perform an action on a \"target resource\", the client sends a request message containing enough components of its parsed target URI to enable recipients to identify that same resource. For historical reasons, the parsed target URI components, collectively referred to as the \"request target\", are sent within the message control data and the Host header field (Section 7.2).",
+      "section": "7.1"
+    },
+    {
+      "term": "transforming proxy",
+      "definition": "An HTTP-to-HTTP proxy is called a \"transforming proxy\" if it is designed or configured to modify messages in a semantically meaningful way (i.e., modifications, beyond those required by normal HTTP processing, that change the message in a way that would be significant to the original sender or potentially significant to downstream recipients). For example, a transforming proxy might be acting as a shared annotation server (modifying responses to include references to a local annotation database), a malware filter, a format transcoder, or a privacy filter. Such transformations are presumed to be desired by whichever client (or client organization) chose the proxy.",
+      "section": "7.7"
+    },
+    {
+      "term": "Upgrade header field",
+      "definition": "A client MAY send a list of protocol names in the Upgrade header field of a request to invite the server to switch to one or more of the named protocols, in order of descending preference, before sending the final response. A server MAY ignore a received Upgrade header field if it wishes to continue using the current protocol on that connection. Upgrade cannot be used to insist on a protocol change.",
+      "section": "7.8"
+    },
+    {
+      "term": "safe",
+      "definition": "Request methods are considered \"safe\" if their defined semantics are essentially read-only; i.e., the client does not request, and does not expect, any state change on the origin server as a result of applying a safe method to a target resource. Likewise, reasonable use of a safe method is not expected to cause any harm, loss of property, or unusual burden on the origin server.",
+      "section": "9.2.1"
+    },
+    {
+      "term": "OPTIONS method",
+      "definition": "The OPTIONS method requests information about the communication options available for the target resource, at either the origin server or an intervening intermediary. This method allows a client to determine the options and/or requirements associated with a resource, or the capabilities of a server, without implying a resource action.",
+      "section": "9.3.7"
+    },
+    {
+      "term": "TRACE method",
+      "definition": "The TRACE method requests a remote, application-level loop-back of the request message. The final recipient of the request SHOULD reflect the message received, excluding some fields described below, back to the client as the content of a 200 (OK) response. The \"message/http\" format (Section 10.1 of [HTTP/1.1]) is one way to do so. The final recipient is either the origin server or the first server to receive a Max-Forwards value of zero (0) in the request (Section 7.6.2).",
+      "section": "9.3.8"
+    },
+    {
+      "term": "TE header field",
+      "definition": "The \"TE\" header field describes capabilities of the client with regard to transfer codings and trailer sections.",
+      "section": "10.1.4"
+    },
+    {
+      "term": "Retry-After header field",
+      "definition": "Servers send the \"Retry-After\" header field to indicate how long the user agent ought to wait before making a follow-up request. When sent with a 503 (Service Unavailable) response, Retry-After indicates how long the service is expected to be unavailable to the client. When sent with any 3xx (Redirection) response, Retry-After indicates the minimum time that the user agent is asked to wait before issuing the redirected request.",
+      "section": "10.2.3"
+    },
+    {
+      "term": "Server header field",
+      "definition": "The \"Server\" header field contains information about the software used by the origin server to handle the request, which is often used by clients to help identify the scope of reported interoperability problems, to work around or tailor requests to avoid particular server limitations, and for analytics regarding server or operating system use. An origin server MAY generate a Server header field in its responses.",
+      "section": "10.2.4"
+    },
+    {
+      "term": "Authentication-Info header field",
+      "definition": "HTTP authentication schemes can use the \"Authentication-Info\" response field to communicate information after the client's authentication credentials have been accepted. This information can include a finalization message from the server (e.g., it can contain the server authentication).",
+      "section": "11.6.3"
+    },
+    {
+      "term": "Proxy-Authorization header field",
+      "definition": "Unlike Authorization, the Proxy-Authorization header field applies only to the next inbound proxy that demanded authentication using the Proxy-Authenticate header field. When multiple proxies are used in a chain, the Proxy-Authorization header field is consumed by the first inbound proxy that was expecting to receive credentials. A proxy MAY relay the credentials from the client request to the next proxy if that is the mechanism by which the proxies cooperatively authenticate a given request.",
+      "section": "11.7.2"
+    },
+    {
+      "term": "Proxy-Authentication-Info header field",
+      "definition": "However, unlike Authentication-Info, the Proxy-Authentication-Info header field applies only to the next outbound client on the response chain. This is because only the client that chose a given proxy is likely to have the credentials necessary for authentication. However, when multiple proxies are used within the same administrative domain, such as office and regional caching proxies within a large corporate network, it is common for credentials to be generated by the user agent and passed through the hierarchy until consumed. Hence, in such a configuration, it will appear as if Proxy-Authentication-Info is being forwarded because each proxy will send the same field value.",
+      "section": "11.7.3"
+    },
+    {
+      "term": "If-None-Match header field",
+      "definition": "If-None-Match is primarily used in conditional GET requests to enable efficient updates of cached information with a minimum amount of transaction overhead. When a client desires to update one or more stored responses that have entity tags, the client SHOULD generate an If-None-Match header field containing a list of those entity tags when making a GET request; this allows recipient servers to send a 304 (Not Modified) response to indicate when one of those stored responses matches the selected representation.",
+      "section": "13.1.2"
+    },
+    {
+      "term": "If-Range header field",
+      "definition": "A client MUST NOT generate an If-Range header field in a request that does not contain a Range header field. A server MUST ignore an If-Range header field received in a request that does not contain a Range header field. An origin server MUST ignore an If-Range header field received in a request for a target resource that does not support Range requests.",
+      "section": "13.1.5"
+    },
+    {
+      "term": "1xx Informational (status code class)",
+      "definition": "The 1xx (Informational) class of status code indicates an interim response for communicating connection status or request progress prior to completing the requested action and sending a final response. Since HTTP/1.0 did not define any 1xx status codes, a server MUST NOT send a 1xx response to an HTTP/1.0 client.",
+      "section": "15.2"
+    },
+    {
+      "term": "101 Switching Protocols (status code)",
+      "definition": "The 101 (Switching Protocols) status code indicates that the server understands and is willing to comply with the client's request, via the Upgrade header field (Section 7.8), for a change in the application protocol being used on this connection. The server MUST generate an Upgrade header field in the response that indicates which protocol(s) will be in effect after this response.",
+      "section": "15.2.2"
+    },
+    {
+      "term": "2xx Successful (status code class)",
+      "definition": "The 2xx (Successful) class of status code indicates that the client's request was successfully received, understood, and accepted.",
+      "section": "15.3"
+    },
+    {
+      "term": "302 Found (status code)",
+      "definition": "The 302 (Found) status code indicates that the target resource resides temporarily under a different URI. Since the redirection might be altered on occasion, the client ought to continue to use the target URI for future requests.",
+      "section": "15.4.3"
+    },
+    {
+      "term": "304 Not Modified (status code)",
+      "definition": "The 304 (Not Modified) status code indicates that a conditional GET or HEAD request has been received and would have resulted in a 200 (OK) response if it were not for the fact that the condition evaluated to false. In other words, there is no need for the server to transfer a representation of the target resource because the request indicates that the client, which made the request conditional, already has a valid representation; the server is therefore redirecting the client to make use of that stored representation as if it were the content of a 200 (OK) response.",
+      "section": "15.4.5"
+    },
+    {
+      "term": "307 Temporary Redirect (status code)",
+      "definition": "The 307 (Temporary Redirect) status code indicates that the target resource resides temporarily under a different URI and the user agent MUST NOT change the request method if it performs an automatic redirection to that URI. Since the redirection can change over time, the client ought to continue using the original target URI for future requests.",
+      "section": "15.4.8"
+    },
+    {
+      "term": "4xx Client Error (status code class)",
+      "definition": "The 4xx (Client Error) class of status code indicates that the client seems to have erred. Except when responding to a HEAD request, the server SHOULD send a representation containing an explanation of the error situation, and whether it is a temporary or permanent condition. These status codes are applicable to any request method. User agents SHOULD display any included representation to the user.",
+      "section": "15.5"
+    },
+    {
+      "term": "400 Bad Request (status code)",
+      "definition": "The 400 (Bad Request) status code indicates that the server cannot or will not process the request due to something that is perceived to be a client error (e.g., malformed request syntax, invalid request message framing, or deceptive request routing).",
+      "section": "15.5.1"
+    },
+    {
+      "term": "407 Proxy Authentication Required (status code)",
+      "definition": "The 407 (Proxy Authentication Required) status code is similar to 401 (Unauthorized), but it indicates that the client needs to authenticate itself in order to use a proxy for this request. The proxy MUST send a Proxy-Authenticate header field (Section 11.7.1) containing a challenge applicable to that proxy for the request. The client MAY repeat the request with a new or replaced Proxy-Authorization header field (Section 11.7.2).",
+      "section": "15.5.8"
+    },
+    {
+      "term": "411 Length Required (status code)",
+      "definition": "The 411 (Length Required) status code indicates that the server refuses to accept the request without a defined Content-Length (Section 8.6). The client MAY repeat the request if it adds a valid Content-Length header field containing the length of the request content.",
+      "section": "15.5.12"
+    },
+    {
+      "term": "412 Precondition Failed (status code)",
+      "definition": "The 412 (Precondition Failed) status code indicates that one or more conditions given in the request header fields evaluated to false when tested on the server (Section 13). This response status code allows the client to place preconditions on the current resource state (its current representations and metadata) and, thus, prevent the request method from being applied if the target resource is in an unexpected state.",
+      "section": "15.5.13"
+    },
+    {
+      "term": "414 URI Too Long (status code)",
+      "definition": "The 414 (URI Too Long) status code indicates that the server is refusing to service the request because the target URI is longer than the server is willing to interpret. This rare condition is only likely to occur when a client has improperly converted a POST request to a GET request with long query information, when the client has descended into an infinite loop of redirection (e.g., a redirected URI prefix that points to a suffix of itself) or when the server is under attack by a client attempting to exploit potential security holes.",
+      "section": "15.5.15"
+    },
+    {
+      "term": "416 Range Not Satisfiable (status code)",
+      "definition": "The 416 (Range Not Satisfiable) status code indicates that the set of ranges in the request's Range header field (Section 14.2) has been rejected either because none of the requested ranges are satisfiable or because the client has requested an excessive number of small or overlapping ranges (a potential denial of service attack).",
+      "section": "15.5.17"
+    },
+    {
+      "term": "426 Upgrade Required (status code)",
+      "definition": "The 426 (Upgrade Required) status code indicates that the server refuses to perform the request using the current protocol but might be willing to do so after the client upgrades to a different protocol. The server MUST send an Upgrade header field in a 426 response to indicate the required protocol(s) (Section 7.8).",
+      "section": "15.5.22"
+    },
+    {
+      "term": "503 Service Unavailable (status code)",
+      "definition": "The 503 (Service Unavailable) status code indicates that the server is currently unable to handle the request due to a temporary overload or scheduled maintenance, which will likely be alleviated after some delay. The server MAY send a Retry-After header field (Section 10.2.3) to suggest an appropriate amount of time for the client to wait before retrying the request.",
+      "section": "15.6.4"
+    },
+    {
+      "term": "505 HTTP Version Not Supported (status code)",
+      "definition": "The 505 (HTTP Version Not Supported) status code indicates that the server does not support, or refuses to support, the major version of HTTP that was used in the request message. The server is indicating that it is unable or unwilling to complete the request using the same major version as the client, as described in Section 2.5, other than with this error message. The server SHOULD generate a representation for the 505 response that describes why that version is not supported and what other protocols are supported by that server.",
+      "section": "15.6.6"
+    }
+  ],
+  "_source": "xml"
+}
