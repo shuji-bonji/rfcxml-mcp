@@ -2,7 +2,7 @@
 
 # Output examples
 
-38 calls fixed as output snapshots by `npm run snapshot` (`tests/snapshot/cases.mjs`). Each block is the recorded output for the call shown above it. Outputs longer than 60 lines are cut; the link opens the full file. `<generatedAt>` replaces the timestamp.
+38 calls fixed as output snapshots by `npm run snapshot` (`tests/snapshot/cases.mjs`). Each output is collapsed; open it to see the first 60 lines, and follow the link for the full file. `<generatedAt>` replaces the timestamp.
 
 ## get_rfc_structure
 
@@ -16,6 +16,7 @@ Arguments: `get_rfc_structure`
 }
 ```
 
+::: details Output (136 lines)
 ```text
 # structure-793
 
@@ -80,7 +81,8 @@ args: {"rfc":793}
 … (136 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-793.txt) (136 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-793.txt)
+:::
 
 ### structure-1035
 
@@ -92,6 +94,7 @@ Arguments: `get_rfc_structure`
 }
 ```
 
+::: details Output (337 lines)
 ```text
 # structure-1035
 
@@ -156,7 +159,8 @@ args: {"rfc":1035}
 … (337 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-1035.txt) (337 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-1035.txt)
+:::
 
 ### structure-2068
 
@@ -168,6 +172,7 @@ Arguments: `get_rfc_structure`
 }
 ```
 
+::: details Output (1104 lines)
 ```text
 # structure-2068
 
@@ -232,7 +237,8 @@ args: {"rfc":2068}
 … (1104 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-2068.txt) (1104 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-2068.txt)
+:::
 
 ### structure-8949
 
@@ -244,6 +250,7 @@ Arguments: `get_rfc_structure`
 }
 ```
 
+::: details Output (444 lines)
 ```text
 # structure-8949
 
@@ -308,7 +315,8 @@ args: {"rfc":8949}
 … (444 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-8949.txt) (444 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-8949.txt)
+:::
 
 ### structure-9114
 
@@ -320,6 +328,7 @@ Arguments: `get_rfc_structure`
 }
 ```
 
+::: details Output (516 lines)
 ```text
 # structure-9114
 
@@ -384,7 +393,8 @@ args: {"rfc":9114}
 … (516 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-9114.txt) (516 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-9114.txt)
+:::
 
 ### structure-8446
 
@@ -396,6 +406,7 @@ Arguments: `get_rfc_structure`
 }
 ```
 
+::: details Output (614 lines)
 ```text
 # structure-8446
 
@@ -460,7 +471,8 @@ args: {"rfc":8446}
 … (614 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-8446.txt) (614 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-8446.txt)
+:::
 
 ### structure-854
 
@@ -472,6 +484,7 @@ Arguments: `get_rfc_structure`
 }
 ```
 
+::: details Output (119 lines)
 ```text
 # structure-854
 
@@ -536,7 +549,8 @@ args: {"rfc":854}
 … (119 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-854.txt) (119 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-854.txt)
+:::
 
 ### structure-792
 
@@ -548,6 +562,7 @@ Arguments: `get_rfc_structure`
 }
 ```
 
+::: details Output (332 lines)
 ```text
 # structure-792
 
@@ -612,7 +627,8 @@ args: {"rfc":792}
 … (332 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-792.txt) (332 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-792.txt)
+:::
 
 ## get_requirements
 
@@ -627,6 +643,7 @@ Arguments: `get_requirements`
 }
 ```
 
+::: details Output (20 lines)
 ```text
 # requirements-5652-1.2
 
@@ -650,7 +667,8 @@ args: {"rfc":5652,"section":"1.2"}
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-5652-1.2.txt) (20 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-5652-1.2.txt)
+:::
 
 ### requirements-6455-5.2
 
@@ -663,6 +681,7 @@ Arguments: `get_requirements`
 }
 ```
 
+::: details Output (108 lines)
 ```text
 # requirements-6455-5.2
 
@@ -727,7 +746,8 @@ args: {"rfc":6455,"section":"5.2"}
 … (108 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-6455-5.2.txt) (108 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-6455-5.2.txt)
+:::
 
 ### requirements-1123-3.2
 
@@ -740,6 +760,7 @@ Arguments: `get_requirements`
 }
 ```
 
+::: details Output (293 lines)
 ```text
 # requirements-1123-3.2
 
@@ -804,7 +825,8 @@ args: {"rfc":1123,"section":"3.2"}
 … (293 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-1123-3.2.txt) (293 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-1123-3.2.txt)
+:::
 
 ### requirements-6455-9.1
 
@@ -817,6 +839,7 @@ Arguments: `get_requirements`
 }
 ```
 
+::: details Output (98 lines)
 ```text
 # requirements-6455-9.1
 
@@ -881,7 +904,8 @@ args: {"rfc":6455,"section":"9.1"}
 … (98 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-6455-9.1.txt) (98 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-6455-9.1.txt)
+:::
 
 ### requirements-9051-2.3.1.1
 
@@ -894,6 +918,7 @@ Arguments: `get_requirements`
 }
 ```
 
+::: details Output (163 lines)
 ```text
 # requirements-9051-2.3.1.1
 
@@ -958,7 +983,8 @@ args: {"rfc":9051,"section":"2.3.1.1"}
 … (163 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9051-2.3.1.1.txt) (163 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9051-2.3.1.1.txt)
+:::
 
 ### requirements-9110-9.3.5
 
@@ -971,6 +997,7 @@ Arguments: `get_requirements`
 }
 ```
 
+::: details Output (55 lines)
 ```text
 # requirements-9110-9.3.5
 
@@ -1029,7 +1056,8 @@ args: {"rfc":9110,"section":"9.3.5"}
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9110-9.3.5.txt) (55 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9110-9.3.5.txt)
+:::
 
 ### requirements-9110-10.1.1
 
@@ -1042,6 +1070,7 @@ Arguments: `get_requirements`
 }
 ```
 
+::: details Output (172 lines)
 ```text
 # requirements-9110-10.1.1
 
@@ -1106,7 +1135,8 @@ args: {"rfc":9110,"section":"10.1.1"}
 … (172 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9110-10.1.1.txt) (172 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9110-10.1.1.txt)
+:::
 
 ## get_definitions
 
@@ -1121,6 +1151,7 @@ Arguments: `get_definitions`
 }
 ```
 
+::: details Output (49 lines)
 ```text
 # definitions-9110-cache
 
@@ -1173,7 +1204,8 @@ args: {"rfc":9110,"term":"cache"}
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9110-cache.txt) (49 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9110-cache.txt)
+:::
 
 ### definitions-9111-cache-directive
 
@@ -1186,6 +1218,7 @@ Arguments: `get_definitions`
 }
 ```
 
+::: details Output (24 lines)
 ```text
 # definitions-9111-cache-directive
 
@@ -1213,7 +1246,8 @@ args: {"rfc":9111,"term":"max-age"}
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9111-cache-directive.txt) (24 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9111-cache-directive.txt)
+:::
 
 ### definitions-9110-client
 
@@ -1226,6 +1260,7 @@ Arguments: `get_definitions`
 }
 ```
 
+::: details Output (234 lines)
 ```text
 # definitions-9110-client
 
@@ -1290,7 +1325,8 @@ args: {"rfc":9110,"term":"client"}
 … (234 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9110-client.txt) (234 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9110-client.txt)
+:::
 
 ### definitions-9114
 
@@ -1302,6 +1338,7 @@ Arguments: `get_definitions`
 }
 ```
 
+::: details Output (468 lines)
 ```text
 # definitions-9114
 
@@ -1366,7 +1403,8 @@ args: {"rfc":9114}
 … (468 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9114.txt) (468 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9114.txt)
+:::
 
 ### definitions-5280
 
@@ -1378,6 +1416,7 @@ Arguments: `get_definitions`
 }
 ```
 
+::: details Output (29 lines)
 ```text
 # definitions-5280
 
@@ -1410,7 +1449,8 @@ args: {"rfc":5280}
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-5280.txt) (29 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-5280.txt)
+:::
 
 ### definitions-7519
 
@@ -1422,6 +1462,7 @@ Arguments: `get_definitions`
 }
 ```
 
+::: details Output (64 lines)
 ```text
 # definitions-7519
 
@@ -1486,7 +1527,8 @@ args: {"rfc":7519}
 … (64 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-7519.txt) (64 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-7519.txt)
+:::
 
 ## get_rfc_dependencies
 
@@ -1500,6 +1542,7 @@ Arguments: `get_rfc_dependencies`
 }
 ```
 
+::: details Output (144 lines)
 ```text
 # dependencies-6455
 
@@ -1564,7 +1607,8 @@ args: {"rfc":6455}
 … (144 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-6455.txt) (144 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-6455.txt)
+:::
 
 ### dependencies-1123
 
@@ -1576,6 +1620,7 @@ Arguments: `get_rfc_dependencies`
 }
 ```
 
+::: details Output (282 lines)
 ```text
 # dependencies-1123
 
@@ -1640,7 +1685,8 @@ args: {"rfc":1123}
 … (282 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-1123.txt) (282 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-1123.txt)
+:::
 
 ### dependencies-1305
 
@@ -1652,6 +1698,7 @@ Arguments: `get_rfc_dependencies`
 }
 ```
 
+::: details Output (220 lines)
 ```text
 # dependencies-1305
 
@@ -1716,7 +1763,8 @@ args: {"rfc":1305}
 … (220 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-1305.txt) (220 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-1305.txt)
+:::
 
 ## get_related_sections
 
@@ -1731,6 +1779,7 @@ Arguments: `get_related_sections`
 }
 ```
 
+::: details Output (19 lines)
 ```text
 # related-6749-3.1
 
@@ -1753,7 +1802,8 @@ args: {"rfc":6749,"section":"3.1"}
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/related-6749-3.1.txt) (19 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/related-6749-3.1.txt)
+:::
 
 ## generate_checklist
 
@@ -1770,6 +1820,7 @@ Arguments: `generate_checklist`
 }
 ```
 
+::: details Output (30 lines)
 ```text
 # checklist-9110-9.3.5
 
@@ -1803,7 +1854,8 @@ Generated: <generatedAt>
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-9110-9.3.5.txt) (30 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-9110-9.3.5.txt)
+:::
 
 ### checklist-6455-4.1
 
@@ -1819,6 +1871,7 @@ Arguments: `generate_checklist`
 }
 ```
 
+::: details Output (79 lines)
 ```text
 # checklist-6455-4.1
 
@@ -1883,7 +1936,8 @@ Generated: <generatedAt>
 … (79 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-4.1.txt) (79 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-4.1.txt)
+:::
 
 ### checklist-6455-client
 
@@ -1901,6 +1955,7 @@ Arguments: `generate_checklist`
 }
 ```
 
+::: details Output (49 lines)
 ```text
 # checklist-6455-client
 
@@ -1953,7 +2008,8 @@ Generated: <generatedAt>
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-client.txt) (49 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-client.txt)
+:::
 
 ### checklist-6455-server
 
@@ -1971,6 +2027,7 @@ Arguments: `generate_checklist`
 }
 ```
 
+::: details Output (48 lines)
 ```text
 # checklist-6455-server
 
@@ -2022,7 +2079,8 @@ Generated: <generatedAt>
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-server.txt) (48 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-server.txt)
+:::
 
 ### checklist-2131-4.3.1
 
@@ -2037,6 +2095,7 @@ Arguments: `generate_checklist`
 }
 ```
 
+::: details Output (58 lines)
 ```text
 # checklist-2131-4.3.1
 
@@ -2098,7 +2157,8 @@ Generated: <generatedAt>
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-2131-4.3.1.txt) (58 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-2131-4.3.1.txt)
+:::
 
 ### checklist-9113-8.3.1
 
@@ -2113,6 +2173,7 @@ Arguments: `generate_checklist`
 }
 ```
 
+::: details Output (48 lines)
 ```text
 # checklist-9113-8.3.1
 
@@ -2164,7 +2225,8 @@ Generated: <generatedAt>
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-9113-8.3.1.txt) (48 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-9113-8.3.1.txt)
+:::
 
 ### checklist-8259
 
@@ -2176,6 +2238,7 @@ Arguments: `generate_checklist`
 }
 ```
 
+::: details Output (44 lines)
 ```text
 # checklist-8259
 
@@ -2223,7 +2286,8 @@ Generated: <generatedAt>
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-8259.txt) (44 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-8259.txt)
+:::
 
 ### checklist-5652-5.3
 
@@ -2238,6 +2302,7 @@ Arguments: `generate_checklist`
 }
 ```
 
+::: details Output (45 lines)
 ```text
 # checklist-5652-5.3
 
@@ -2286,7 +2351,8 @@ Generated: <generatedAt>
 }
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-5652-5.3.txt) (45 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-5652-5.3.txt)
+:::
 
 ## validate_statement
 
@@ -2301,6 +2367,7 @@ Arguments: `validate_statement`
 }
 ```
 
+::: details Output (219 lines)
 ```text
 # validate-6455-compliant
 
@@ -2365,7 +2432,8 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
 … (219 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-compliant.txt) (219 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-compliant.txt)
+:::
 
 ### validate-6455-violation
 
@@ -2378,6 +2446,7 @@ Arguments: `validate_statement`
 }
 ```
 
+::: details Output (235 lines)
 ```text
 # validate-6455-violation
 
@@ -2442,7 +2511,8 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
 … (235 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-violation.txt) (235 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-violation.txt)
+:::
 
 ### validate-6455-passive
 
@@ -2455,6 +2525,7 @@ Arguments: `validate_statement`
 }
 ```
 
+::: details Output (202 lines)
 ```text
 # validate-6455-passive
 
@@ -2519,7 +2590,8 @@ args: {"rfc":6455,"statement":"The fragments of one message are interleaved betw
 … (202 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-passive.txt) (202 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-passive.txt)
+:::
 
 ### validate-7159-own-sentence
 
@@ -2532,6 +2604,7 @@ Arguments: `validate_statement`
 }
 ```
 
+::: details Output (171 lines)
 ```text
 # validate-7159-own-sentence
 
@@ -2596,7 +2669,8 @@ args: {"rfc":7159,"statement":"In the interests of interoperability, implementat
 … (171 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-7159-own-sentence.txt) (171 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-7159-own-sentence.txt)
+:::
 
 ### validate-9110-qualifier
 
@@ -2609,6 +2683,7 @@ Arguments: `validate_statement`
 }
 ```
 
+::: details Output (228 lines)
 ```text
 # validate-9110-qualifier
 
@@ -2673,4 +2748,5 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
 … (228 lines)
 ```
 
-[full output](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-9110-qualifier.txt) (228 lines)
+[Full output on GitHub](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-9110-qualifier.txt)
+:::

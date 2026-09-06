@@ -93,8 +93,10 @@ function typeOf(schema) {
 const TOOLS_TEXT = {
   en: {
     title: 'Tools',
+    introTitle: 'Unknown keys are rejected',
+    notAJudge: 'Not a conformance judge',
     intro:
-      'Seven tools. Every input schema has `additionalProperties: false`: an unknown key (for example `sections` where `section` is expected) is rejected by the SDK input validation with `isError: true`, not silently ignored.',
+      'Every input schema has `additionalProperties: false`: an unknown key (for example `sections` where `section` is expected) is rejected by the SDK input validation with `isError: true`, not silently ignored.',
     source: 'Generated from `dist/tools/definitions.js`.',
     parameters: 'Parameters',
     none: 'No parameters.',
@@ -105,8 +107,10 @@ const TOOLS_TEXT = {
   },
   ja: {
     title: 'ツール',
+    introTitle: '定義されていないキーは受け付けません',
+    notAJudge: '適合判定ではありません',
     intro:
-      'このサーバーには 7 つのツールがあります。すべてのツールの入力スキーマに `additionalProperties: false` が指定されているため、定義されていないキー（たとえば `section` のつもりで `sections` を渡した場合）は SDK の入力検証で `isError: true` になり、黙って無視されることはありません。',
+      'すべてのツールの入力スキーマに `additionalProperties: false` が指定されているため、定義されていないキー（たとえば `section` のつもりで `sections` を渡した場合）は SDK の入力検証で `isError: true` になり、黙って無視されることはありません。',
     source: 'このページは `dist/tools/definitions.js` から生成しています。説明文の日本語訳は翻訳メモリ（`docs/i18n/ja.json`）から当てており、原文が更新されて訳が追いついていない項目は英語のまま表示されます。',
     parameters: 'パラメータ',
     none: 'パラメータはありません。',
@@ -119,7 +123,7 @@ const TOOLS_TEXT = {
 
 function renderTools(tools, lang, tr) {
   const t = TOOLS_TEXT[lang];
-  const out = [BANNER, '', `# ${t.title}`, '', t.intro, '', t.source, ''];
+  const out = [BANNER, '', `# ${t.title}`, '', `::: info ${t.introTitle}`, t.intro, ':::', '', t.source, ''];
 
   out.push('| | |', '|---|---|');
   for (const tool of tools) {
@@ -130,7 +134,14 @@ function renderTools(tools, lang, tr) {
   for (const tool of tools) {
     const schema = tool.inputSchema;
     const required = new Set(schema.required ?? []);
-    out.push(`## ${tool.name}`, '', tr(`${tool.name}|description`, tool.description), '', `### ${t.parameters}`, '');
+    const description = tr(`${tool.name}|description`, tool.description);
+    out.push(`## ${tool.name}`, '');
+    if (tool.name === 'validate_statement') {
+      out.push(`::: warning ${t.notAJudge}`, description, ':::', '');
+    } else {
+      out.push(description, '');
+    }
+    out.push(`### ${t.parameters}`, '');
     const entries = Object.entries(schema.properties ?? {});
     if (entries.length === 0) {
       out.push(t.none, '');
@@ -197,7 +208,7 @@ function renderInstructions(text, lang, tr) {
   const out = [BANNER, '', `# ${t.title}`, '', t.intro, ''];
   if (lang === 'ja') {
     const ja = tr('instructions|text', text.trim());
-    if (ja !== text.trim()) out.push('## 日本語訳', '', ja, '', '## 原文', '');
+    if (ja !== text.trim()) out.push('## 日本語訳', '', '::: info 参考訳', ja, ':::', '', '## 原文', '');
   }
   out.push('````text', text.trim(), '````', '');
   return out.join('\n');
@@ -211,17 +222,19 @@ const EXAMPLES_TEXT = {
   en: {
     title: 'Output examples',
     intro: (n) =>
-      `${n} calls fixed as output snapshots by \`npm run snapshot\` (\`tests/snapshot/cases.mjs\`). Each block is the recorded output for the call shown above it. Outputs longer than ${EXAMPLE_HEAD_LINES} lines are cut; the link opens the full file. \`<generatedAt>\` replaces the timestamp.`,
+      `${n} calls fixed as output snapshots by \`npm run snapshot\` (\`tests/snapshot/cases.mjs\`). Each output is collapsed; open it to see the first ${EXAMPLE_HEAD_LINES} lines, and follow the link for the full file. \`<generatedAt>\` replaces the timestamp.`,
     args: 'Arguments',
-    full: 'full output',
+    full: 'Full output on GitHub',
+    output: (n) => `Output (${n} lines)`,
     truncated: (n) => `… (${n} lines)`,
   },
   ja: {
     title: '出力例',
     intro: (n) =>
-      `\`npm run snapshot\`（\`tests/snapshot/cases.mjs\`）で固定している ${n} 件の呼び出しと、その出力です。各ブロックは、直前に示した呼び出しの実際の出力を記録したものです。${EXAMPLE_HEAD_LINES} 行を超える出力は途中で切っており、全文はリンク先で読めます。\`<generatedAt>\` は生成時刻を置き換えた印です。`,
+      `\`npm run snapshot\`（\`tests/snapshot/cases.mjs\`）で固定している ${n} 件の呼び出しと、その出力です。出力は折りたたんであり、開くと先頭 ${EXAMPLE_HEAD_LINES} 行が見えます。全文はリンク先で読めます。\`<generatedAt>\` は生成時刻を置き換えた印です。`,
     args: '引数',
-    full: '全文',
+    full: '全文を GitHub で見る',
+    output: (n) => `出力（全 ${n} 行）`,
     truncated: (n) => `… （全 ${n} 行）`,
   },
 };
@@ -256,18 +269,16 @@ async function renderExamples(cases, tools, lang) {
       out.push(`### ${c.name}`, '');
       out.push(`${t.args}: ${code(c.tool)}`, '', '```json', JSON.stringify(c.args, null, 2), '```', '');
       const fence = fenceFor(text);
+      // 出力は折りたたむ（38 件で 2,600 行になるため）。開くと先頭 60 行、全文はリンク先。
+      out.push(`::: details ${t.output(lines.length)}`);
       if (lines.length > EXAMPLE_HEAD_LINES) {
-        out.push(
-          `${fence}text`,
-          ...lines.slice(0, EXAMPLE_HEAD_LINES),
-          t.truncated(lines.length),
-          fence,
-          ''
-        );
+        out.push(`${fence}text`, ...lines.slice(0, EXAMPLE_HEAD_LINES), t.truncated(lines.length), fence, '');
+        out.push(`[${t.full}](${rawUrl})`);
       } else {
         out.push(`${fence}text`, ...lines, fence, '');
+        out.push(`[${t.full}](${rawUrl})`);
       }
-      out.push(`[${t.full}](${rawUrl}) (${lines.length} lines)`, '');
+      out.push(':::', '');
     }
   }
   return out.join('\n');

@@ -18,7 +18,9 @@ Features that depend on XML structure lose precision on the text path:
 | `generate_checklist`   | ✅ full    | ⚠️ extraction less precise                      | ❌ none                                    | Goes through `get_requirements`, so the same limits apply                                                                                                                                                                                              |
 | `validate_statement`   | ✅ full    | ⚠️ extraction less precise                      | ❌ none                                    | Same as above                                                                                                                                                                                                                                          |
 
-Legend: ✅ full / ⚠️ limited (less precise) / ❌ not obtainable.
+::: info Legend
+✅ full / ⚠️ limited (less precise) / ❌ not obtainable
+:::
 
 `_referencesSource` (only on `get_rfc_dependencies`):
 
@@ -26,7 +28,9 @@ Legend: ✅ full / ⚠️ limited (less precise) / ❌ not obtainable.
 - `'text'` — extracted from the References section of the text body. Titles come from that section, so they are not placeholders. An RFC with a single references section (RFC 2616) puts everything under `informative`; only then is `_sourceNote` attached.
 - `'api'` — from the Datatracker `relateddocument` API. Title and anchor are placeholders (`title: "RFC N"`, `anchor: "RFCN"`). Used when the body has no References section.
 
+::: warning An empty result does not mean "no such requirement"
 An empty result means "the RFC text did not yield a match in the requested scope", not "no such requirement exists". Requirement extraction is keyword based (RFC 2119 / RFC 8174): a requirement written without those keywords is not reported.
+:::
 
 ## `validate_statement` is not a judge
 
@@ -38,6 +42,10 @@ An empty result means "the RFC text did not yield a match in the requested scope
 | `false`   | A contradiction was detected                                                                    |
 | `true`    | No contradiction was detected among the matched requirements. Not a statement of compliance.    |
 
+::: danger Do not treat `true` as proof of compliance
+`true` means only that no contradiction was found among the matched requirements. Matching is an English-keyword approximation, and some forms — passive-voice prohibitions and paraphrased qualifiers, described below — cannot be detected as contradictions.
+:::
+
 Details of how the value is decided:
 
 - The top match must reach both a minimum score and at least 2 content keywords (words other than the subject); otherwise `null`. A subject-only match reaches the score threshold but says nothing about what is being discussed, so it is not judged.
@@ -47,21 +55,31 @@ Details of how the value is decided:
 - Contradiction requires that the statement's main verb is the prohibited act. "The server removes masking …" has the main verb *removes*, not *mask*.
 - `VERB_SYNONYMS` is not exhaustive. For a verb not in the table no contradiction is detected, which is consistent with what `true` means (no contradiction found) and is not a claim of compliance.
 
-**Prohibitions written in the passive voice give `null`.** In `A reference identity of type CN-ID MUST NOT be used by clients.` the prohibited act is `be used by clients`; the body does not name who performs it. Contradiction detection asks whether the statement's subject performs that verb, so a statement that does perform it yields an empty `conflicts`. Returning `true` on that would answer "no contradiction" to a violating statement. Instead, a match of the form `MUST NOT be <past participle>` sets `isValid` to `null` and lists the requirement id in `suggestions`. A statement that is itself negative (`not` / `never` / `no` / `cannot`) states compliance and is not withdrawn. Measured on 40 machine-generated passive violations: `true` went from 13 to 4; among 179 sentences that follow the requirement, 4 were withdrawn.
+::: details Prohibitions written in the passive voice (`MUST NOT be <past participle>`)
+In `A reference identity of type CN-ID MUST NOT be used by clients.` the prohibited act is `be used by clients`; the body does not name who performs it. Contradiction detection asks whether the statement's subject performs that verb, so a statement that does perform it yields an empty `conflicts`. Returning `true` on that would answer "no contradiction" to a violating statement. Instead, a match of the form `MUST NOT be <past participle>` sets `isValid` to `null` and lists the requirement id in `suggestions`. A statement that is itself negative (`not` / `never` / `no` / `cannot`) states compliance and is not withdrawn. Measured on 40 machine-generated passive violations: `true` went from 13 to 4; among 179 sentences that follow the requirement, 4 were withdrawn.
+:::
 
-**Paraphrased qualifiers give `null`.** RFC 9110 §6.6.1 has `An origin server with a clock MUST generate …` and `An origin server without a clock MUST NOT generate …`. What distinguishes the two is `with` / `without`, so the same-act check requires the same word in the statement. `… even though it has no clock.` does not contain `without`, so no contradiction was found and the result used to be `isValid: true`. Now, when ignoring the qualifier would produce a contradiction and the statement expresses the same negation (`no clock` / `does not have a clock` / `lacks a clock`), the result is `null`. The other branch (`with a clock`) is not withdrawn — that statement complies. Only `without` is handled; other qualifiers have no fixed paraphrase form. Of 1,668 prohibitions, 51 contain `without`.
+::: details Paraphrased qualifiers (`without` → `has no` / `lacks`)
+RFC 9110 §6.6.1 has `An origin server with a clock MUST generate …` and `An origin server without a clock MUST NOT generate …`. What distinguishes the two is `with` / `without`, so the same-act check requires the same word in the statement. `… even though it has no clock.` does not contain `without`, so no contradiction was found and the result used to be `isValid: true`. Now, when ignoring the qualifier would produce a contradiction and the statement expresses the same negation (`no clock` / `does not have a clock` / `lacks a clock`), the result is `null`. The other branch (`with a clock`) is not withdrawn — that statement complies. Only `without` is handled; other qualifiers have no fixed paraphrase form. Of 1,668 prohibitions, 51 contain `without`.
+:::
 
 ## The publication date comes from the body
 
-Datatracker `document.time` is the time the record was last updated, not the publication date (RFC 9293 returns 2026-05-20; it was published 2022-08). The publication date is taken from `front/date` in RFCXML, and from the header lines on the text path. The Datatracker value is kept internally as `RFCMetadata.datatrackerUpdated` but is not returned by any tool.
+::: info
+Datatracker `document.time` is the time the record was last updated, not the publication date (RFC 9293 returns 2026-05-20; it was published 2022-08).
+:::
+
+The publication date is taken from `front/date` in RFCXML, and from the header lines on the text path. The Datatracker value is kept internally as `RFCMetadata.datatrackerUpdated` but is not returned by any tool.
 
 ## A table row is one requirement
 
 When a keyword appears in a row of a figure or table, only **that one row** becomes the requirement. Table 3 of RFC 2131 §4.3.1 spans two pages; returning the whole paragraph put a 2,000-character "requirement" into `generate_checklist` four times, once per level.
 
+::: details How `<table>` is handled on the XML path
 The XML path applies the same rule to `<table>`: each body row (cells joined with `" | "`) becomes one requirement. Header rows are ignored (RFC 9293 §3.11 lists MUST / SHOULD / MAY in a header). A row whose keyword is followed only by `-\d` (a requirement-id label such as `MUST-14`) is not a requirement: RFC 9293 Appendix B has 110 rows like `Treat as unsigned number | MUST-1 | X | | | |`, and the label's level can differ from the marked column (`MUST-60` is marked in the MUST NOT column); the requirement itself comes from §3.1 and other body sections. `fullContext` is the header row plus that row; subject, condition and action are not attached. Among the 32 XML documents in the audit corpus none has a `<table>` with a keyword in a body row, so this path is verified by unit tests only.
 
 Fields of ASN.1 type definitions (`keyIdentifier [0] KeyIdentifier OPTIONAL,`) are not prose and are not requirements.
+:::
 
 ## What is checked before a release
 

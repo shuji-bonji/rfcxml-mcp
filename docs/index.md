@@ -1,14 +1,14 @@
 # rfcxml-mcp
 
-A Model Context Protocol (MCP) server for **structured understanding** of RFC documents.
+A Model Context Protocol (MCP) server that lets an LLM read RFC documents **structurally**.
 
 - npm: [`@shuji-bonji/rfcxml-mcp`](https://www.npmjs.com/package/@shuji-bonji/rfcxml-mcp)
 - Source: [shuji-bonji/rfcxml-mcp](https://github.com/shuji-bonji/rfcxml-mcp) · [CHANGELOG](https://github.com/shuji-bonji/rfcxml-mcp/blob/main/CHANGELOG.md)
 - Node.js 22 or later
 
-## What it is, and what it is not
+## What it does
 
-This server is a structured **reader** of published RFCs. It does not return the RFC text as a whole. It reads the RFCXML semantic structure and returns:
+This server reads published RFCs structurally and returns the parts an LLM can work with. It does not hand back the RFC text as a whole; it parses the RFCXML semantic structure and returns:
 
 - section hierarchy and metadata
 - normative requirements (MUST / SHOULD / MAY) in structured form
@@ -18,14 +18,25 @@ This server is a structured **reader** of published RFCs. It does not return the
 - implementation checklists
 - the requirements that bear on a statement, with detected contradictions
 
-It is **not** a conformance judge and not a web search. `validate_statement` returns matched requirements; the verdict is yours (see [Accuracy and limits](/guide/accuracy)). Only published RFCs are reachable; Internet-Drafts and arbitrary URLs are not. Sources are fixed to rfc-editor.org and the IETF Datatracker API.
-
 RFCs published after RFC 8650 (December 2019) are available in official RFCXML v3. Earlier RFCs usually have no XML; the server then parses the text format instead, and every response carries `_source` (`xml` or `text`) and, where relevant, `_sourceNote`.
 
 | `_source` | Description                        |
 | --------- | ---------------------------------- |
 | `xml`     | Parsed from RFCXML (high accuracy) |
 | `text`    | Parsed from text (medium accuracy) |
+
+::: tip Read `_source` first
+A response with `_source: "text"` has a less precise section hierarchy and requirement extraction. When `_sourceNote` is present it says why.
+:::
+
+## What it does not do
+
+::: warning It does not decide conformance
+`validate_statement` finds the requirements that bear on a statement and reports detected contradictions. The verdict is yours. `isValid: true` means only that no contradiction was found; it is not a statement of compliance. See [Accuracy and limits](/guide/accuracy#validate-statement-is-not-a-judge) for how to read the value.
+:::
+
+- **Only published RFCs.** Internet-Drafts and arbitrary URLs are out of scope.
+- **No web search.** Sources are fixed to rfc-editor.org and the IETF Datatracker API.
 
 ## Tools
 

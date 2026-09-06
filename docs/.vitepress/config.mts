@@ -7,6 +7,9 @@ export default defineConfig({
   title: 'rfcxml-mcp',
   description: 'MCP server for structured understanding of RFC documents via RFCXML',
   lastUpdated: false,
+  sitemap: { hostname: 'https://shuji-bonji.github.io/rfcxml-mcp/' },
+  // docs/README.md は作り方のメモで、サイトのページではない
+  srcExclude: ['README.md'],
   cleanUrls: false,
 
   locales: {

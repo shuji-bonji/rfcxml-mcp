@@ -2,7 +2,9 @@
 
 # Tools
 
-Seven tools. Every input schema has `additionalProperties: false`: an unknown key (for example `sections` where `section` is expected) is rejected by the SDK input validation with `isError: true`, not silently ignored.
+::: info Unknown keys are rejected
+Every input schema has `additionalProperties: false`: an unknown key (for example `sections` where `section` is expected) is rejected by the SDK input validation with `isError: true`, not silently ignored.
+:::
 
 Generated from `dist/tools/definitions.js`.
 
@@ -100,7 +102,9 @@ Unknown keys are rejected (`additionalProperties: false`).
 
 ## validate_statement
 
+::: warning Not a conformance judge
 Find the RFC requirements that bear on a statement, and report detected contradictions. This does NOT decide conformance: `isValid` is three-valued (`null` = nothing matched strongly enough to judge, `false` = a contradiction was detected, `true` = none was detected among the matches). Matching is English keyword based; write the statement in the RFC's own wording.
+:::
 
 ### Parameters
 

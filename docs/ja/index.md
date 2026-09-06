@@ -25,9 +25,16 @@ RFC 8650（2019 年 12 月）以降の RFC には公式の RFCXML v3 が用意�
 | `xml` | RFCXML | 高い |
 | `text` | テキスト形式の RFC | 中程度。落ちるものは [精度と制約](/ja/guide/accuracy) を参照 |
 
+::: tip 応答を読むときは `_source` を先に見てください
+`_source: "text"` の応答は、節の階層や要件の切り出しの精度が下がっています。`_sourceNote` が付いている場合は、その理由が書かれています。
+:::
+
 ## できないこと
 
-- **適合判定はしません。** `validate_statement` は、主張に関係する要件を探して返し、明らかな矛盾があれば報告するツールです。準拠しているかどうかの判断は利用者が行います。`isValid` の値の読み方は [精度と制約](/ja/guide/accuracy#validate-statement-は判定器ではありません) を参照してください。
+::: warning 適合判定はしません
+`validate_statement` は、主張に関係する要件を探して返し、明らかな矛盾があれば報告するツールです。準拠しているかどうかの判断は利用者が行います。`isValid: true` は「矛盾が見つからなかった」という意味であって、準拠の証明ではありません。値の読み方は [精度と制約](/ja/guide/accuracy#validate-statement-は判定器ではありません) を参照してください。
+:::
+
 - **公開済みの RFC しか扱いません。** Internet-Draft や任意の URL は対象外です。
 - **Web 検索はしません。** 取得元は rfc-editor.org と IETF Datatracker API に固定しています。
 

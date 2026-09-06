@@ -6,6 +6,7 @@
 
 ## 日本語訳
 
+::: info 参考訳
 このサーバーは、公開済みの RFC を構造的に読み取るためのものです。適合判定器でも、Web 検索でもありません。
 
 次のことは行いません。
@@ -21,6 +22,7 @@ IETF 文書のキーワード検索や Internet-Draft には、ietf MCP サー�
 - 照合は英語のキーワードに基づきます。`validate_statement` は英語以外で書かれた主張には一致しません。RFC の言い回しに合わせて書いてください。
 
 負荷の高いオプション: `get_rfc_structure` の `includeAuthors=true` は Datatracker へのリクエストを 1 + N 回増やします。`includeContent=true` は節の本文全体を返します。
+:::
 
 ## 原文
 

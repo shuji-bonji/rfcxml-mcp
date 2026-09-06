@@ -2,7 +2,7 @@
 
 # 出力例
 
-`npm run snapshot`（`tests/snapshot/cases.mjs`）で固定している 38 件の呼び出しと、その出力です。各ブロックは、直前に示した呼び出しの実際の出力を記録したものです。60 行を超える出力は途中で切っており、全文はリンク先で読めます。`<generatedAt>` は生成時刻を置き換えた印です。
+`npm run snapshot`（`tests/snapshot/cases.mjs`）で固定している 38 件の呼び出しと、その出力です。出力は折りたたんであり、開くと先頭 60 行が見えます。全文はリンク先で読めます。`<generatedAt>` は生成時刻を置き換えた印です。
 
 ## get_rfc_structure
 
@@ -16,6 +16,7 @@
 }
 ```
 
+::: details 出力（全 136 行）
 ```text
 # structure-793
 
@@ -80,7 +81,8 @@ args: {"rfc":793}
 … （全 136 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-793.txt) (136 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-793.txt)
+:::
 
 ### structure-1035
 
@@ -92,6 +94,7 @@ args: {"rfc":793}
 }
 ```
 
+::: details 出力（全 337 行）
 ```text
 # structure-1035
 
@@ -156,7 +159,8 @@ args: {"rfc":1035}
 … （全 337 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-1035.txt) (337 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-1035.txt)
+:::
 
 ### structure-2068
 
@@ -168,6 +172,7 @@ args: {"rfc":1035}
 }
 ```
 
+::: details 出力（全 1104 行）
 ```text
 # structure-2068
 
@@ -232,7 +237,8 @@ args: {"rfc":2068}
 … （全 1104 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-2068.txt) (1104 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-2068.txt)
+:::
 
 ### structure-8949
 
@@ -244,6 +250,7 @@ args: {"rfc":2068}
 }
 ```
 
+::: details 出力（全 444 行）
 ```text
 # structure-8949
 
@@ -308,7 +315,8 @@ args: {"rfc":8949}
 … （全 444 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-8949.txt) (444 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-8949.txt)
+:::
 
 ### structure-9114
 
@@ -320,6 +328,7 @@ args: {"rfc":8949}
 }
 ```
 
+::: details 出力（全 516 行）
 ```text
 # structure-9114
 
@@ -384,7 +393,8 @@ args: {"rfc":9114}
 … （全 516 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-9114.txt) (516 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-9114.txt)
+:::
 
 ### structure-8446
 
@@ -396,6 +406,7 @@ args: {"rfc":9114}
 }
 ```
 
+::: details 出力（全 614 行）
 ```text
 # structure-8446
 
@@ -460,7 +471,8 @@ args: {"rfc":8446}
 … （全 614 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-8446.txt) (614 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-8446.txt)
+:::
 
 ### structure-854
 
@@ -472,6 +484,7 @@ args: {"rfc":8446}
 }
 ```
 
+::: details 出力（全 119 行）
 ```text
 # structure-854
 
@@ -536,7 +549,8 @@ args: {"rfc":854}
 … （全 119 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-854.txt) (119 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-854.txt)
+:::
 
 ### structure-792
 
@@ -548,6 +562,7 @@ args: {"rfc":854}
 }
 ```
 
+::: details 出力（全 332 行）
 ```text
 # structure-792
 
@@ -612,7 +627,8 @@ args: {"rfc":792}
 … （全 332 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-792.txt) (332 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-792.txt)
+:::
 
 ## get_requirements
 
@@ -627,6 +643,7 @@ args: {"rfc":792}
 }
 ```
 
+::: details 出力（全 20 行）
 ```text
 # requirements-5652-1.2
 
@@ -650,7 +667,8 @@ args: {"rfc":5652,"section":"1.2"}
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-5652-1.2.txt) (20 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-5652-1.2.txt)
+:::
 
 ### requirements-6455-5.2
 
@@ -663,6 +681,7 @@ args: {"rfc":5652,"section":"1.2"}
 }
 ```
 
+::: details 出力（全 108 行）
 ```text
 # requirements-6455-5.2
 
@@ -727,7 +746,8 @@ args: {"rfc":6455,"section":"5.2"}
 … （全 108 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-6455-5.2.txt) (108 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-6455-5.2.txt)
+:::
 
 ### requirements-1123-3.2
 
@@ -740,6 +760,7 @@ args: {"rfc":6455,"section":"5.2"}
 }
 ```
 
+::: details 出力（全 293 行）
 ```text
 # requirements-1123-3.2
 
@@ -804,7 +825,8 @@ args: {"rfc":1123,"section":"3.2"}
 … （全 293 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-1123-3.2.txt) (293 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-1123-3.2.txt)
+:::
 
 ### requirements-6455-9.1
 
@@ -817,6 +839,7 @@ args: {"rfc":1123,"section":"3.2"}
 }
 ```
 
+::: details 出力（全 98 行）
 ```text
 # requirements-6455-9.1
 
@@ -881,7 +904,8 @@ args: {"rfc":6455,"section":"9.1"}
 … （全 98 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-6455-9.1.txt) (98 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-6455-9.1.txt)
+:::
 
 ### requirements-9051-2.3.1.1
 
@@ -894,6 +918,7 @@ args: {"rfc":6455,"section":"9.1"}
 }
 ```
 
+::: details 出力（全 163 行）
 ```text
 # requirements-9051-2.3.1.1
 
@@ -958,7 +983,8 @@ args: {"rfc":9051,"section":"2.3.1.1"}
 … （全 163 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9051-2.3.1.1.txt) (163 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9051-2.3.1.1.txt)
+:::
 
 ### requirements-9110-9.3.5
 
@@ -971,6 +997,7 @@ args: {"rfc":9051,"section":"2.3.1.1"}
 }
 ```
 
+::: details 出力（全 55 行）
 ```text
 # requirements-9110-9.3.5
 
@@ -1029,7 +1056,8 @@ args: {"rfc":9110,"section":"9.3.5"}
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9110-9.3.5.txt) (55 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9110-9.3.5.txt)
+:::
 
 ### requirements-9110-10.1.1
 
@@ -1042,6 +1070,7 @@ args: {"rfc":9110,"section":"9.3.5"}
 }
 ```
 
+::: details 出力（全 172 行）
 ```text
 # requirements-9110-10.1.1
 
@@ -1106,7 +1135,8 @@ args: {"rfc":9110,"section":"10.1.1"}
 … （全 172 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9110-10.1.1.txt) (172 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9110-10.1.1.txt)
+:::
 
 ## get_definitions
 
@@ -1121,6 +1151,7 @@ args: {"rfc":9110,"section":"10.1.1"}
 }
 ```
 
+::: details 出力（全 49 行）
 ```text
 # definitions-9110-cache
 
@@ -1173,7 +1204,8 @@ args: {"rfc":9110,"term":"cache"}
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9110-cache.txt) (49 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9110-cache.txt)
+:::
 
 ### definitions-9111-cache-directive
 
@@ -1186,6 +1218,7 @@ args: {"rfc":9110,"term":"cache"}
 }
 ```
 
+::: details 出力（全 24 行）
 ```text
 # definitions-9111-cache-directive
 
@@ -1213,7 +1246,8 @@ args: {"rfc":9111,"term":"max-age"}
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9111-cache-directive.txt) (24 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9111-cache-directive.txt)
+:::
 
 ### definitions-9110-client
 
@@ -1226,6 +1260,7 @@ args: {"rfc":9111,"term":"max-age"}
 }
 ```
 
+::: details 出力（全 234 行）
 ```text
 # definitions-9110-client
 
@@ -1290,7 +1325,8 @@ args: {"rfc":9110,"term":"client"}
 … （全 234 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9110-client.txt) (234 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9110-client.txt)
+:::
 
 ### definitions-9114
 
@@ -1302,6 +1338,7 @@ args: {"rfc":9110,"term":"client"}
 }
 ```
 
+::: details 出力（全 468 行）
 ```text
 # definitions-9114
 
@@ -1366,7 +1403,8 @@ args: {"rfc":9114}
 … （全 468 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9114.txt) (468 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9114.txt)
+:::
 
 ### definitions-5280
 
@@ -1378,6 +1416,7 @@ args: {"rfc":9114}
 }
 ```
 
+::: details 出力（全 29 行）
 ```text
 # definitions-5280
 
@@ -1410,7 +1449,8 @@ args: {"rfc":5280}
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-5280.txt) (29 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-5280.txt)
+:::
 
 ### definitions-7519
 
@@ -1422,6 +1462,7 @@ args: {"rfc":5280}
 }
 ```
 
+::: details 出力（全 64 行）
 ```text
 # definitions-7519
 
@@ -1486,7 +1527,8 @@ args: {"rfc":7519}
 … （全 64 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-7519.txt) (64 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-7519.txt)
+:::
 
 ## get_rfc_dependencies
 
@@ -1500,6 +1542,7 @@ args: {"rfc":7519}
 }
 ```
 
+::: details 出力（全 144 行）
 ```text
 # dependencies-6455
 
@@ -1564,7 +1607,8 @@ args: {"rfc":6455}
 … （全 144 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-6455.txt) (144 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-6455.txt)
+:::
 
 ### dependencies-1123
 
@@ -1576,6 +1620,7 @@ args: {"rfc":6455}
 }
 ```
 
+::: details 出力（全 282 行）
 ```text
 # dependencies-1123
 
@@ -1640,7 +1685,8 @@ args: {"rfc":1123}
 … （全 282 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-1123.txt) (282 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-1123.txt)
+:::
 
 ### dependencies-1305
 
@@ -1652,6 +1698,7 @@ args: {"rfc":1123}
 }
 ```
 
+::: details 出力（全 220 行）
 ```text
 # dependencies-1305
 
@@ -1716,7 +1763,8 @@ args: {"rfc":1305}
 … （全 220 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-1305.txt) (220 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-1305.txt)
+:::
 
 ## get_related_sections
 
@@ -1731,6 +1779,7 @@ args: {"rfc":1305}
 }
 ```
 
+::: details 出力（全 19 行）
 ```text
 # related-6749-3.1
 
@@ -1753,7 +1802,8 @@ args: {"rfc":6749,"section":"3.1"}
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/related-6749-3.1.txt) (19 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/related-6749-3.1.txt)
+:::
 
 ## generate_checklist
 
@@ -1770,6 +1820,7 @@ args: {"rfc":6749,"section":"3.1"}
 }
 ```
 
+::: details 出力（全 30 行）
 ```text
 # checklist-9110-9.3.5
 
@@ -1803,7 +1854,8 @@ Generated: <generatedAt>
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-9110-9.3.5.txt) (30 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-9110-9.3.5.txt)
+:::
 
 ### checklist-6455-4.1
 
@@ -1819,6 +1871,7 @@ Generated: <generatedAt>
 }
 ```
 
+::: details 出力（全 79 行）
 ```text
 # checklist-6455-4.1
 
@@ -1883,7 +1936,8 @@ Generated: <generatedAt>
 … （全 79 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-4.1.txt) (79 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-4.1.txt)
+:::
 
 ### checklist-6455-client
 
@@ -1901,6 +1955,7 @@ Generated: <generatedAt>
 }
 ```
 
+::: details 出力（全 49 行）
 ```text
 # checklist-6455-client
 
@@ -1953,7 +2008,8 @@ Generated: <generatedAt>
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-client.txt) (49 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-client.txt)
+:::
 
 ### checklist-6455-server
 
@@ -1971,6 +2027,7 @@ Generated: <generatedAt>
 }
 ```
 
+::: details 出力（全 48 行）
 ```text
 # checklist-6455-server
 
@@ -2022,7 +2079,8 @@ Generated: <generatedAt>
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-server.txt) (48 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-server.txt)
+:::
 
 ### checklist-2131-4.3.1
 
@@ -2037,6 +2095,7 @@ Generated: <generatedAt>
 }
 ```
 
+::: details 出力（全 58 行）
 ```text
 # checklist-2131-4.3.1
 
@@ -2098,7 +2157,8 @@ Generated: <generatedAt>
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-2131-4.3.1.txt) (58 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-2131-4.3.1.txt)
+:::
 
 ### checklist-9113-8.3.1
 
@@ -2113,6 +2173,7 @@ Generated: <generatedAt>
 }
 ```
 
+::: details 出力（全 48 行）
 ```text
 # checklist-9113-8.3.1
 
@@ -2164,7 +2225,8 @@ Generated: <generatedAt>
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-9113-8.3.1.txt) (48 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-9113-8.3.1.txt)
+:::
 
 ### checklist-8259
 
@@ -2176,6 +2238,7 @@ Generated: <generatedAt>
 }
 ```
 
+::: details 出力（全 44 行）
 ```text
 # checklist-8259
 
@@ -2223,7 +2286,8 @@ Generated: <generatedAt>
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-8259.txt) (44 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-8259.txt)
+:::
 
 ### checklist-5652-5.3
 
@@ -2238,6 +2302,7 @@ Generated: <generatedAt>
 }
 ```
 
+::: details 出力（全 45 行）
 ```text
 # checklist-5652-5.3
 
@@ -2286,7 +2351,8 @@ Generated: <generatedAt>
 }
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-5652-5.3.txt) (45 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-5652-5.3.txt)
+:::
 
 ## validate_statement
 
@@ -2301,6 +2367,7 @@ Generated: <generatedAt>
 }
 ```
 
+::: details 出力（全 219 行）
 ```text
 # validate-6455-compliant
 
@@ -2365,7 +2432,8 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
 … （全 219 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-compliant.txt) (219 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-compliant.txt)
+:::
 
 ### validate-6455-violation
 
@@ -2378,6 +2446,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
 }
 ```
 
+::: details 出力（全 235 行）
 ```text
 # validate-6455-violation
 
@@ -2442,7 +2511,8 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
 … （全 235 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-violation.txt) (235 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-violation.txt)
+:::
 
 ### validate-6455-passive
 
@@ -2455,6 +2525,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
 }
 ```
 
+::: details 出力（全 202 行）
 ```text
 # validate-6455-passive
 
@@ -2519,7 +2590,8 @@ args: {"rfc":6455,"statement":"The fragments of one message are interleaved betw
 … （全 202 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-passive.txt) (202 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-passive.txt)
+:::
 
 ### validate-7159-own-sentence
 
@@ -2532,6 +2604,7 @@ args: {"rfc":6455,"statement":"The fragments of one message are interleaved betw
 }
 ```
 
+::: details 出力（全 171 行）
 ```text
 # validate-7159-own-sentence
 
@@ -2596,7 +2669,8 @@ args: {"rfc":7159,"statement":"In the interests of interoperability, implementat
 … （全 171 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-7159-own-sentence.txt) (171 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-7159-own-sentence.txt)
+:::
 
 ### validate-9110-qualifier
 
@@ -2609,6 +2683,7 @@ args: {"rfc":7159,"statement":"In the interests of interoperability, implementat
 }
 ```
 
+::: details 出力（全 228 行）
 ```text
 # validate-9110-qualifier
 
@@ -2673,4 +2748,5 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
 … （全 228 行）
 ```
 
-[全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-9110-qualifier.txt) (228 lines)
+[全文を GitHub で見る](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-9110-qualifier.txt)
+:::

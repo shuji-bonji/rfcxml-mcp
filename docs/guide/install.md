@@ -43,6 +43,10 @@ A Cowork plugin entry is not described in the repository README at v0.6.53. Unti
 
 ## Pin a version
 
+::: tip
+The 0.6 line publishes patch releases often. Pin the version when a team relies on identical output or when the server runs in CI.
+:::
+
 0.6.x ships patch releases frequently. To pin, write the version into the package spec:
 
 ```json
@@ -114,4 +118,6 @@ npx -y -p @shuji-bonji/rfcxml-mcp rfcxml-prefetch --rfc 6455 --rfc 9293 --cache-
 
 Options: `--range A-B`, `--rfc N` (repeatable), `--cache-dir DIR`, `--concurrency N` (default 3), `--force`. RFCs already on disk (XML or text) are skipped unless `--force` is given. RFC numbers must be digits only; `--rfc 9110abc` exits with code 1.
 
-Pass the same `RFCXML_CACHE_DIR` to the MCP server afterwards so it reads the prefetched files.
+::: warning Pass the same `RFCXML_CACHE_DIR` to the server
+Files saved by `rfcxml-prefetch` are read only when the MCP server is started with the same `RFCXML_CACHE_DIR`. Without it the server ignores the prefetched files and fetches again.
+:::
