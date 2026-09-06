@@ -27,3 +27,8 @@ tests/audit/.cache/
 .env
 .env.local
 _to_delete/
+
+# Docs (VitePress)
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+docs/node_modules/

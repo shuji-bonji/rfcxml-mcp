@@ -41,7 +41,10 @@
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "prepublishOnly": "npm run build",
-    "crosscheck": "node tests/crosscheck/run.mjs"
+    "crosscheck": "node tests/crosscheck/run.mjs",
+    "docs:generate": "npm --prefix docs run generate",
+    "docs:dev": "npm --prefix docs run dev",
+    "docs:build": "npm run docs:generate && npm --prefix docs run build"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
