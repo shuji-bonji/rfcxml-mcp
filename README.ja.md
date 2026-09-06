@@ -1,6 +1,11 @@
 # RFCXML MCP Server
 
-RFC 文書を **構造的に理解** するための MCP サーバー。
+[![npm version](https://img.shields.io/npm/v/@shuji-bonji/rfcxml-mcp.svg)](https://www.npmjs.com/package/@shuji-bonji/rfcxml-mcp)
+[![Docs](https://img.shields.io/badge/docs-shuji--bonji.github.io-0b7285)](https://shuji-bonji.github.io/rfcxml-mcp/ja/)
+
+[English README](README.md) · [ドキュメントサイト](https://shuji-bonji.github.io/rfcxml-mcp/ja/)
+
+LLM が RFC 文書を構造的に理解するための MCP サーバー。
 
 ## 目的
 
