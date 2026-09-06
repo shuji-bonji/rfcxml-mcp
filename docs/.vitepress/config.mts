@@ -69,7 +69,7 @@ export default defineConfig({
             text: 'リファレンス',
             items: [
               { text: 'ツール', link: '/ja/reference/tools' },
-              { text: 'サーバの instructions', link: '/ja/reference/instructions' },
+              { text: 'サーバーの instructions', link: '/ja/reference/instructions' },
               { text: '出力例', link: '/ja/reference/examples' },
             ],
           },

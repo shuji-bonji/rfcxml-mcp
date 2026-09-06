@@ -1,59 +1,65 @@
 # rfcxml-mcp
 
-RFC 文書を **構造的に理解** するための MCP（Model Context Protocol）サーバ。
+LLM が RFC 文書を構造的に理解するための MCP（Model Context Protocol）サーバーです。
 
 - npm: [`@shuji-bonji/rfcxml-mcp`](https://www.npmjs.com/package/@shuji-bonji/rfcxml-mcp)
-- ソース: [shuji-bonji/rfcxml-mcp](https://github.com/shuji-bonji/rfcxml-mcp) · [CHANGELOG](https://github.com/shuji-bonji/rfcxml-mcp/blob/main/CHANGELOG.md)
-- Node.js 22 以上
+- ソースコード: [shuji-bonji/rfcxml-mcp](https://github.com/shuji-bonji/rfcxml-mcp) ・ [変更履歴](https://github.com/shuji-bonji/rfcxml-mcp/blob/main/CHANGELOG.md)
+- 動作環境: Node.js 22 以上
 
-## 何であり、何でないか
+## できること
 
-このサーバは公開済み RFC の構造化された **読み取り器** である。RFC のテキストをそのまま返すものではない。RFCXML の意味構造を読み、次を返す。
+このサーバーは、公開済みの RFC を構造的に読み取り、LLM が扱いやすい形で返します。RFC の本文をそのまま返すのではなく、RFCXML の意味構造を解析して、次の情報を取り出します。
 
-- 節の階層とメタデータ
-- 規範性要件（MUST / SHOULD / MAY）の構造化した形
+- 節（セクション）の階層と、題名・公開日・分類などのメタデータ
+- 規範的要件（MUST / SHOULD / MAY など BCP 14 のキーワードを含む文）と、その主語・条件・例外
 - 用語の定義
-- 参照関係（normative / informative）
-- 関連する節
-- 実装チェックリスト
-- 主張に関係する要件と、検出した矛盾
+- 参照している RFC（normative / informative の区別付き）と、この RFC を参照している RFC
+- 指定した節と関連する節
+- 実装チェックリスト（Markdown）
+- ある主張に関係する要件と、その主張と要件との間に見つかった矛盾
 
-適合判定器ではなく、Web 検索でもない。`validate_statement` は一致した要件を返すだけで、判断は利用者が下す（[精度と制約](/ja/guide/accuracy) を参照）。対象は公開済み RFC だけで、Internet-Draft や任意の URL は扱わない。取得元は rfc-editor.org と IETF Datatracker API に固定している。
+RFC 8650（2019 年 12 月）以降の RFC には公式の RFCXML v3 が用意されています。それより前の RFC には XML が無いものが多く、その場合はテキスト形式（`.txt`）を解析します。どちらの経路で解析したかは、すべての応答に付く `_source` で分かります。
 
-RFC 8650（2019 年 12 月）以降は公式の RFCXML v3 がある。それより前の RFC には XML が無いことが多く、その場合はテキスト形式を解析する。すべての応答に `_source`（`xml` か `text`）が付き、必要なときは `_sourceNote` も付く。
+| `_source` | 解析元 | 精度 |
+| --------- | ------------------ | ---------------------------------------------------------- |
+| `xml` | RFCXML | 高い |
+| `text` | テキスト形式の RFC | 中程度。落ちるものは [精度と制約](/ja/guide/accuracy) を参照 |
 
-| `_source` | 説明                       |
-| --------- | -------------------------- |
-| `xml`     | RFCXML から解析（高精度）  |
-| `text`    | テキストから解析（中精度） |
+## できないこと
 
-## ツール
+- **適合判定はしません。** `validate_statement` は、主張に関係する要件を探して返し、明らかな矛盾があれば報告するツールです。準拠しているかどうかの判断は利用者が行います。`isValid` の値の読み方は [精度と制約](/ja/guide/accuracy#validate-statement-は判定器ではありません) を参照してください。
+- **公開済みの RFC しか扱いません。** Internet-Draft や任意の URL は対象外です。
+- **Web 検索はしません。** 取得元は rfc-editor.org と IETF Datatracker API に固定しています。
 
-| ツール                                                             | 説明                                                                                                                     |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| [`get_rfc_structure`](/ja/reference/tools#get-rfc-structure)         | Get RFC section hierarchy and metadata. Metadata is enriched from the IETF Datatracker API.                             |
-| [`get_requirements`](/ja/reference/tools#get-requirements)           | Extract normative requirements (MUST/SHOULD/MAY) from RFC in structured format.                                         |
-| [`get_definitions`](/ja/reference/tools#get-definitions)             | Get term definitions from RFC.                                                                                          |
-| [`get_rfc_dependencies`](/ja/reference/tools#get-rfc-dependencies)   | Get RFC reference relationships (normative/informative).                                                                |
-| [`get_related_sections`](/ja/reference/tools#get-related-sections)   | Get sections related to the specified section.                                                                          |
-| [`generate_checklist`](/ja/reference/tools#generate-checklist)       | Generate RFC implementation checklist in Markdown format.                                                               |
-| [`validate_statement`](/ja/reference/tools#validate-statement)       | Find the RFC requirements that bear on a statement, and report detected contradictions. This does NOT decide conformance. |
+## ツール一覧
 
-パラメータの一覧: [ツール](/ja/reference/tools)。固定した出力: [出力例](/ja/reference/examples)。サーバがクライアントに渡す文面: [サーバの instructions](/ja/reference/instructions)。
+| ツール | 説明 |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| [`get_rfc_structure`](/ja/reference/tools#get-rfc-structure) | 節の階層とメタデータを返す。メタデータは IETF Datatracker API で補完する |
+| [`get_requirements`](/ja/reference/tools#get-requirements) | 規範的要件（MUST / SHOULD / MAY）を構造化して返す |
+| [`get_definitions`](/ja/reference/tools#get-definitions) | 用語の定義を返す |
+| [`get_rfc_dependencies`](/ja/reference/tools#get-rfc-dependencies) | 参照関係（normative / informative）を返す |
+| [`get_related_sections`](/ja/reference/tools#get-related-sections) | 指定した節と関連する節を返す |
+| [`generate_checklist`](/ja/reference/tools#generate-checklist) | 実装チェックリストを Markdown で生成する |
+| [`validate_statement`](/ja/reference/tools#validate-statement) | 主張に関係する要件を探し、矛盾があれば報告する。適合判定はしない |
 
-## 既存 MCP との違い
+各ツールのパラメータは [ツール](/ja/reference/tools)、実際の出力は [出力例](/ja/reference/examples)、サーバーが接続時にクライアントへ渡す説明文は [サーバーの instructions](/ja/reference/instructions) にあります。
 
-| 機能                       | 既存の mcp-rfc     | RFCXML MCP         |
-| -------------------------- | ------------------ | ------------------ |
-| RFC テキスト取得           | ✅                 | ✅                 |
-| 節の抽出                   | ✅（テキスト基準） | ✅（構造基準）     |
-| MUST/SHOULD/MAY の抽出     | ❌                 | ✅                 |
-| 条件・例外の構造化         | ❌                 | ✅                 |
-| RFC 依存関係グラフ         | ❌                 | ✅                 |
-| 定義語のスコープ管理       | ❌                 | ✅                 |
-| 実装チェックリスト         | ❌                 | ✅                 |
+## 既存の MCP との違い
 
-## 次に読むもの
+RFC を扱う MCP サーバーには、RFC の本文を取得して返すものが既にあります。rfcxml-mcp は、本文の取得に加えて、本文の中から構造を取り出す点が異なります。
 
-- [導入](/ja/guide/install) — Claude Desktop、Claude Code、版の固定、ディスクキャッシュ
-- [精度と制約](/ja/guide/accuracy) — テキスト経路で落ちるもの、`isValid` の意味、公開前に通すもの
+| 機能 | 本文を返す MCP | rfcxml-mcp |
+| -------------------------- | ------------------ | -------------- |
+| RFC 本文の取得 | ✅ | ✅ |
+| 節の抽出 | ✅（テキスト基準） | ✅（構造基準） |
+| MUST / SHOULD / MAY の抽出 | ❌ | ✅ |
+| 条件・例外の構造化 | ❌ | ✅ |
+| RFC の依存関係 | ❌ | ✅ |
+| 用語の定義 | ❌ | ✅ |
+| 実装チェックリスト | ❌ | ✅ |
+
+## 次に読むページ
+
+- [導入](/ja/guide/install) — Claude Desktop / Claude Code への登録、バージョンの固定、ディスクキャッシュ
+- [精度と制約](/ja/guide/accuracy) — テキスト経路で落ちるもの、`isValid` の意味、公開前に通している検査

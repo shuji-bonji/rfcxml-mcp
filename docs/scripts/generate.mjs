@@ -66,14 +66,14 @@ const TOOLS_TEXT = {
   ja: {
     title: 'ツール',
     intro:
-      '7 ツール。すべての入力スキーマに `additionalProperties: false` がある。未知のキー（`section` のつもりで `sections` を渡した場合など）は SDK の入力検証で `isError: true` になり、無視されない。',
-    source: '`dist/tools/definitions.js` から生成した。description は英語のまま。',
+      'このサーバーには 7 つのツールがあります。すべてのツールの入力スキーマに `additionalProperties: false` が指定されているため、定義されていないキー（たとえば `section` のつもりで `sections` を渡した場合）は SDK の入力検証で `isError: true` になり、黙って無視されることはありません。',
+    source: 'このページは `dist/tools/definitions.js` から生成しています。各ツールの説明文は、クライアントのモデルが受け取るものと同じ英語のままにしています。',
     parameters: 'パラメータ',
-    none: 'パラメータは無い。',
+    none: 'パラメータはありません。',
     head: ['名前', '型', '必須', '既定値', 'enum', '制約', '説明'],
     yes: 'はい',
     no: 'いいえ',
-    additional: '未知のキーは弾く（`additionalProperties: false`）。',
+    additional: '定義されていないキーは受け付けません（`additionalProperties: false`）。',
   },
 };
 
@@ -146,9 +146,9 @@ const INSTRUCTIONS_TEXT = {
       'The text below is what the server hands to the MCP client as `instructions` at initialization. It is the same text the client model sees. Generated from `src/server.ts`.',
   },
   ja: {
-    title: 'サーバの instructions',
+    title: 'サーバーの instructions',
     intro:
-      '初期化時にサーバが MCP クライアントへ `instructions` として渡す文面。クライアント側のモデルが見るものと同じ。`src/server.ts` から生成した（英語のまま）。',
+      '接続の初期化時に、サーバーが MCP クライアントへ `instructions` として渡す説明文です。クライアント側のモデルが受け取るものと同じ文面で、`src/server.ts` から生成しています（英語のまま）。',
   },
 };
 
@@ -173,10 +173,10 @@ const EXAMPLES_TEXT = {
   ja: {
     title: '出力例',
     intro: (n) =>
-      `\`npm run snapshot\`（\`tests/snapshot/cases.mjs\`）で固定している ${n} 件の呼び出しと、その出力。${EXAMPLE_HEAD_LINES} 行を超える出力は途中で切り、全文はリンク先にある。\`<generatedAt>\` は時刻を置き換えたもの。`,
+      `\`npm run snapshot\`（\`tests/snapshot/cases.mjs\`）で固定している ${n} 件の呼び出しと、その出力です。各ブロックは、直前に示した呼び出しの実際の出力を記録したものです。${EXAMPLE_HEAD_LINES} 行を超える出力は途中で切っており、全文はリンク先で読めます。\`<generatedAt>\` は生成時刻を置き換えた印です。`,
     args: '引数',
     full: '全文',
-    truncated: (n) => `… (${n} lines)`,
+    truncated: (n) => `… （全 ${n} 行）`,
   },
 };
 

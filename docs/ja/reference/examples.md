@@ -2,7 +2,7 @@
 
 # 出力例
 
-`npm run snapshot`（`tests/snapshot/cases.mjs`）で固定している 38 件の呼び出しと、その出力。60 行を超える出力は途中で切り、全文はリンク先にある。`<generatedAt>` は時刻を置き換えたもの。
+`npm run snapshot`（`tests/snapshot/cases.mjs`）で固定している 38 件の呼び出しと、その出力です。各ブロックは、直前に示した呼び出しの実際の出力を記録したものです。60 行を超える出力は途中で切っており、全文はリンク先で読めます。`<generatedAt>` は生成時刻を置き換えた印です。
 
 ## get_rfc_structure
 
@@ -77,7 +77,7 @@ args: {"rfc":793}
           "number": "2.4",
           "title": "Interfaces"
         },
-… (136 lines)
+… （全 136 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-793.txt) (136 lines)
@@ -153,7 +153,7 @@ args: {"rfc":1035}
       "title": "DOMAIN NAME SPACE AND RR DEFINITIONS",
       "subsections": [
         {
-… (337 lines)
+… （全 337 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-1035.txt) (337 lines)
@@ -229,7 +229,7 @@ args: {"rfc":2068}
           "number": "3.1",
           "title": "HTTP Version"
         },
-… (1104 lines)
+… （全 1104 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-2068.txt) (1104 lines)
@@ -305,7 +305,7 @@ args: {"rfc":8949}
           "number": "3.1",
           "title": "Major Types",
           "anchor": "majortypes"
-… (444 lines)
+… （全 444 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-8949.txt) (444 lines)
@@ -381,7 +381,7 @@ args: {"rfc":9114}
           "number": "3.1",
           "title": "Discovering an HTTP/3 Endpoint",
           "anchor": "discovery",
-… (516 lines)
+… （全 516 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-9114.txt) (516 lines)
@@ -457,7 +457,7 @@ args: {"rfc":8446}
           "number": "3.1",
           "title": "Basic Block Size"
         },
-… (614 lines)
+… （全 614 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-8446.txt) (614 lines)
@@ -533,7 +533,7 @@ args: {"rfc":854}
         {
           "number": "3.3",
           "title": "THE TELNET \"SYNCH\" SIGNAL"
-… (119 lines)
+… （全 119 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-854.txt) (119 lines)
@@ -609,7 +609,7 @@ args: {"rfc":792}
         },
         {
           "number": "2.10",
-… (332 lines)
+… （全 332 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/structure-792.txt) (332 lines)
@@ -724,7 +724,7 @@ args: {"rfc":6455,"section":"5.2"}
       "sectionTitle": "Base Framing Protocol",
       "fullContext": "Opcode: 4 bits Defines the interpretation of the \"Payload data\". If an unknown opcode is received, the receiving endpoint MUST _Fail the WebSocket Connection_. The following values are defined.",
       "subject": "receiving endpoint",
-… (108 lines)
+… （全 108 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-6455-5.2.txt) (108 lines)
@@ -801,7 +801,7 @@ args: {"rfc":1123,"section":"3.2"}
       "section": "3.2.1",
       "sectionTitle": "Option Negotiation: RFC-854, pp. 2-3",
       "fullContext": "A host MUST carefully follow the rules of RFC-854 to avoid option-negotiation loops. A host MUST refuse (i.e, reply WONT/DONT to a DO/WILL) an unsupported option. Option negotiation SHOULD continue to function (even if all requests are refused) throughout the lifetime of a Telnet connection.",
-… (293 lines)
+… （全 293 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-1123-3.2.txt) (293 lines)
@@ -878,7 +878,7 @@ args: {"rfc":6455,"section":"9.1"}
       "section": "9.1",
       "sectionTitle": "Negotiating Extensions",
       "fullContext": "Any extension-token used MUST be a registered token (see Section 11.4). The parameters supplied with any given extension MUST be defined for that extension. Note that the client is only offering to use any advertised extensions and MUST NOT use them unless the server indicates that it wishes to use the extension.",
-… (98 lines)
+… （全 98 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-6455-9.1.txt) (98 lines)
@@ -955,7 +955,7 @@ args: {"rfc":9051,"section":"2.3.1.1"}
       "section": "2.3.1.1",
       "sectionTitle": "Unique Identifier (UID) Message Attribute",
       "fullContext": "The unique identifier of a message MUST NOT change during the session and SHOULD NOT change between sessions. Any change of unique identifiers between sessions MUST be detectable using the UIDVALIDITY mechanism discussed below. Persistent unique identifiers are required for a client to resynchronize its state from a previous session with the server (e.g., disconnected or offline access clients [IMAP-MODEL]); this is discussed further in [IMAP-DISC].",
-… (163 lines)
+… （全 163 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9051-2.3.1.1.txt) (163 lines)
@@ -1103,7 +1103,7 @@ args: {"rfc":9110,"section":"10.1.1"}
       "section": "10.1.1",
       "sectionTitle": "Expect",
       "fullContext": "A client that sends a 100-continue expectation is not required to wait for any specific length of time; such a client MAY proceed to send the content even if it has not yet received a response. Furthermore, since 100 (Continue) responses cannot be sent through an HTTP/1.0 intermediary, such a client SHOULD NOT wait for an indefinite period before sending the content.",
-… (172 lines)
+… （全 172 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/requirements-9110-10.1.1.txt) (172 lines)
@@ -1287,7 +1287,7 @@ args: {"rfc":9110,"term":"client"}
       "term": "https URI scheme",
       "definition": "The \"https\" URI scheme is hereby defined for minting identifiers within the hierarchical namespace governed by a potential origin server listening for TCP connections on a given port and capable of establishing a TLS ([TLS13]) connection that has been secured for HTTP communication. In this context, \"secured\" specifically means that the server has been authenticated as acting on behalf of the identified authority and all HTTP communication with that server has confidentiality and integrity protection that is acceptable to both client and server.",
       "section": "4.2.2"
-… (234 lines)
+… （全 234 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9110-client.txt) (234 lines)
@@ -1363,7 +1363,7 @@ args: {"rfc":9114}
       "definition": "An endpoint that is transmitting frames.",
       "section": "2.2"
     },
-… (468 lines)
+… （全 468 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-9114.txt) (468 lines)
@@ -1483,7 +1483,7 @@ args: {"rfc":7519}
       "definition": "A JSON numeric value representing the number of seconds from 1970-01-01T00:00:00Z UTC until the specified UTC date/time, ignoring leap seconds.  This is equivalent to the IEEE Std 1003.1, 2013 Edition [POSIX.1] definition \"Seconds Since the Epoch\", in which each day is accounted for by exactly 86400 seconds, other than that non-integer values can be represented.  See RFC 3339 [RFC3339] for details regarding date/times in general and UTC in particular.",
       "section": "2"
     }
-… (64 lines)
+… （全 64 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/definitions-7519.txt) (64 lines)
@@ -1561,7 +1561,7 @@ args: {"rfc":6455}
     {
       "rfcNumber": 3987,
       "title": "Internationalized Resource Identifiers (IRIs)",
-… (144 lines)
+… （全 144 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-6455.txt) (144 lines)
@@ -1637,7 +1637,7 @@ args: {"rfc":1123}
       "anchor": "TELNET:5"
     },
     {
-… (282 lines)
+… （全 282 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-1123.txt) (282 lines)
@@ -1713,7 +1713,7 @@ args: {"rfc":1305}
       "title": "Calendrical Calculations",
       "anchor": "DER90"
     },
-… (220 lines)
+… （全 220 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/dependencies-1305.txt) (220 lines)
@@ -1880,7 +1880,7 @@ Generated: <generatedAt>
 
 ## Optional Requirements (MAY / OPTIONAL)
 
-… (79 lines)
+… （全 79 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/checklist-6455-4.1.txt) (79 lines)
@@ -2362,7 +2362,7 @@ args: {"rfc":6455,"statement":"The client MUST mask all frames sent to the serve
     {
       "id": "R-5.1-5",
       "level": "MUST",
-… (219 lines)
+… （全 219 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-compliant.txt) (219 lines)
@@ -2439,7 +2439,7 @@ args: {"rfc":6455,"statement":"The client sends unmasked frames to the server."}
       "id": "R-5.1-6",
       "level": "MAY",
       "text": "In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1.",
-… (235 lines)
+… （全 235 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-violation.txt) (235 lines)
@@ -2516,7 +2516,7 @@ args: {"rfc":6455,"statement":"The fragments of one message are interleaved betw
       "level": "MAY",
       "text": "Control frames (see Section 5.5) MAY be injected in the middle of a fragmented message.",
       "section": "5.4",
-… (202 lines)
+… （全 202 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-6455-passive.txt) (202 lines)
@@ -2593,7 +2593,7 @@ args: {"rfc":7159,"statement":"In the interests of interoperability, implementat
         "texts",
         "byte",
         "order",
-… (171 lines)
+… （全 171 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-7159-own-sentence.txt) (171 lines)
@@ -2670,7 +2670,7 @@ args: {"rfc":9110,"statement":"The origin server generates a Date header field e
     },
     {
       "id": "R-6.6.1-4",
-… (228 lines)
+… （全 228 行）
 ```
 
 [全文](https://raw.githubusercontent.com/shuji-bonji/rfcxml-mcp/main/tests/snapshot/__snapshots__/validate-9110-qualifier.txt) (228 lines)

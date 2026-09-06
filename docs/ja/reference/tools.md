@@ -2,9 +2,9 @@
 
 # ツール
 
-7 ツール。すべての入力スキーマに `additionalProperties: false` がある。未知のキー（`section` のつもりで `sections` を渡した場合など）は SDK の入力検証で `isError: true` になり、無視されない。
+このサーバーには 7 つのツールがあります。すべてのツールの入力スキーマに `additionalProperties: false` が指定されているため、定義されていないキー（たとえば `section` のつもりで `sections` を渡した場合）は SDK の入力検証で `isError: true` になり、黙って無視されることはありません。
 
-`dist/tools/definitions.js` から生成した。description は英語のまま。
+このページは `dist/tools/definitions.js` から生成しています。各ツールの説明文は、クライアントのモデルが受け取るものと同じ英語のままにしています。
 
 | | |
 |---|---|
@@ -28,7 +28,7 @@ Get RFC section hierarchy and metadata. Metadata is enriched from the IETF Datat
 | `includeContent` | `boolean` | いいえ | `false` |  |  | Include section content (default: false) |
 | `includeAuthors` | `boolean` | いいえ | `false` |  |  | Resolve author fullnames via Datatracker `documentauthor` + `person` API (default: false). Adds 1+N extra HTTP requests but results are cached. |
 
-未知のキーは弾く（`additionalProperties: false`）。
+定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## get_requirements
 
@@ -42,7 +42,7 @@ Extract normative requirements (MUST/SHOULD/MAY) from RFC in structured format.
 | `section` | `string` | いいえ |  |  |  | Filter by section number (e.g., "5.5.1") |
 | `level` | `string` | いいえ |  | `MUST`, `MUST NOT`, `REQUIRED`, `SHALL`, `SHALL NOT`, `SHOULD`, `SHOULD NOT`, `RECOMMENDED`, `NOT RECOMMENDED`, `MAY`, `OPTIONAL` |  | Filter by requirement level |
 
-未知のキーは弾く（`additionalProperties: false`）。
+定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## get_definitions
 
@@ -55,7 +55,7 @@ Get term definitions from RFC.
 | `rfc` | `number` | はい |  |  |  | RFC number |
 | `term` | `string` | いいえ |  |  |  | Search for specific term |
 
-未知のキーは弾く（`additionalProperties: false`）。
+定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## get_rfc_dependencies
 
@@ -68,7 +68,7 @@ Get RFC reference relationships (normative/informative).
 | `rfc` | `number` | はい |  |  |  | RFC number |
 | `includeReferencedBy` | `boolean` | いいえ | `false` |  |  | Include RFCs that reference this RFC (fetched from IETF Datatracker API) |
 
-未知のキーは弾く（`additionalProperties: false`）。
+定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## get_related_sections
 
@@ -81,7 +81,7 @@ Get sections related to the specified section.
 | `rfc` | `number` | はい |  |  |  | RFC number |
 | `section` | `string` | はい |  |  | minLength: 1 | Base section number (e.g., "3.5" or "A.2") |
 
-未知のキーは弾く（`additionalProperties: false`）。
+定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## generate_checklist
 
@@ -96,7 +96,7 @@ Generate RFC implementation checklist in Markdown format.
 | `sections` | `string[]` | いいえ |  |  |  | Sections to include (all if omitted) |
 | `includeSubsections` | `boolean` | いいえ | `true` |  |  | Include subsections when filtering by sections (default: true) |
 
-未知のキーは弾く（`additionalProperties: false`）。
+定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## validate_statement
 
@@ -109,4 +109,4 @@ Find the RFC requirements that bear on a statement, and report detected contradi
 | `rfc` | `number` | はい |  |  |  | RFC number |
 | `statement` | `string` | はい |  |  |  | Description of implementation or behavior to validate |
 
-未知のキーは弾く（`additionalProperties: false`）。
+定義されていないキーは受け付けません（`additionalProperties: false`）。
