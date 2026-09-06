@@ -2,7 +2,27 @@
 
 # サーバーの instructions
 
-接続の初期化時に、サーバーが MCP クライアントへ `instructions` として渡す説明文です。クライアント側のモデルが受け取るものと同じ文面で、`src/server.ts` から生成しています（英語のまま）。
+接続の初期化時に、サーバーが MCP クライアントへ `instructions` として渡す説明文です。クライアント側のモデルが受け取るのは英語の原文で、`src/server.ts` から生成しています。日本語訳は翻訳メモリ（`docs/i18n/ja.json`）から当てたもので、原文が更新されて訳が追いついていないときは原文だけを載せます。
+
+## 日本語訳
+
+このサーバーは、公開済みの RFC を構造的に読み取るためのものです。適合判定器でも、Web 検索でもありません。
+
+次のことは行いません。
+- 実装が RFC に適合しているかどうかを判定しません。`validate_statement` は、渡された文を RFC 本文にある BCP 14 のキーワードと照合し、一致した要件を返すだけです。判断は利用者が行います。`isValid` は 3 値で、`null` は判定できるだけの一致が無かったこと、`true` は一致した要件の中に矛盾が見つからなかったことだけを表します。どちらも準拠を述べるものではありません。
+- Internet-Draft や RFC 以外の文書は扱いません。公開済みの RFC だけが対象です。
+- 任意の URL を取得しません。取得元は rfc-editor.org と IETF Datatracker API に固定しています。
+
+IETF 文書のキーワード検索や Internet-Draft には、ietf MCP サーバー（`search_ietf_rfc_by_keyword`、`get_ietf_doc`、`list_ietf_docs_number`）を使ってください。
+
+結果が空だったときは「指定した範囲の RFC 本文に一致するものが無かった」という意味であり、「そのような要件は存在しない」という意味ではありません。特に次の点に注意してください。
+- RFC 8650 より前の RFC には、公式の RFCXML が無いことがほとんどです。その場合はテキスト形式を解析します。`get_related_sections` の精度は限られ、`get_rfc_dependencies` は仮の題名や anchor を返すことがあります。すべての結果に `_source` が付き、必要な場合は `_sourceNote` も付きます。結論を出す前にこれらを読んでください。
+- 要件の抽出は BCP 14 のキーワード（RFC 2119 / RFC 8174）に基づきます。キーワードを使わずに書かれた要件は報告されません。
+- 照合は英語のキーワードに基づきます。`validate_statement` は英語以外で書かれた主張には一致しません。RFC の言い回しに合わせて書いてください。
+
+負荷の高いオプション: `get_rfc_structure` の `includeAuthors=true` は Datatracker へのリクエストを 1 + N 回増やします。`includeContent=true` は節の本文全体を返します。
+
+## 原文
 
 ````text
 This server is a structured READER of published RFCs. It is not a conformance judge and not a web search.

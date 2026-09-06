@@ -1,0 +1,106 @@
+{
+  "get_rfc_structure|description": {
+    "src": "f39727de911bc769c9b47279821ad235",
+    "text": "RFC の節の階層とメタデータを返します。メタデータ（分類・ストリーム・公開日・要旨）は IETF Datatracker API で補完します。`includeAuthors=true` を渡すと著者名も解決しますが、API 呼び出しが増えます。"
+  },
+  "get_requirements|description": {
+    "src": "333e1e1af675349b6dff845cb3ccf7bf",
+    "text": "RFC の規範的要件（MUST / SHOULD / MAY）を構造化した形で取り出します。"
+  },
+  "get_definitions|description": {
+    "src": "f7d8c04048cd208ca9fe8f0f12a5c64e",
+    "text": "RFC に書かれている用語の定義を返します。"
+  },
+  "get_rfc_dependencies|description": {
+    "src": "89e14a2ee9134f1165fc17a69d7f1461",
+    "text": "RFC の参照関係（normative / informative）を返します。"
+  },
+  "get_related_sections|description": {
+    "src": "91a029337eece0b45f5d7b4d4f3a2c4c",
+    "text": "指定した節と関連する節を返します。"
+  },
+  "generate_checklist|description": {
+    "src": "69f0ae9fa780b6c45221129c94f90216",
+    "text": "RFC の実装チェックリストを Markdown で生成します。"
+  },
+  "validate_statement|description": {
+    "src": "d92d65bc87c9b2353437dcc4ba8e429c",
+    "text": "主張に関係する RFC の要件を探し、検出した矛盾を報告します。適合判定は**行いません**。`isValid` は 3 値で、`null` は判定できるだけの一致が無かったこと、`false` は矛盾を検出したこと、`true` は一致した要件の中に矛盾が無かったことを表します。照合は英語のキーワードに基づくので、主張は RFC の言い回しに合わせて英語で書いてください。"
+  },
+  "get_rfc_structure|param.rfc": {
+    "src": "6f982407ade8efc63d3388f8d4c2232c",
+    "text": "RFC 番号（例: 6455）"
+  },
+  "get_rfc_structure|param.includeContent": {
+    "src": "b235a63a6e3db6d3b01048d31d102c9e",
+    "text": "節の本文を含める（既定: false）"
+  },
+  "get_rfc_structure|param.includeAuthors": {
+    "src": "6a4ed6ca6e663e3945085ce2c86ee6bd",
+    "text": "Datatracker の `documentauthor` と `person` API で著者のフルネームを解決する（既定: false）。HTTP リクエストが 1 + N 回増えるが、結果はキャッシュされる。"
+  },
+  "get_requirements|param.rfc": {
+    "src": "c02a96cb9cc58e617ccecbc6d67287d2",
+    "text": "RFC 番号"
+  },
+  "get_requirements|param.section": {
+    "src": "06348bb116c18191c854302198d1285e",
+    "text": "節番号で絞り込む（例: \"5.5.1\"）"
+  },
+  "get_requirements|param.level": {
+    "src": "89ac163603a43d919c3a3bdbe7daf17c",
+    "text": "要件のレベルで絞り込む"
+  },
+  "get_definitions|param.rfc": {
+    "src": "c02a96cb9cc58e617ccecbc6d67287d2",
+    "text": "RFC 番号"
+  },
+  "get_definitions|param.term": {
+    "src": "cd7e1d7426aa6c135d5fa7f426d996ba",
+    "text": "特定の用語を検索する"
+  },
+  "get_rfc_dependencies|param.rfc": {
+    "src": "c02a96cb9cc58e617ccecbc6d67287d2",
+    "text": "RFC 番号"
+  },
+  "get_rfc_dependencies|param.includeReferencedBy": {
+    "src": "7be7c0bf9f65aafc94848102943d9177",
+    "text": "この RFC を参照している RFC も含める（IETF Datatracker API から取得）"
+  },
+  "get_related_sections|param.rfc": {
+    "src": "c02a96cb9cc58e617ccecbc6d67287d2",
+    "text": "RFC 番号"
+  },
+  "get_related_sections|param.section": {
+    "src": "d4a5089f11e193d6518eadd6cf5c9432",
+    "text": "起点にする節番号（例: \"3.5\" や \"A.2\"）"
+  },
+  "generate_checklist|param.rfc": {
+    "src": "c02a96cb9cc58e617ccecbc6d67287d2",
+    "text": "RFC 番号"
+  },
+  "generate_checklist|param.role": {
+    "src": "b65e1fd24670af425ce8842e31275e73",
+    "text": "実装の役割（client / server / both）"
+  },
+  "generate_checklist|param.sections": {
+    "src": "2570ffc70198ade2eba102a7ca1089f7",
+    "text": "含める節（省略時はすべて）"
+  },
+  "generate_checklist|param.includeSubsections": {
+    "src": "b6ec489dfbbcf3aee81b4d3a262dd549",
+    "text": "節で絞り込むときに下位の節も含める（既定: true）"
+  },
+  "validate_statement|param.rfc": {
+    "src": "c02a96cb9cc58e617ccecbc6d67287d2",
+    "text": "RFC 番号"
+  },
+  "validate_statement|param.statement": {
+    "src": "836d41cb6b96023575637d6cba93f20c",
+    "text": "検証したい実装や振る舞いの記述"
+  },
+  "instructions|text": {
+    "src": "356ebd5c9642253b58d623293293392f",
+    "text": "このサーバーは、公開済みの RFC を構造的に読み取るためのものです。適合判定器でも、Web 検索でもありません。\n\n次のことは行いません。\n- 実装が RFC に適合しているかどうかを判定しません。`validate_statement` は、渡された文を RFC 本文にある BCP 14 のキーワードと照合し、一致した要件を返すだけです。判断は利用者が行います。`isValid` は 3 値で、`null` は判定できるだけの一致が無かったこと、`true` は一致した要件の中に矛盾が見つからなかったことだけを表します。どちらも準拠を述べるものではありません。\n- Internet-Draft や RFC 以外の文書は扱いません。公開済みの RFC だけが対象です。\n- 任意の URL を取得しません。取得元は rfc-editor.org と IETF Datatracker API に固定しています。\n\nIETF 文書のキーワード検索や Internet-Draft には、ietf MCP サーバー（`search_ietf_rfc_by_keyword`、`get_ietf_doc`、`list_ietf_docs_number`）を使ってください。\n\n結果が空だったときは「指定した範囲の RFC 本文に一致するものが無かった」という意味であり、「そのような要件は存在しない」という意味ではありません。特に次の点に注意してください。\n- RFC 8650 より前の RFC には、公式の RFCXML が無いことがほとんどです。その場合はテキスト形式を解析します。`get_related_sections` の精度は限られ、`get_rfc_dependencies` は仮の題名や anchor を返すことがあります。すべての結果に `_source` が付き、必要な場合は `_sourceNote` も付きます。結論を出す前にこれらを読んでください。\n- 要件の抽出は BCP 14 のキーワード（RFC 2119 / RFC 8174）に基づきます。キーワードを使わずに書かれた要件は報告されません。\n- 照合は英語のキーワードに基づきます。`validate_statement` は英語以外で書かれた主張には一致しません。RFC の言い回しに合わせて書いてください。\n\n負荷の高いオプション: `get_rfc_structure` の `includeAuthors=true` は Datatracker へのリクエストを 1 + N 回増やします。`includeContent=true` は節の本文全体を返します。"
+  }
+}

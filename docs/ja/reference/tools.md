@@ -4,109 +4,109 @@
 
 このサーバーには 7 つのツールがあります。すべてのツールの入力スキーマに `additionalProperties: false` が指定されているため、定義されていないキー（たとえば `section` のつもりで `sections` を渡した場合）は SDK の入力検証で `isError: true` になり、黙って無視されることはありません。
 
-このページは `dist/tools/definitions.js` から生成しています。各ツールの説明文は、クライアントのモデルが受け取るものと同じ英語のままにしています。
+このページは `dist/tools/definitions.js` から生成しています。説明文の日本語訳は翻訳メモリ（`docs/i18n/ja.json`）から当てており、原文が更新されて訳が追いついていない項目は英語のまま表示されます。
 
 | | |
 |---|---|
-| [`get_rfc_structure`](#get-rfc-structure) | Get RFC section hierarchy and metadata. Metadata is enriched from the IETF Datatracker API (category, stream, publication date, abstract). Pass includeAuthors=true to also resolve author names (incurs extra API calls). |
-| [`get_requirements`](#get-requirements) | Extract normative requirements (MUST/SHOULD/MAY) from RFC in structured format. |
-| [`get_definitions`](#get-definitions) | Get term definitions from RFC. |
-| [`get_rfc_dependencies`](#get-rfc-dependencies) | Get RFC reference relationships (normative/informative). |
-| [`get_related_sections`](#get-related-sections) | Get sections related to the specified section. |
-| [`generate_checklist`](#generate-checklist) | Generate RFC implementation checklist in Markdown format. |
-| [`validate_statement`](#validate-statement) | Find the RFC requirements that bear on a statement, and report detected contradictions. This does NOT decide conformance: `isValid` is three-valued (`null` = nothing matched strongly enough to judge, `false` = a contradiction was detected, `true` = none was detected among the matches). Matching is English keyword based; write the statement in the RFC's own wording. |
+| [`get_rfc_structure`](#get-rfc-structure) | RFC の節の階層とメタデータを返します。メタデータ（分類・ストリーム・公開日・要旨）は IETF Datatracker API で補完します。`includeAuthors=true` を渡すと著者名も解決しますが、API 呼び出しが増えます。 |
+| [`get_requirements`](#get-requirements) | RFC の規範的要件（MUST / SHOULD / MAY）を構造化した形で取り出します。 |
+| [`get_definitions`](#get-definitions) | RFC に書かれている用語の定義を返します。 |
+| [`get_rfc_dependencies`](#get-rfc-dependencies) | RFC の参照関係（normative / informative）を返します。 |
+| [`get_related_sections`](#get-related-sections) | 指定した節と関連する節を返します。 |
+| [`generate_checklist`](#generate-checklist) | RFC の実装チェックリストを Markdown で生成します。 |
+| [`validate_statement`](#validate-statement) | 主張に関係する RFC の要件を探し、検出した矛盾を報告します。適合判定は**行いません**。`isValid` は 3 値で、`null` は判定できるだけの一致が無かったこと、`false` は矛盾を検出したこと、`true` は一致した要件の中に矛盾が無かったことを表します。照合は英語のキーワードに基づくので、主張は RFC の言い回しに合わせて英語で書いてください。 |
 
 ## get_rfc_structure
 
-Get RFC section hierarchy and metadata. Metadata is enriched from the IETF Datatracker API (category, stream, publication date, abstract). Pass includeAuthors=true to also resolve author names (incurs extra API calls).
+RFC の節の階層とメタデータを返します。メタデータ（分類・ストリーム・公開日・要旨）は IETF Datatracker API で補完します。`includeAuthors=true` を渡すと著者名も解決しますが、API 呼び出しが増えます。
 
 ### パラメータ
 
 | 名前 | 型 | 必須 | 既定値 | enum | 制約 | 説明 |
 |---|---|---|---|---|---|---|
-| `rfc` | `number` | はい |  |  |  | RFC number (e.g., 6455) |
-| `includeContent` | `boolean` | いいえ | `false` |  |  | Include section content (default: false) |
-| `includeAuthors` | `boolean` | いいえ | `false` |  |  | Resolve author fullnames via Datatracker `documentauthor` + `person` API (default: false). Adds 1+N extra HTTP requests but results are cached. |
+| `rfc` | `number` | はい |  |  |  | RFC 番号（例: 6455） |
+| `includeContent` | `boolean` | いいえ | `false` |  |  | 節の本文を含める（既定: false） |
+| `includeAuthors` | `boolean` | いいえ | `false` |  |  | Datatracker の `documentauthor` と `person` API で著者のフルネームを解決する（既定: false）。HTTP リクエストが 1 + N 回増えるが、結果はキャッシュされる。 |
 
 定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## get_requirements
 
-Extract normative requirements (MUST/SHOULD/MAY) from RFC in structured format.
+RFC の規範的要件（MUST / SHOULD / MAY）を構造化した形で取り出します。
 
 ### パラメータ
 
 | 名前 | 型 | 必須 | 既定値 | enum | 制約 | 説明 |
 |---|---|---|---|---|---|---|
-| `rfc` | `number` | はい |  |  |  | RFC number |
-| `section` | `string` | いいえ |  |  |  | Filter by section number (e.g., "5.5.1") |
-| `level` | `string` | いいえ |  | `MUST`, `MUST NOT`, `REQUIRED`, `SHALL`, `SHALL NOT`, `SHOULD`, `SHOULD NOT`, `RECOMMENDED`, `NOT RECOMMENDED`, `MAY`, `OPTIONAL` |  | Filter by requirement level |
+| `rfc` | `number` | はい |  |  |  | RFC 番号 |
+| `section` | `string` | いいえ |  |  |  | 節番号で絞り込む（例: "5.5.1"） |
+| `level` | `string` | いいえ |  | `MUST`, `MUST NOT`, `REQUIRED`, `SHALL`, `SHALL NOT`, `SHOULD`, `SHOULD NOT`, `RECOMMENDED`, `NOT RECOMMENDED`, `MAY`, `OPTIONAL` |  | 要件のレベルで絞り込む |
 
 定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## get_definitions
 
-Get term definitions from RFC.
+RFC に書かれている用語の定義を返します。
 
 ### パラメータ
 
 | 名前 | 型 | 必須 | 既定値 | enum | 制約 | 説明 |
 |---|---|---|---|---|---|---|
-| `rfc` | `number` | はい |  |  |  | RFC number |
-| `term` | `string` | いいえ |  |  |  | Search for specific term |
+| `rfc` | `number` | はい |  |  |  | RFC 番号 |
+| `term` | `string` | いいえ |  |  |  | 特定の用語を検索する |
 
 定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## get_rfc_dependencies
 
-Get RFC reference relationships (normative/informative).
+RFC の参照関係（normative / informative）を返します。
 
 ### パラメータ
 
 | 名前 | 型 | 必須 | 既定値 | enum | 制約 | 説明 |
 |---|---|---|---|---|---|---|
-| `rfc` | `number` | はい |  |  |  | RFC number |
-| `includeReferencedBy` | `boolean` | いいえ | `false` |  |  | Include RFCs that reference this RFC (fetched from IETF Datatracker API) |
+| `rfc` | `number` | はい |  |  |  | RFC 番号 |
+| `includeReferencedBy` | `boolean` | いいえ | `false` |  |  | この RFC を参照している RFC も含める（IETF Datatracker API から取得） |
 
 定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## get_related_sections
 
-Get sections related to the specified section.
+指定した節と関連する節を返します。
 
 ### パラメータ
 
 | 名前 | 型 | 必須 | 既定値 | enum | 制約 | 説明 |
 |---|---|---|---|---|---|---|
-| `rfc` | `number` | はい |  |  |  | RFC number |
-| `section` | `string` | はい |  |  | minLength: 1 | Base section number (e.g., "3.5" or "A.2") |
+| `rfc` | `number` | はい |  |  |  | RFC 番号 |
+| `section` | `string` | はい |  |  | minLength: 1 | 起点にする節番号（例: "3.5" や "A.2"） |
 
 定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## generate_checklist
 
-Generate RFC implementation checklist in Markdown format.
+RFC の実装チェックリストを Markdown で生成します。
 
 ### パラメータ
 
 | 名前 | 型 | 必須 | 既定値 | enum | 制約 | 説明 |
 |---|---|---|---|---|---|---|
-| `rfc` | `number` | はい |  |  |  | RFC number |
-| `role` | `string` | いいえ | `"both"` | `client`, `server`, `both` |  | Implementation role (client/server/both) |
-| `sections` | `string[]` | いいえ |  |  |  | Sections to include (all if omitted) |
-| `includeSubsections` | `boolean` | いいえ | `true` |  |  | Include subsections when filtering by sections (default: true) |
+| `rfc` | `number` | はい |  |  |  | RFC 番号 |
+| `role` | `string` | いいえ | `"both"` | `client`, `server`, `both` |  | 実装の役割（client / server / both） |
+| `sections` | `string[]` | いいえ |  |  |  | 含める節（省略時はすべて） |
+| `includeSubsections` | `boolean` | いいえ | `true` |  |  | 節で絞り込むときに下位の節も含める（既定: true） |
 
 定義されていないキーは受け付けません（`additionalProperties: false`）。
 
 ## validate_statement
 
-Find the RFC requirements that bear on a statement, and report detected contradictions. This does NOT decide conformance: `isValid` is three-valued (`null` = nothing matched strongly enough to judge, `false` = a contradiction was detected, `true` = none was detected among the matches). Matching is English keyword based; write the statement in the RFC's own wording.
+主張に関係する RFC の要件を探し、検出した矛盾を報告します。適合判定は**行いません**。`isValid` は 3 値で、`null` は判定できるだけの一致が無かったこと、`false` は矛盾を検出したこと、`true` は一致した要件の中に矛盾が無かったことを表します。照合は英語のキーワードに基づくので、主張は RFC の言い回しに合わせて英語で書いてください。
 
 ### パラメータ
 
 | 名前 | 型 | 必須 | 既定値 | enum | 制約 | 説明 |
 |---|---|---|---|---|---|---|
-| `rfc` | `number` | はい |  |  |  | RFC number |
-| `statement` | `string` | はい |  |  |  | Description of implementation or behavior to validate |
+| `rfc` | `number` | はい |  |  |  | RFC 番号 |
+| `statement` | `string` | はい |  |  |  | 検証したい実装や振る舞いの記述 |
 
 定義されていないキーは受け付けません（`additionalProperties: false`）。

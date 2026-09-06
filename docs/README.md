@@ -39,3 +39,29 @@ npm run docs:build      # docs:generate → vitepress build（docs/.vitepress/di
 
 `guide/accuracy.md` は `CLAUDE.md` の該当節から、`guide/install.md` と `index.md` は
 `README.md` / `README.ja.md` から手で取る。そちらを変えたら追随させる。
+
+## 日本語ページの翻訳メモリ（`i18n/ja.json`）
+
+ツールの description・パラメータの説明・`INSTRUCTIONS` はサーバーの側で英語で書かれている。
+日本語の生成ページは、`i18n/ja.json` の翻訳メモリを通して作る
+（pdf-agent-stack の `scripts/i18n` と同じ仕組み）。
+
+```json
+{
+  "get_requirements|description": { "src": "<英語原文の md5>", "text": "RFC の規範的要件…" },
+  "get_requirements|param.section": { "src": "…", "text": "節番号で絞り込む…" },
+  "instructions|text": { "src": "…", "text": "このサーバーは…" }
+}
+```
+
+原文の md5 が一致するときだけ訳を使う。`definitions.ts` や `INSTRUCTIONS` の英文を変えると
+その項目の訳は古くなり、生成ページには英語がそのまま出て、`i18n/pending.ja.json` に
+訳が要る項目が書き出される。
+
+```bash
+npm run docs:generate            # 「訳の残り: N」と pending.ja.json が出る
+# pending.ja.json の en を訳して ja.json に { src, text } で入れる
+npm run docs:generate            # 訳の残り: 0 になり pending.ja.json が消える
+```
+
+生成ページの日本語を直したいときも `ja.json` を直して再生成する。生成物は編集しない。
